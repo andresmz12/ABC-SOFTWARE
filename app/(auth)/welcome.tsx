@@ -11,6 +11,12 @@ export default function Welcome() {
   const { t } = useTranslation();
   const enterDemoMode = useAuthStore((s) => s.enterDemoMode);
 
+  const demoRoutes: Record<string, string> = {
+    company: '/(provider)/home',
+    client:  '/(client)/home',
+    admin:   '/(admin)/dashboard',
+  };
+
   const roles = [
     { key: 'company',     label: t('roles.company'),      desc: t('roles.companyDescription'),     route: '/(auth)/register/company/step1', icon: '🏢' },
     { key: 'independent', label: t('roles.independent'),  desc: t('roles.independentDescription'), route: '/(auth)/register/independent/step1', icon: '🧹' },
@@ -74,7 +80,10 @@ export default function Welcome() {
           ).map(({ role, label, icon }) => (
             <TouchableOpacity
               key={role}
-              onPress={() => enterDemoMode(role)}
+              onPress={() => {
+                enterDemoMode(role);
+                router.replace(demoRoutes[role] as any);
+              }}
               className="flex-1 border border-dashed border-gray-300 rounded-xl py-3 items-center active:bg-accent"
             >
               <Text className="text-xl">{icon}</Text>
