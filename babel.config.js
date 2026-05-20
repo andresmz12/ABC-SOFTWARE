@@ -4,8 +4,8 @@ module.exports = function (api) {
     presets: [
       ['babel-preset-expo', { jsxImportSource: 'nativewind' }],
     ],
-    plugins: [
-      'react-native-reanimated/plugin',
-    ],
+    // react-native-reanimated/plugin is not needed on RN 0.81+ new architecture.
+    // react-native-worklets handles worklet compilation natively.
+    plugins: [],
   };
 };
