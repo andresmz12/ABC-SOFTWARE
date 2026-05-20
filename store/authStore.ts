@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import type { User, UserRole } from '@/types';
+import type { User, UserRole, Country } from '@/types';
 
 interface AuthState {
   user: User | null;
@@ -11,7 +11,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
-  enterDemoMode: (role: UserRole) => void;
+  enterDemoMode: (role: UserRole, country?: Country) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -38,15 +38,15 @@ export const useAuthStore = create<AuthState>((set) => ({
       set({ loading: false });
     }
   },
-  enterDemoMode: (role: UserRole) => {
+  enterDemoMode: (role: UserRole, country: Country = 'usa') => {
     set({
       user: {
         id: 'demo',
         email: 'demo@provendor.app',
         role,
         status: 'approved',
-        country: 'usa',
-        preferred_language: 'en',
+        country,
+        preferred_language: country === 'colombia' ? 'es' : 'en',
         created_at: new Date().toISOString(),
       },
       loading: false,
