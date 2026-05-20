@@ -1,0 +1,72 @@
+{
+  "expo": {
+    "name": "ProVendor",
+    "slug": "provendor",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1B3A6B"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.provendor.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ProVendor uses your location to match you with nearby jobs.",
+        "NSCameraUsageDescription": "ProVendor needs camera access to upload photos.",
+        "NSPhotoLibraryUsageDescription": "ProVendor needs access to your photos for document uploads.",
+        "NSMicrophoneUsageDescription": "ProVendor may need microphone for video."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1B3A6B"
+      },
+      "package": "com.provendor.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#1B3A6B"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "ProVendor needs access to your photos.",
+          "cameraPermission": "ProVendor needs camera access."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ProVendor uses your location to match you with nearby jobs."
+        }
+      ]
+    ],
+    "scheme": "provendor",
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
