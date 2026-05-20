@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -28,12 +28,13 @@ const STEP_TITLES = ['Personal Info', 'Location', 'Review'];
 
 export default function ClientRegister() {
   const router = useRouter();
+  const { country: initialCountry = 'usa' } = useLocalSearchParams<{ country?: string }>();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
   const { control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { country: 'usa' },
+    defaultValues: { country: initialCountry as 'usa' | 'colombia' },
   });
 
   const country = watch('country');

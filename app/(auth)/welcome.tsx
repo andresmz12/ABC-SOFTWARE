@@ -142,7 +142,7 @@ export default function Welcome() {
           onPress={() => {
             if (!role) return;
             const r = ROLES.find((x) => x.key === role)!;
-            router.push(r.route as any);
+            router.push({ pathname: r.route, params: { country } } as any);
           }}
           disabled={!role}
           style={{
