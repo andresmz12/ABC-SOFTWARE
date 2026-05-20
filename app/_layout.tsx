@@ -3,8 +3,10 @@ import '../lib/i18n';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Slot } from 'expo-router';
-import * as SplashScreen from 'expo-splash-screen';
+// Use expo-router's SplashScreen wrapper — it integrates with the navigation
+// context (react-navigation v7 NavigationContent) so preventAutoHideAsync does
+// not throw "Couldn't find the prevent remove context".
+import { Slot, SplashScreen } from 'expo-router';
 import * as Font from 'expo-font';
 import {
   PlayfairDisplay_400Regular,
@@ -22,7 +24,6 @@ SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {
   const initialize = useAuthStore((s) => s.initialize);
-  const loading = useAuthStore((s) => s.loading);
 
   useEffect(() => {
     Promise.all([
@@ -40,8 +41,10 @@ export default function RootLayout() {
     });
   }, []);
 
-  if (loading) return null;
-
+  // Never return null — tearing down the layout unmounts NavigationContainer
+  // and causes child screens that call useRouter() to throw
+  // "Couldn't find the prevent remove context".
+  // The splash screen covers the UI until the Promise.all above resolves.
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
