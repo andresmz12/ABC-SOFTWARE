@@ -3,7 +3,6 @@ import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import { useRegistrationStore } from '@/store/registrationStore';
 import { useSettingsStore } from '@/store/settingsStore';
-import i18n from '@/lib/i18n';
 import type { Country } from '@/types';
 
 interface CountryCard {
@@ -44,9 +43,10 @@ export default function CountrySelect() {
 
   const handleSelect = async (card: CountryCard) => {
     setCountry(card.country);
-    setSettingsCountry(card.country);
-    await setLanguage(card.lang);
-    i18n.changeLanguage(card.lang);
+    await Promise.all([
+      setSettingsCountry(card.country),
+      setLanguage(card.lang),
+    ]);
     router.push('/(auth)/register/role-select' as any);
   };
 

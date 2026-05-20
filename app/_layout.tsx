@@ -13,6 +13,7 @@ import {
   Inter_700Bold,
 } from '@expo-google-fonts/inter';
 import { initializeStripe } from '@/lib/stripe';
+import { useSettingsStore } from '@/store/settingsStore';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -26,6 +27,7 @@ export default function RootLayout() {
         Inter_700Bold,
       }),
       initializeStripe(),
+      useSettingsStore.getState().loadSettings(),
     ])
       .catch(() => {})
       .finally(() => {
