@@ -1,169 +1,69 @@
-import { useState, useMemo } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
-import SelectDropdown from '@/components/ui/SelectDropdown';
-import { useRegistrationStore } from '@/store/registrationStore';
-import { US_STATES, CO_DEPARTMENTS, US_CITIES_BY_STATE, CO_MUNICIPALITIES } from '@/lib/countryData';
+import { C } from '@/constants/theme';
 
-const SERVICE_TYPES = ['commercial', 'residential', 'both'] as const;
+const SERVICE_TYPES = [
+  { key: 'commercial',  label: 'Commercial', icon: 'briefcase' as const },
+  { key: 'residential', label: 'Residential', icon: 'home' as const },
+  { key: 'both',        label: 'Both',        icon: 'layers' as const },
+];
+
+const US_STATES = ['Florida','Georgia','Texas','California','New York','Illinois','Arizona','Colorado','Virginia','Washington'];
 
 export default function IndependentStep2() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { country, mergeFormData } = useRegistrationStore();
-  const isUSA = country !== 'colombia';
-
   const [serviceType, setServiceType] = useState('both');
-  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
-  const [selectedRegion, setSelectedRegion] = useState('');
-
-  const regionOptions = useMemo(() =>
-    isUSA
-      ? US_STATES.map((s) => ({ label: s.name, value: s.code }))
-      : CO_DEPARTMENTS.map((d) => ({ label: d.name, value: d.code })),
-    [isUSA],
-  );
-
-  const subOptions = useMemo(() => {
-    if (!selectedRegion) return [];
-    if (isUSA) {
-      return (US_CITIES_BY_STATE[selectedRegion] ?? []).map((c) => ({ label: c, value: c }));
-    }
-    return (CO_MUNICIPALITIES[selectedRegion] ?? []).map((m) => ({ label: m, value: m }));
-  }, [selectedRegion, isUSA]);
-
-  const [selectedCities, setSelectedCities] = useState<string[]>([]);
-
-  const toggleCity = (city: string) =>
-    setSelectedCities((p) => p.includes(city) ? p.filter((x) => x !== city) : [...p, city]);
-
-  const addRegion = () => {
-    if (!selectedRegion || selectedAreas.includes(selectedRegion)) return;
-    setSelectedAreas((p) => [...p, selectedRegion]);
-    setSelectedCities([]);
-    setSelectedRegion('');
-  };
-
-  const removeArea = (area: string) => setSelectedAreas((p) => p.filter((x) => x !== area));
-
-  const serviceTypeLabels: Record<string, string> = {
-    commercial: isUSA ? 'Commercial' : 'Comercial',
-    residential: isUSA ? 'Residential' : 'Residencial',
-    both: isUSA ? 'Both' : 'Ambos',
-  };
-
-  const onNext = () => {
-    if (selectedAreas.length === 0) return;
-    mergeFormData({ serviceType, serviceAreas: selectedAreas });
-    router.push('/(auth)/register/independent/step3' as any);
-  };
+  const [selected, setSelected] = useState<string[]>([]);
+  const toggle = (s: string) => setSelected((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-      <StepProgressBar current={2} total={4} />
-      <Text className="text-primary text-2xl font-heading mb-6">
-        {isUSA ? 'Service Details' : 'Detalles del Servicio'}
-      </Text>
-
-      <Text className="text-text-main font-body-medium mb-3">
-        {isUSA ? 'Service Type' : 'Tipo de Servicio'}
-      </Text>
-      <View className="flex-row gap-2 mb-6">
-        {SERVICE_TYPES.map((type) => (
-          <TouchableOpacity
-            key={type}
-            onPress={() => setServiceType(type)}
-            className={`flex-1 border rounded-xl py-3 items-center ${serviceType === type ? 'bg-primary border-primary' : 'border-gray-200'}`}
-          >
-            <Text className={`text-sm font-body-medium ${serviceType === type ? 'text-white' : 'text-text-main'}`}>
-              {serviceTypeLabels[type]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text className="text-text-main font-body-medium mb-3">
-        {isUSA ? 'Service Areas' : 'Áreas de Servicio'}
-      </Text>
-
-      <SelectDropdown
-        label={isUSA ? 'Add State' : 'Agregar Departamento'}
-        options={regionOptions}
-        value={selectedRegion}
-        onChange={setSelectedRegion}
-        placeholder={isUSA ? 'Select state...' : 'Seleccionar departamento...'}
-        searchable
-      />
-
-      {subOptions.length > 0 && (
-        <>
-          <Text className="text-text-main font-body-medium mb-2 text-sm">
-            {isUSA ? 'Select cities (optional)' : 'Seleccionar municipios (opcional)'}
-          </Text>
-          <View className="flex-row flex-wrap gap-2 mb-3">
-            {subOptions.map((opt) => (
-              <TouchableOpacity
-                key={opt.value}
-                onPress={() => toggleCity(opt.value)}
-                className={`border rounded-lg px-3 py-2 ${selectedCities.includes(opt.value) ? 'bg-primary border-primary' : 'border-gray-300'}`}
-              >
-                <Text className={`text-xs ${selectedCities.includes(opt.value) ? 'text-white font-body-medium' : 'text-text-muted'}`}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-        </>
-      )}
-
-      {selectedRegion ? (
-        <TouchableOpacity
-          onPress={addRegion}
-          className="border border-dashed border-primary rounded-xl py-2.5 items-center mb-5"
-        >
-          <Text className="text-primary font-body-medium text-sm">
-            {isUSA
-              ? `+ Add ${US_STATES.find((s) => s.code === selectedRegion)?.name ?? selectedRegion}`
-              : `+ Agregar ${CO_DEPARTMENTS.find((d) => d.code === selectedRegion)?.name ?? selectedRegion}`}
-          </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}>
+          <Feather name="chevron-left" size={20} color={C.textPrimary} />
+          <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>Back</Text>
         </TouchableOpacity>
-      ) : null}
-
-      {selectedAreas.length > 0 && (
-        <View className="bg-accent rounded-xl p-3 mb-5">
-          <Text className="text-text-main font-body-medium text-sm mb-2">
-            {isUSA ? 'Selected:' : 'Seleccionados:'}
-          </Text>
-          <View className="flex-row flex-wrap gap-2">
-            {selectedAreas.map((area) => {
-              const name = isUSA
-                ? US_STATES.find((s) => s.code === area)?.name ?? area
-                : CO_DEPARTMENTS.find((d) => d.code === area)?.name ?? area;
-              return (
-                <TouchableOpacity key={area} onPress={() => removeArea(area)}
-                  className="bg-primary rounded-full px-3 py-1 flex-row items-center">
-                  <Text className="text-white text-xs font-body-medium mr-1">{name}</Text>
-                  <Text className="text-white text-xs">✕</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+        <View style={{ paddingTop: 8, paddingBottom: 24 }}>
+          <StepProgressBar current={2} total={4} />
+          <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Service Coverage</Text>
+          <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6 }}>What do you offer and where?</Text>
         </View>
-      )}
 
-      <Button
-        label={t('common.next')}
-        onPress={onNext}
-        disabled={selectedAreas.length === 0}
-        className="mb-8"
-      />
-    </ScreenWrapper>
+        <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Service Type</Text>
+        <View style={{ flexDirection: 'row', gap: 10, marginBottom: 28 }}>
+          {SERVICE_TYPES.map((t) => {
+            const active = serviceType === t.key;
+            return (
+              <TouchableOpacity key={t.key} onPress={() => setServiceType(t.key)} activeOpacity={0.85}
+                style={{ flex: 1, padding: 14, borderRadius: 14, alignItems: 'center', backgroundColor: active ? `${C.accent}15` : C.surface, borderWidth: 1.5, borderColor: active ? C.accent : C.line }}>
+                <Feather name={t.icon} size={20} color={active ? C.accent : C.textMuted} />
+                <Text style={{ color: active ? C.textPrimary : C.textMuted, fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular', marginTop: 8 }}>{t.label}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Coverage Areas</Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
+          {US_STATES.map((s) => {
+            const active = selected.includes(s);
+            return (
+              <TouchableOpacity key={s} onPress={() => toggle(s)} activeOpacity={0.85}
+                style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 9999, backgroundColor: active ? C.accent : C.surface, borderWidth: 1, borderColor: active ? C.accent : C.line }}>
+                <Text style={{ color: active ? '#000' : C.textMuted, fontSize: 13, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>{s}</Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        <Button label="Continue" onPress={() => router.push('/(auth)/register/independent/step3' as any)} disabled={selected.length === 0} />
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }

@@ -1,26 +1,77 @@
-import { View, Text, TextInput, TextInputProps } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TextInput, TouchableOpacity, TextInputProps } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { C } from '@/constants/theme';
 
 interface Props extends TextInputProps {
   label?: string;
   error?: string;
-  leftIcon?: React.ReactNode;
-  rightIcon?: React.ReactNode;
+  iconName?: keyof typeof Feather.glyphMap;
+  rightElement?: React.ReactNode;
 }
 
-export default function Input({ label, error, leftIcon, rightIcon, className, ...props }: Props) {
+export default function Input({ label, error, iconName, rightElement, style, ...props }: Props) {
+  const [focused, setFocused] = useState(false);
+  const [secure, setSecure] = useState(props.secureTextEntry ?? false);
+
+  const borderColor = error ? C.danger : focused ? C.accent : C.line;
+
   return (
-    <View className="mb-4">
-      {label && <Text className="text-text-main font-body-medium text-sm mb-1">{label}</Text>}
-      <View className={`flex-row items-center bg-white border rounded-xl px-4 h-12 ${error ? 'border-danger' : 'border-gray-200'}`}>
-        {leftIcon && <View className="mr-2">{leftIcon}</View>}
+    <View style={{ marginBottom: 16 }}>
+      {label && (
+        <Text
+          style={{
+            color: C.textSecondary,
+            fontSize: 11,
+            letterSpacing: 1,
+            marginBottom: 8,
+            fontFamily: 'Inter_600SemiBold',
+            textTransform: 'uppercase',
+          }}
+        >
+          {label}
+        </Text>
+      )}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: C.surface2,
+          borderWidth: 1.5,
+          borderColor,
+          borderRadius: 12,
+          height: 56,
+          paddingHorizontal: 16,
+        }}
+      >
+        {iconName && (
+          <Feather name={iconName} size={18} color={C.textMuted} style={{ marginRight: 10 }} />
+        )}
         <TextInput
-          className="flex-1 text-text-main font-body text-base"
-          placeholderTextColor="#6B7280"
           {...props}
+          secureTextEntry={secure}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={[{
+            flex: 1,
+            color: C.textPrimary,
+            fontSize: 16,
+            fontFamily: 'Inter_400Regular',
+          }, style]}
+          placeholderTextColor={C.textMuted}
         />
-        {rightIcon && <View className="ml-2">{rightIcon}</View>}
+        {props.secureTextEntry && (
+          <TouchableOpacity onPress={() => setSecure((v) => !v)} hitSlop={8}>
+            <Feather name={secure ? 'eye-off' : 'eye'} size={18} color={C.textMuted} />
+          </TouchableOpacity>
+        )}
+        {!props.secureTextEntry && rightElement}
       </View>
-      {error && <Text className="text-danger text-xs mt-1">{error}</Text>}
+      {error && (
+        <Text style={{ color: C.danger, fontSize: 12, marginTop: 4, fontFamily: 'Inter_400Regular' }}>
+          {error}
+        </Text>
+      )}
     </View>
   );
 }

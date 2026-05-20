@@ -1,196 +1,89 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
-import SelectDropdown from '@/components/ui/SelectDropdown';
-import PhoneInput from '@/components/ui/PhoneInput';
-import USAddressBlock, { USAddressValue } from '@/components/forms/USAddressBlock';
-import COAddressBlock, { COAddressValue } from '@/components/forms/COAddressBlock';
-import { useRegistrationStore } from '@/store/registrationStore';
-import {
-  US_BUSINESS_TYPES, CO_BUSINESS_TYPES,
-  formatEIN, formatNIT,
-} from '@/lib/countryData';
+import { C } from '@/constants/theme';
 
-const US_BIZ_OPTIONS = US_BUSINESS_TYPES.map((b) => ({ label: b, value: b }));
-const CO_BIZ_OPTIONS = CO_BUSINESS_TYPES.map((b) => ({ label: b, value: b }));
+const schema = z.object({
+  companyName: z.string().min(2, 'Required'),
+  ein:         z.string().regex(/^\d{2}-\d{7}$/, 'Format: XX-XXXXXXX'),
+  phone:       z.string().min(7, 'Required'),
+  email:       z.string().email('Enter a valid email'),
+  password:    z.string().min(8, 'Min 8 characters'),
+  address:     z.string().min(5, 'Required'),
+  city:        z.string().min(2, 'Required'),
+  state:       z.string().min(2, 'Required'),
+  zip:         z.string().min(3, 'Required'),
+});
 
-const EMPTY_US_ADDR: USAddressValue = { street: '', city: '', state: '', zip: '', county: '' };
-const EMPTY_CO_ADDR: COAddressValue = { viaType: '', numeroPrincipal: '', numeroSecundario: '', complemento: '', barrio: '', ciudad: '', departamento: '' };
+type FormData = z.infer<typeof schema>;
 
 export default function CompanyStep1() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { country, mergeFormData } = useRegistrationStore();
-  const isUSA = country !== 'colombia';
+  const { control, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  const [companyName, setCompanyName] = useState('');
-  const [dba, setDba] = useState('');
-  const [taxId, setTaxId] = useState('');
-  const [bizType, setBizType] = useState('');
-  const [yearEstablished, setYearEstablished] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [phone, setPhone] = useState('');
-  const [website, setWebsite] = useState('');
-  const [usAddr, setUsAddr] = useState<USAddressValue>(EMPTY_US_ADDR);
-  const [coAddr, setCoAddr] = useState<COAddressValue>(EMPTY_CO_ADDR);
-  const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const handleTaxIdChange = (raw: string) => {
-    setTaxId(isUSA ? formatEIN(raw) : formatNIT(raw));
-  };
-
-  const validate = (): boolean => {
-    const e: Record<string, string> = {};
-    if (!companyName.trim()) e.companyName = t('errors.required');
-    if (!taxId.trim()) e.taxId = t('errors.required');
-    if (!bizType) e.bizType = t('errors.required');
-    if (!email.trim()) e.email = t('errors.required');
-    if (!password || password.length < 8) e.password = t('auth.passwordTooShort');
-    if (!phone.trim()) e.phone = t('errors.required');
-    if (isUSA) {
-      if (!usAddr.street.trim()) e.street = t('errors.required');
-      if (!usAddr.city.trim()) e.city = t('errors.required');
-      if (!usAddr.state) e.state = t('errors.required');
-      if (!usAddr.zip.trim() || !/^\d{5}$/.test(usAddr.zip)) e.zip = t('errors.invalidZip');
-    } else {
-      if (!coAddr.viaType) e.viaType = t('errors.required');
-      if (!coAddr.numeroPrincipal.trim()) e.numeroPrincipal = t('errors.required');
-      if (!coAddr.barrio.trim()) e.barrio = t('errors.required');
-      if (!coAddr.departamento) e.departamento = t('errors.required');
-      if (!coAddr.ciudad) e.ciudad = t('errors.required');
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const onNext = () => {
-    if (!validate()) return;
-    mergeFormData({
-      companyName, dba, taxId, bizType, yearEstablished,
-      email, password, phone, website,
-      address: isUSA ? usAddr : coAddr,
-      country,
-    });
-    router.push('/(auth)/register/company/step2' as any);
+  const onNext = (data: FormData) => {
+    router.push({ pathname: '/(auth)/register/company/step2', params: data } as any);
   };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-      <StepProgressBar current={1} total={4} />
-      <Text className="text-primary text-2xl font-heading mb-6">
-        {isUSA ? 'Business Information' : 'Información Empresarial'}
-      </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={{ paddingHorizontal: 24 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}>
+            <Feather name="chevron-left" size={20} color={C.textPrimary} />
+            <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>Back</Text>
+          </TouchableOpacity>
 
-      <Input
-        label={isUSA ? 'Company Legal Name' : 'Nombre o Razón Social'}
-        value={companyName}
-        onChangeText={setCompanyName}
-        error={errors.companyName}
-      />
-      <Input
-        label={isUSA ? 'DBA / Trade Name (optional)' : 'Nombre Comercial (opcional)'}
-        value={dba}
-        onChangeText={setDba}
-      />
-      <Input
-        label={isUSA ? 'EIN (Employer Identification Number)' : 'NIT (Número de Identificación Tributaria)'}
-        placeholder={isUSA ? 'XX-XXXXXXX' : 'XXX.XXX.XXX-X'}
-        value={taxId}
-        onChangeText={handleTaxIdChange}
-        keyboardType="number-pad"
-        error={errors.taxId}
-      />
-      {isUSA && (
-        <Text className="text-text-muted text-xs -mt-3 mb-4">Format: XX-XXXXXXX</Text>
-      )}
-      {!isUSA && (
-        <Text className="text-text-muted text-xs -mt-3 mb-4">Formato: XXX.XXX.XXX-X (con dígito de verificación)</Text>
-      )}
+          <View style={{ paddingTop: 8, paddingBottom: 24 }}>
+            <StepProgressBar current={1} total={4} />
+            <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Business Information</Text>
+            <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6 }}>Tell us about your cleaning company</Text>
+          </View>
 
-      <SelectDropdown
-        label={isUSA ? 'Business Type' : 'Tipo de Sociedad'}
-        options={isUSA ? US_BIZ_OPTIONS : CO_BIZ_OPTIONS}
-        value={bizType}
-        onChange={setBizType}
-        placeholder={isUSA ? 'Select business type...' : 'Seleccionar tipo...'}
-        error={errors.bizType}
-      />
+          <Controller control={control} name="companyName" render={({ field: { onChange, value } }) => (
+            <Input label="Company Name" value={value} onChangeText={onChange} iconName="briefcase" placeholder="CleanPro Services LLC" error={errors.companyName?.message} />
+          )} />
+          <Controller control={control} name="ein" render={({ field: { onChange, value } }) => (
+            <Input label="EIN" value={value} onChangeText={onChange} iconName="hash" placeholder="XX-XXXXXXX" error={errors.ein?.message} />
+          )} />
+          <Controller control={control} name="phone" render={({ field: { onChange, value } }) => (
+            <Input label="Phone" value={value} onChangeText={onChange} keyboardType="phone-pad" iconName="phone" placeholder="(305) 555-0123" error={errors.phone?.message} />
+          )} />
+          <Controller control={control} name="email" render={({ field: { onChange, value } }) => (
+            <Input label="Email" value={value} onChangeText={onChange} keyboardType="email-address" autoCapitalize="none" iconName="mail" placeholder="admin@company.com" error={errors.email?.message} />
+          )} />
+          <Controller control={control} name="password" render={({ field: { onChange, value } }) => (
+            <Input label="Password" value={value} onChangeText={onChange} secureTextEntry iconName="lock" placeholder="Min 8 characters" error={errors.password?.message} />
+          )} />
 
-      <Input
-        label={isUSA ? 'Year Established' : 'Año de Constitución'}
-        placeholder={isUSA ? 'e.g. 2018' : 'Ej: 2018'}
-        value={yearEstablished}
-        onChangeText={setYearEstablished}
-        keyboardType="number-pad"
-      />
+          <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12, marginTop: 8 }}>
+            Business Address
+          </Text>
+          <Controller control={control} name="address" render={({ field: { onChange, value } }) => (
+            <Input label="Street Address" value={value} onChangeText={onChange} iconName="map-pin" placeholder="123 Main St" error={errors.address?.message} />
+          )} />
+          <Controller control={control} name="city"  render={({ field: { onChange, value } }) => (
+            <Input label="City"  value={value} onChangeText={onChange} iconName="map" placeholder="Miami" error={errors.city?.message} />
+          )} />
+          <Controller control={control} name="state" render={({ field: { onChange, value } }) => (
+            <Input label="State" value={value} onChangeText={onChange} placeholder="FL" error={errors.state?.message} />
+          )} />
+          <Controller control={control} name="zip"   render={({ field: { onChange, value } }) => (
+            <Input label="ZIP" value={value} onChangeText={onChange} keyboardType="number-pad" iconName="hash" placeholder="33101" error={errors.zip?.message} />
+          )} />
 
-      <Input
-        label={t('auth.email')}
-        value={email}
-        onChangeText={setEmail}
-        keyboardType="email-address"
-        autoCapitalize="none"
-        error={errors.email}
-      />
-      <Input
-        label={isUSA ? t('auth.password') : 'Contraseña'}
-        value={password}
-        onChangeText={setPassword}
-        secureTextEntry
-        error={errors.password}
-      />
-
-      <PhoneInput
-        label={isUSA ? 'Phone Number' : 'Teléfono'}
-        country={country ?? 'usa'}
-        value={phone}
-        onChange={setPhone}
-        error={errors.phone}
-      />
-
-      <Input
-        label={isUSA ? 'Website (optional)' : 'Sitio web (opcional)'}
-        placeholder={isUSA ? 'https://example.com' : 'https://ejemplo.com'}
-        value={website}
-        onChangeText={setWebsite}
-        keyboardType="url"
-        autoCapitalize="none"
-      />
-
-      <Text className="text-text-main font-body-bold text-base mb-3 mt-2">
-        {isUSA ? 'Business Address' : 'Dirección de la Empresa'}
-      </Text>
-
-      {isUSA ? (
-        <USAddressBlock
-          values={usAddr}
-          onChange={setUsAddr}
-          errors={{
-            street: errors.street, city: errors.city,
-            state: errors.state, zip: errors.zip,
-          }}
-        />
-      ) : (
-        <COAddressBlock
-          values={coAddr}
-          onChange={setCoAddr}
-          errors={{
-            viaType: errors.viaType, numeroPrincipal: errors.numeroPrincipal,
-            barrio: errors.barrio, departamento: errors.departamento, ciudad: errors.ciudad,
-          }}
-        />
-      )}
-
-      <Button label={t('common.next')} onPress={onNext} className="mb-8" />
-    </ScreenWrapper>
+          <View style={{ marginTop: 8, marginBottom: 40 }}>
+            <Button label="Continue" onPress={handleSubmit(onNext)} />
+          </View>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

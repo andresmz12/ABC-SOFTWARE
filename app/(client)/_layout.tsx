@@ -1,47 +1,36 @@
 import { Tabs } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import { Text, View } from 'react-native';
+import { Feather } from '@expo/vector-icons';
+import { C } from '@/constants/theme';
 
-function TabIcon({ emoji, focused }: { emoji: string; focused: boolean }) {
-  return (
-    <View className="items-center pt-1">
-      <Text style={{ fontSize: 20 }}>{emoji}</Text>
-      {focused && (
-        <View style={{ width: 18, height: 2.5, backgroundColor: '#C9A84C', borderRadius: 2, marginTop: 3 }} />
-      )}
-    </View>
-  );
+type FeatherName = keyof typeof Feather.glyphMap;
+
+function TabIcon({ name, focused }: { name: FeatherName; focused: boolean }) {
+  return <Feather name={name} size={22} color={focused ? C.accent : C.textMuted} />;
 }
 
 export default function ClientLayout() {
-  const { t } = useTranslation();
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#1B3A6B',
-        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarActiveTintColor: C.accent,
+        tabBarInactiveTintColor: C.textMuted,
         tabBarStyle: {
-          borderTopColor: '#E5E7EB',
+          backgroundColor: '#0F0F0F',
+          borderTopColor: C.line,
           borderTopWidth: 1,
-          height: 64,
-          paddingBottom: 8,
-          paddingTop: 4,
-          backgroundColor: '#FFFFFF',
-          shadowColor: '#000',
-          shadowOffset: { width: 0, height: -3 },
-          shadowOpacity: 0.06,
-          shadowRadius: 8,
-          elevation: 10,
+          height: 80,
+          paddingBottom: 16,
+          paddingTop: 10,
         },
-        tabBarLabelStyle: { fontSize: 10, fontFamily: 'DMSans_500Medium' },
+        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="home"             options={{ title: t('client.home'),       tabBarIcon: ({ focused }) => <TabIcon emoji="🏠" focused={focused} /> }} />
-      <Tabs.Screen name="post-job"         options={{ title: t('client.postJob'),    tabBarIcon: ({ focused }) => <TabIcon emoji="➕" focused={focused} /> }} />
-      <Tabs.Screen name="my-requests"      options={{ title: t('client.myRequests'), tabBarIcon: ({ focused }) => <TabIcon emoji="📋" focused={focused} /> }} />
-      <Tabs.Screen name="browse-providers" options={{ title: t('client.browse'),     tabBarIcon: ({ focused }) => <TabIcon emoji="🔍" focused={focused} /> }} />
-      <Tabs.Screen name="profile"          options={{ title: t('client.profile'),    tabBarIcon: ({ focused }) => <TabIcon emoji="👤" focused={focused} /> }} />
+      <Tabs.Screen name="home"             options={{ title: 'Home',     tabBarIcon: ({ focused }) => <TabIcon name="home"       focused={focused} /> }} />
+      <Tabs.Screen name="post-job"         options={{ title: 'Post Job', tabBarIcon: ({ focused }) => <TabIcon name="plus-circle" focused={focused} /> }} />
+      <Tabs.Screen name="my-requests"      options={{ title: 'Requests', tabBarIcon: ({ focused }) => <TabIcon name="list"        focused={focused} /> }} />
+      <Tabs.Screen name="browse-providers" options={{ title: 'Browse',   tabBarIcon: ({ focused }) => <TabIcon name="search"      focused={focused} /> }} />
+      <Tabs.Screen name="profile"          options={{ title: 'Profile',  tabBarIcon: ({ focused }) => <TabIcon name="user"        focused={focused} /> }} />
     </Tabs>
   );
 }

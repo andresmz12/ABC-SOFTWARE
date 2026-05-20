@@ -1,26 +1,26 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useTranslation } from 'react-i18next';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
+import { C } from '@/constants/theme';
 
 const schema = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+  email: z.string().email('Enter a valid email'),
+  password: z.string().min(6, 'Minimum 6 characters'),
 });
 
 type FormData = z.infer<typeof schema>;
 
 export default function Login() {
   const router = useRouter();
-  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const { initialize } = useAuthStore();
 
@@ -35,7 +35,7 @@ export default function Login() {
       password: data.password,
     });
     if (error) {
-      Alert.alert(t('auth.loginFailed'), error.message);
+      Alert.alert('Sign in failed', error.message);
     } else {
       await initialize();
     }
@@ -43,55 +43,83 @@ export default function Login() {
   };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+        <View style={{ paddingHorizontal: 24 }}>
 
-      <Text className="text-primary text-3xl font-heading mb-1 mt-4">{t('auth.signIn')}</Text>
-      <Text className="text-text-muted font-body mb-8">{t('auth.welcomeSubtitle')}</Text>
+          {/* Back */}
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}
+          >
+            <Feather name="chevron-left" size={20} color={C.textPrimary} />
+            <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>Back</Text>
+          </TouchableOpacity>
 
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label={t('auth.email')}
-            value={value}
-            onChangeText={onChange}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email?.message}
+          <View style={{ paddingTop: 32, paddingBottom: 40 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 32, fontFamily: 'Inter_700Bold', marginBottom: 8, letterSpacing: -0.5 }}>
+              Welcome back
+            </Text>
+            <Text style={{ color: C.textSecondary, fontSize: 16, fontFamily: 'Inter_400Regular' }}>
+              Sign in to your ProVendor account
+            </Text>
+          </View>
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Email"
+                value={value}
+                onChangeText={onChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                iconName="mail"
+                placeholder="you@example.com"
+                error={errors.email?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label={t('auth.password')}
-            value={value}
-            onChangeText={onChange}
-            secureTextEntry
-            error={errors.password?.message}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label="Password"
+                value={value}
+                onChangeText={onChange}
+                secureTextEntry
+                iconName="lock"
+                placeholder="••••••••"
+                error={errors.password?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <TouchableOpacity className="self-end mb-6">
-        <Text className="text-primary font-body text-sm">{t('auth.forgotPassword')}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity style={{ alignSelf: 'flex-end', marginBottom: 32, marginTop: -8 }}>
+            <Text style={{ color: C.accent, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>Forgot password?</Text>
+          </TouchableOpacity>
 
-      <Button label={t('auth.signIn')} onPress={handleSubmit(onSubmit)} loading={loading} />
+          <Button label="Sign In" onPress={handleSubmit(onSubmit)} loading={loading} />
 
-      <TouchableOpacity onPress={() => router.push('/(auth)/welcome')} className="py-6 items-center">
-        <Text className="text-text-muted font-body">
-          {t('auth.dontHaveAccount')}{' '}
-          <Text className="text-primary font-body-bold">{t('auth.registerHere')}</Text>
-        </Text>
-      </TouchableOpacity>
-    </ScreenWrapper>
+          {/* Divider */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginVertical: 24 }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
+            <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', marginHorizontal: 12 }}>or</Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: C.line }} />
+          </View>
+
+          <Button
+            label="Create Account"
+            variant="secondary"
+            onPress={() => router.push('/(auth)/welcome')}
+          />
+
+          <View style={{ height: 40 }} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

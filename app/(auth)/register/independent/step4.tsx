@@ -1,81 +1,65 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
-import { useRegistrationStore } from '@/store/registrationStore';
-import { getIndependentDocs } from '@/lib/docRequirements';
+import { C } from '@/constants/theme';
+
+const DOCS = [
+  'W-9 Tax Form',
+  'Government ID — Front',
+  'Government ID — Back',
+  'Background Check Consent',
+  'Contractor Agreement',
+];
 
 export default function IndependentStep4() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { country, formData, reset } = useRegistrationStore();
-  const isUSA = country !== 'colombia';
-
-  const docs = getIndependentDocs(country ?? 'usa');
-
-  const handleSubmit = () => {
-    reset();
-    router.replace('/(auth)/welcome');
-  };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-      <StepProgressBar current={4} total={4} />
-      <Text className="text-primary text-2xl font-heading mb-6">
-        {isUSA ? 'Review & Submit' : 'Revisar y Enviar'}
-      </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}>
+          <Feather name="chevron-left" size={20} color={C.textPrimary} />
+          <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>Back</Text>
+        </TouchableOpacity>
 
-      <View className="bg-accent rounded-2xl p-5 mb-4">
-        <Text className="text-primary font-body-bold text-base mb-2">
-          🔍 {isUSA ? 'Identity Verification' : 'Verificación de Identidad'}
-        </Text>
-        <Text className="text-text-muted font-body text-sm leading-6">
-          {isUSA
-            ? "As an independent contractor, you'll also be prompted to complete identity verification. This builds trust with clients and helps you get more jobs."
-            : 'Como contratista independiente, también se te pedirá completar la verificación de identidad. Esto genera confianza con los clientes y te ayuda a conseguir más trabajos.'}
-        </Text>
-      </View>
+        <View style={{ paddingTop: 8, paddingBottom: 24 }}>
+          <StepProgressBar current={4} total={4} />
+          <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Review & Submit</Text>
+          <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6 }}>Confirm before submitting your application</Text>
+        </View>
 
-      {formData.fullName ? (
-        <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-4">
-          <Text className="text-text-main font-body-bold text-sm mb-3">
-            {isUSA ? 'Personal Details' : 'Datos Personales'}
+        <View style={{ backgroundColor: `${C.accent}10`, borderWidth: 1, borderColor: `${C.accent}30`, borderRadius: 16, padding: 20, marginBottom: 20 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <Feather name="shield" size={16} color={C.accent} style={{ marginRight: 8 }} />
+            <Text style={{ color: C.accent, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>Identity Verification</Text>
+          </View>
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 }}>
+            Your identity will be verified within 2–3 business days. You'll be notified via email once your account is approved.
           </Text>
-          {[
-            [isUSA ? 'Full Name' : 'Nombre Completo', formData.fullName],
-            [isUSA ? 'Date of Birth' : 'Fecha de Nacimiento', formData.dateOfBirth],
-            ['Email', formData.email],
-          ].filter(([, v]) => v).map(([label, value]) => (
-            <View key={label as string} className="flex-row justify-between py-1.5 border-b border-gray-50">
-              <Text className="text-text-muted font-body text-sm">{label}</Text>
-              <Text className="text-text-main font-body-medium text-sm">{value}</Text>
+        </View>
+
+        <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Documents Submitted</Text>
+        <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 16, marginBottom: 20, overflow: 'hidden' }}>
+          {DOCS.map((doc, i) => (
+            <View key={doc} style={{ flexDirection: 'row', alignItems: 'center', padding: 16, borderBottomWidth: i < DOCS.length - 1 ? 1 : 0, borderBottomColor: C.line }}>
+              <View style={{ width: 28, height: 28, backgroundColor: `${C.success}15`, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Feather name="check" size={14} color={C.success} />
+              </View>
+              <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', flex: 1 }}>{doc}</Text>
             </View>
           ))}
         </View>
-      ) : null}
 
-      <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-6">
-        <Text className="text-text-main font-body-bold text-sm mb-3">
-          {isUSA ? 'Documents Checklist' : 'Lista de Documentos'}
+        <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18, textAlign: 'center', marginBottom: 24 }}>
+          By submitting you agree to ProVendor's Terms of Service and Privacy Policy.
         </Text>
-        {docs.map((doc) => (
-          <View key={doc.key} className="flex-row items-center py-2 border-b border-gray-100 last:border-0">
-            <Text className="text-success mr-2">✓</Text>
-            <Text className="text-text-main font-body text-sm flex-1">{doc.label}</Text>
-          </View>
-        ))}
-      </View>
 
-      <Button
-        label={isUSA ? 'Submit for Review' : 'Enviar para Revisión'}
-        onPress={handleSubmit}
-        className="mb-8"
-      />
-    </ScreenWrapper>
+        <Button label="Submit Application" onPress={() => router.replace('/(auth)/welcome')} />
+        <View style={{ height: 40 }} />
+      </ScrollView>
+    </SafeAreaView>
   );
 }

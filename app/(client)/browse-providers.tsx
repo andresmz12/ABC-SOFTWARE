@@ -1,78 +1,48 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList, TextInput } from 'react-native';
+import { View, Text, TextInput } from 'react-native';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
-import ProviderCard from '@/components/cards/ProviderCard';
-import { DEMO_PROVIDERS } from '@/constants/demoData';
-
-type Filter = 'all' | 'company' | 'independent';
-
-const FILTER_LABELS: Record<Filter, string> = {
-  all:         'All',
-  company:     'Companies',
-  independent: 'Independents',
-};
+import EmptyState from '@/components/ui/EmptyState';
+import { Feather } from '@expo/vector-icons';
+import { C } from '@/constants/theme';
 
 export default function BrowseProviders() {
-  const [filter, setFilter] = useState<Filter>('all');
   const [query, setQuery] = useState('');
-
-  const results = DEMO_PROVIDERS.filter((p) => {
-    const matchesFilter = filter === 'all' || p.type === filter;
-    const q = query.trim().toLowerCase();
-    const matchesQuery = !q || p.name.toLowerCase().includes(q) || p.serviceType.toLowerCase().includes(q) || p.location.toLowerCase().includes(q);
-    return matchesFilter && matchesQuery;
-  });
 
   return (
     <ScreenWrapper>
-      <View className="px-5 pt-8 pb-4">
-        <Text className="text-primary text-3xl font-heading">Find Providers</Text>
-        <Text className="text-text-muted font-body text-sm mt-0.5">Verified professionals near you</Text>
+      <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Find Providers</Text>
+        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>Verified professionals near you</Text>
       </View>
 
       {/* Search bar */}
-      <View className="mx-5 mb-3">
-        <View className="bg-white border border-gray-200 rounded-2xl px-4 py-3 flex-row items-center" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-          <Text className="text-text-muted mr-2">🔍</Text>
-          <TextInput
-            value={query}
-            onChangeText={setQuery}
-            placeholder="Search by name, service, or area..."
-            placeholderTextColor="#9CA3AF"
-            className="flex-1 text-text-main font-body text-sm"
-            style={{ fontFamily: 'DMSans_400Regular' }}
-          />
-          {query.length > 0 && (
-            <TouchableOpacity onPress={() => setQuery('')}>
-              <Text className="text-text-muted text-base">✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+      <View style={{
+        marginHorizontal: 24,
+        marginTop: 16,
+        marginBottom: 8,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: C.surface,
+        borderWidth: 1.5,
+        borderColor: query.length > 0 ? C.accent : C.line,
+        borderRadius: 12,
+        paddingHorizontal: 16,
+        height: 52,
+      }}>
+        <Feather name="search" size={16} color={C.textMuted} style={{ marginRight: 10 }} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder="Search by name, service, or area..."
+          placeholderTextColor={C.textMuted}
+          style={{ flex: 1, color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular' }}
+        />
       </View>
 
-      {/* Filter chips */}
-      <View className="flex-row gap-2 px-5 mb-4">
-        {(Object.keys(FILTER_LABELS) as Filter[]).map((f) => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setFilter(f)}
-            className={`px-4 py-1.5 rounded-full border ${filter === f ? 'bg-primary border-primary' : 'bg-white border-gray-200'}`}
-          >
-            <Text className={`text-xs font-body-medium ${filter === f ? 'text-white' : 'text-text-muted'}`}>
-              {FILTER_LABELS[f]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-        <View className="flex-1" />
-        <Text className="text-text-muted font-body text-xs self-center">{results.length} found</Text>
-      </View>
-
-      <FlatList
-        data={results}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item }) => <ProviderCard provider={item} onPress={() => {}} />}
-        contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
-        keyboardShouldPersistTaps="handled"
+      <EmptyState
+        title="No approved providers yet"
+        subtitle="Verified providers in your area will appear here once they complete the approval process."
+        iconName="users"
       />
     </ScreenWrapper>
   );

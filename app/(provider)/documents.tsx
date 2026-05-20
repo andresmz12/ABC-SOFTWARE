@@ -1,90 +1,95 @@
-import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text } from 'react-native';
+import { useAuthStore } from '@/store/authStore';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
-import { DEMO_DOCUMENTS } from '@/constants/demoData';
-import type { DemoDoc } from '@/constants/demoData';
-
-const STATUS_META: Record<DemoDoc['status'], { label: string; bg: string; text: string; icon: string }> = {
-  approved: { label: 'Approved', bg: 'bg-green-50',  text: 'text-green-700',  icon: '✅' },
-  rejected: { label: 'Rejected', bg: 'bg-red-50',    text: 'text-red-700',    icon: '❌' },
-  pending:  { label: 'Pending',  bg: 'bg-yellow-50', text: 'text-yellow-700', icon: '⏳' },
-};
-
-const approved = DEMO_DOCUMENTS.filter((d) => d.status === 'approved').length;
-const total    = DEMO_DOCUMENTS.length;
-
-function DocRow({ doc }: { doc: DemoDoc }) {
-  const meta = STATUS_META[doc.status];
-  return (
-    <View
-      className="bg-white rounded-2xl p-4 mb-3"
-      style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 5, elevation: 2 }}
-    >
-      <View className="flex-row items-center justify-between mb-1">
-        <Text className="text-text-main font-body-bold text-sm flex-1 mr-2">{doc.label}</Text>
-        <View className={`${meta.bg} px-2.5 py-0.5 rounded-full flex-row items-center`}>
-          <Text className="text-xs mr-1">{meta.icon}</Text>
-          <Text className={`${meta.text} text-xs font-body-medium`}>{meta.label}</Text>
-        </View>
-      </View>
-
-      {doc.fileName && (
-        <Text className="text-text-muted font-body text-xs mb-2">📄 {doc.fileName}</Text>
-      )}
-
-      {doc.adminNote && doc.status === 'rejected' && (
-        <View className="bg-red-50 border border-red-200 rounded-xl p-3 mb-2">
-          <Text className="text-red-700 font-body-bold text-xs mb-0.5">Admin Note</Text>
-          <Text className="text-red-600 font-body text-xs leading-4">{doc.adminNote}</Text>
-        </View>
-      )}
-
-      {!doc.fileName && doc.status === 'pending' && (
-        <TouchableOpacity className="border border-dashed border-primary/40 rounded-xl py-2.5 items-center mt-1">
-          <Text className="text-primary font-body-medium text-xs">Tap to upload</Text>
-        </TouchableOpacity>
-      )}
-
-      {doc.status === 'rejected' && (
-        <TouchableOpacity className="border border-red-300 rounded-xl py-2 items-center mt-1">
-          <Text className="text-red-600 font-body-bold text-xs">Re-upload</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-}
+import EmptyState from '@/components/ui/EmptyState';
+import StatusBadge from '@/components/ui/StatusBadge';
+import { Feather } from '@expo/vector-icons';
+import { C } from '@/constants/theme';
 
 export default function ProviderDocuments() {
-  return (
-    <ScreenWrapper scroll className="px-5">
-      <View className="pt-8 pb-2">
-        <Text className="text-primary text-3xl font-heading">Documents</Text>
-        <Text className="text-text-muted font-body text-sm mt-0.5">Required for platform approval</Text>
-      </View>
+  const { user } = useAuthStore();
 
-      {/* Progress bar */}
-      <View className="bg-white border border-gray-100 rounded-2xl p-4 my-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-        <View className="flex-row justify-between items-center mb-2">
-          <Text className="text-text-main font-body-bold text-sm">Verification progress</Text>
-          <Text className="text-primary font-body-bold text-sm">{approved}/{total} approved</Text>
-        </View>
-        <View className="h-2 bg-gray-100 rounded-full overflow-hidden">
-          <View
-            className="h-full bg-green-500 rounded-full"
-            style={{ width: `${(approved / total) * 100}%` }}
-          />
-        </View>
-        <Text className="text-text-muted font-body text-xs mt-2">
-          {approved === total
-            ? '🎉 All documents approved! Your profile is fully verified.'
-            : `${total - approved} document${total - approved > 1 ? 's' : ''} still need attention.`}
+  return (
+    <ScreenWrapper scroll className="px-6">
+      <View style={{ paddingTop: 32, paddingBottom: 8 }}>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
+          Documents
+        </Text>
+        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
+          Required for platform verification
         </Text>
       </View>
 
-      {DEMO_DOCUMENTS.map((doc) => (
-        <DocRow key={doc.key} doc={doc} />
+      {/* Status card */}
+      <View style={{
+        backgroundColor: C.surface,
+        borderWidth: 1,
+        borderColor: `${C.warning}40`,
+        borderRadius: 16,
+        padding: 20,
+        marginTop: 16,
+        marginBottom: 24,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}>
+        <View style={{
+          width: 44, height: 44,
+          backgroundColor: `${C.warning}15`,
+          borderRadius: 22,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: 16,
+        }}>
+          <Feather name="shield" size={20} color={C.warning} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>Verification Pending</Text>
+          <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+            Upload required documents to get approved
+          </Text>
+        </View>
+      </View>
+
+      {/* Document slots */}
+      {[
+        { key: 'w9',               label: 'W-9 Tax Form',                desc: 'Required for US tax reporting' },
+        { key: 'insurance',        label: 'Certificate of Insurance',    desc: 'Liability coverage documentation' },
+        { key: 'business_license', label: 'Business License',            desc: 'State or local business registration' },
+        { key: 'ein_letter',       label: 'EIN Confirmation Letter',     desc: 'IRS employer identification number' },
+        { key: 'service_agreement',label: 'Signed Service Agreement',   desc: 'Platform terms and conditions' },
+      ].map((doc, idx) => (
+        <View
+          key={doc.key}
+          style={{
+            backgroundColor: C.surface,
+            borderWidth: 1,
+            borderColor: C.line,
+            borderRadius: 16,
+            padding: 20,
+            marginBottom: 12,
+            flexDirection: 'row',
+            alignItems: 'center',
+          }}
+        >
+          <View style={{
+            width: 44, height: 44,
+            backgroundColor: C.surface2,
+            borderRadius: 12,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 16,
+          }}>
+            <Feather name="file-text" size={18} color={C.accent} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{doc.label}</Text>
+            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 }}>{doc.desc}</Text>
+          </View>
+          <StatusBadge status="pending" />
+        </View>
       ))}
 
-      <View className="h-6" />
+      <View style={{ height: 32 }} />
     </ScreenWrapper>
   );
 }

@@ -1,128 +1,97 @@
-import { View, Text, TouchableOpacity, Switch } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import LanguageToggle from '@/components/ui/LanguageToggle';
+import { Feather } from '@expo/vector-icons';
+import { C } from '@/constants/theme';
 
-const SERVICE_AREAS = ['Miami, FL', 'Miami Beach, FL', 'Coral Gables, FL', 'Brickell, FL'];
-const SERVICES = ['Office Deep Clean', 'Residential Cleaning', 'Post-Construction', 'Move-In/Move-Out'];
+function Row({ icon, label, value }: { icon: keyof typeof Feather.glyphMap; label: string; value: string }) {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.line }}>
+      <View style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+        <Feather name={icon} size={16} color={C.textMuted} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular', textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</Text>
+        <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 2 }}>{value}</Text>
+      </View>
+    </View>
+  );
+}
 
 export default function ProviderProfile() {
-  const { signOut } = useAuthStore();
+  const { user, signOut } = useAuthStore();
   const router = useRouter();
-  const [available, setAvailable] = useState(true);
+  const initials = (user?.email ?? 'U').slice(0, 2).toUpperCase();
 
   return (
-    <ScreenWrapper scroll className="px-5">
-      <View className="pt-8 pb-4">
-        <Text className="text-primary text-3xl font-heading">My Profile</Text>
+    <ScreenWrapper scroll className="px-6">
+      <View style={{ paddingTop: 32, paddingBottom: 24 }}>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Profile</Text>
       </View>
 
-      {/* Avatar + name card */}
-      <View
-        className="bg-white rounded-2xl p-5 mb-4"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3 }}
-      >
-        <View className="flex-row items-center mb-4">
-          <View className="w-16 h-16 bg-primary rounded-full items-center justify-center mr-4">
-            <Text className="text-white text-2xl font-heading">CP</Text>
-          </View>
-          <View className="flex-1">
-            <Text className="text-text-main font-body-bold text-lg">CleanPro Services LLC</Text>
-            <Text className="text-text-muted font-body text-sm">Company · Miami, FL</Text>
-            <View className="flex-row items-center mt-1">
-              <Text className="text-secondary font-body-bold text-sm">4.8 ★</Text>
-              <Text className="text-text-muted font-body text-xs ml-1">(87 reviews)</Text>
-            </View>
-          </View>
+      {/* Avatar card */}
+      <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 20, padding: 24, marginBottom: 16, alignItems: 'center' }}>
+        <View style={{
+          width: 72, height: 72,
+          backgroundColor: C.accent,
+          borderRadius: 36,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+        }}>
+          <Text style={{ color: '#000', fontSize: 26, fontFamily: 'Inter_700Bold' }}>{initials}</Text>
         </View>
-
-        {/* Badges */}
-        <View className="flex-row flex-wrap gap-1.5">
-          {[
-            { icon: '✅', label: 'Verified',   bg: 'bg-green-50',  text: 'text-green-700' },
-            { icon: '🛡️', label: 'Insured',    bg: 'bg-blue-50',   text: 'text-blue-700' },
-            { icon: '⭐', label: 'Top Rated',  bg: 'bg-amber-50',  text: 'text-amber-700' },
-          ].map((b) => (
-            <View key={b.label} className={`${b.bg} px-2.5 py-1 rounded-full flex-row items-center`}>
-              <Text className="text-xs mr-1">{b.icon}</Text>
-              <Text className={`${b.text} text-xs font-body-medium`}>{b.label}</Text>
-            </View>
-          ))}
+        <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold' }}>{user?.email ?? '—'}</Text>
+        <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4, textTransform: 'capitalize' }}>
+          {user?.role ?? 'Provider'} · {user?.country?.toUpperCase() ?? '—'}
+        </Text>
+        <View style={{
+          marginTop: 12,
+          backgroundColor: `${C.warning}18`,
+          borderWidth: 1,
+          borderColor: `${C.warning}50`,
+          borderRadius: 9999,
+          paddingHorizontal: 12,
+          paddingVertical: 4,
+        }}>
+          <Text style={{ color: C.warning, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>PENDING APPROVAL</Text>
         </View>
       </View>
 
-      {/* Availability toggle */}
-      <View className="bg-white rounded-2xl p-4 mb-4 flex-row items-center justify-between" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-        <View>
-          <Text className="text-text-main font-body-bold text-sm">Available for jobs</Text>
-          <Text className="text-text-muted font-body text-xs mt-0.5">
-            {available ? 'You appear in search results' : 'Hidden from new requests'}
-          </Text>
-        </View>
-        <Switch
-          value={available}
-          onValueChange={setAvailable}
-          trackColor={{ false: '#D1D5DB', true: '#1B3A6B' }}
-          thumbColor="#FFFFFF"
-        />
-      </View>
-
-      {/* Stats */}
-      <View className="flex-row gap-3 mb-4">
-        {[
-          { label: 'Jobs done', value: '47' },
-          { label: 'Response rate', value: '98%' },
-          { label: 'Repeat clients', value: '12' },
-        ].map((s) => (
-          <View
-            key={s.label}
-            className="flex-1 bg-white rounded-2xl p-3 items-center"
-            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-          >
-            <Text className="text-primary font-heading text-xl">{s.value}</Text>
-            <Text className="text-text-muted font-body text-xs text-center mt-0.5">{s.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      {/* Service areas */}
-      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-        <Text className="text-text-main font-body-bold text-sm mb-3">Service Areas</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {SERVICE_AREAS.map((area) => (
-            <View key={area} className="bg-accent border border-primary/20 px-3 py-1.5 rounded-full">
-              <Text className="text-primary font-body-medium text-xs">📍 {area}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-
-      {/* Services offered */}
-      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-        <Text className="text-text-main font-body-bold text-sm mb-3">Services Offered</Text>
-        <View className="flex-row flex-wrap gap-2">
-          {SERVICES.map((s) => (
-            <View key={s} className="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full">
-              <Text className="text-text-main font-body-medium text-xs">{s}</Text>
-            </View>
-          ))}
-        </View>
+      {/* Info rows */}
+      <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 20, paddingHorizontal: 20, marginBottom: 16 }}>
+        <Row icon="mail"      label="Email"   value={user?.email ?? '—'} />
+        <Row icon="globe"     label="Country" value={user?.country === 'usa' ? 'United States' : 'Colombia'} />
+        <Row icon="calendar"  label="Member since" value={user?.created_at ? new Date(user.created_at).toLocaleDateString() : '—'} />
       </View>
 
       {/* Language */}
-      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-        <Text className="text-text-main font-body-bold text-sm mb-3">App Language</Text>
+      <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 20, padding: 20, marginBottom: 16 }}>
+        <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 16 }}>App Language</Text>
         <LanguageToggle />
       </View>
 
       {/* Sign out */}
       <TouchableOpacity
         onPress={async () => { await signOut(); router.replace('/(auth)/welcome'); }}
-        className="bg-red-50 border border-red-200 rounded-2xl p-4 items-center mb-8"
+        style={{
+          backgroundColor: `${C.danger}15`,
+          borderWidth: 1,
+          borderColor: `${C.danger}40`,
+          borderRadius: 16,
+          height: 56,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 40,
+          flexDirection: 'row',
+        }}
+        activeOpacity={0.85}
       >
-        <Text className="text-red-600 font-body-bold">Sign Out</Text>
+        <Feather name="log-out" size={16} color={C.danger} style={{ marginRight: 8 }} />
+        <Text style={{ color: C.danger, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>Sign Out</Text>
       </TouchableOpacity>
     </ScreenWrapper>
   );
