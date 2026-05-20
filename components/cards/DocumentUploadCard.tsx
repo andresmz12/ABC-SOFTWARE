@@ -1,0 +1,45 @@
+import { View, Text, TouchableOpacity } from 'react-native';
+import StatusBadge from '@/components/ui/StatusBadge';
+import type { Document } from '@/types';
+
+interface Props {
+  docType: string;
+  label: string;
+  document?: Document;
+  onUpload: () => void;
+  uploading?: boolean;
+  progress?: number;
+}
+
+export default function DocumentUploadCard({ docType, label, document, onUpload, uploading, progress }: Props) {
+  return (
+    <View className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
+      <View className="flex-row justify-between items-center mb-2">
+        <Text className="text-text-main font-body-medium text-sm flex-1 mr-2">{label}</Text>
+        {document && <StatusBadge status={document.status} />}
+      </View>
+      {document?.file_name && (
+        <Text className="text-text-muted text-xs mb-2">📄 {document.file_name}</Text>
+      )}
+      {document?.admin_notes && document.status === 'rejected' && (
+        <View className="bg-red-50 rounded-lg p-2 mb-2">
+          <Text className="text-danger text-xs">{document.admin_notes}</Text>
+        </View>
+      )}
+      {uploading && (
+        <View className="h-1.5 bg-gray-100 rounded-full mb-2">
+          <View className="h-full bg-primary rounded-full" style={{ width: `${progress ?? 0}%` }} />
+        </View>
+      )}
+      <TouchableOpacity
+        onPress={onUpload}
+        disabled={uploading}
+        className={`border rounded-lg py-2 items-center ${document?.status === 'approved' ? 'border-green-300' : 'border-primary'}`}
+      >
+        <Text className={`text-sm font-body-medium ${document?.status === 'approved' ? 'text-green-600' : 'text-primary'}`}>
+          {uploading ? 'Uploading...' : document ? (document.status === 'rejected' ? 'Re-upload' : 'Replace') : 'Upload'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+}

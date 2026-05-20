@@ -1,11 +1,17 @@
 import { initStripe } from '@stripe/stripe-react-native';
 
 export const initializeStripe = async () => {
-  await initStripe({
-    publishableKey: process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-    merchantIdentifier: 'merchant.com.provendor.app',
-    urlScheme: 'provendor',
-  });
+  const key = process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+  if (!key || key === 'pk_test_placeholder') return;
+  try {
+    await initStripe({
+      publishableKey: key,
+      merchantIdentifier: 'merchant.com.provendor.app',
+      urlScheme: 'provendor',
+    });
+  } catch (e) {
+    console.warn('Stripe init skipped:', e);
+  }
 };
 
 export const formatCurrency = (
