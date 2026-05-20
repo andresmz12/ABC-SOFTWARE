@@ -1,12 +1,8 @@
 // Full Intl polyfill — must come first so PluralRules has a complete Intl base
 import 'intl';
-// polyfill-force always overwrites the native Intl.PluralRules.
-// Hermes (RN 0.81) has a built-in PluralRules that passes shouldPolyfill()'s
-// heuristic but is still incomplete enough to trigger i18next's warning.
-// polyfill-force guarantees the fully spec-compliant implementation is used.
-import '@formatjs/intl-pluralrules/polyfill-force';
-import '@formatjs/intl-pluralrules/locale-data/en';
-import '@formatjs/intl-pluralrules/locale-data/es';
+// intl-pluralrules polyfills Intl.PluralRules for Hermes/React Native.
+// Imported before i18next so pluralResolver finds a compliant implementation.
+import 'intl-pluralrules';
 
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
