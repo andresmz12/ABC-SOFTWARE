@@ -5,8 +5,10 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import * as Localization from 'expo-localization';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import en from '@/locales/en.json';
-import es from '@/locales/es.json';
+
+// require() with relative paths — most reliable for Metro bundler + JSON
+const en = require('../locales/en.json');
+const es = require('../locales/es.json');
 
 const getStoredLanguage = async (): Promise<string> => {
   try {
@@ -27,6 +29,11 @@ i18n
     lng: 'en',
     fallbackLng: 'en',
     interpolation: { escapeValue: false },
+    // initImmediate: false forces synchronous init when resources are inline.
+    // Without this, init is scheduled async and components render before it
+    // completes, showing raw keys instead of translated strings.
+    initImmediate: false,
+    react: { useSuspense: false },
   });
 
 getStoredLanguage().then((lang) => i18n.changeLanguage(lang));
