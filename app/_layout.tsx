@@ -3,10 +3,13 @@ import '../lib/i18n';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-// Use expo-router's SplashScreen wrapper — it integrates with the navigation
-// context (react-navigation v7 NavigationContent) so preventAutoHideAsync does
-// not throw "Couldn't find the prevent remove context".
-import { Slot, SplashScreen } from 'expo-router';
+import { Slot } from 'expo-router';
+// Use the raw expo-splash-screen package here.
+// expo-router's SplashScreen re-export uses usePreventRemove (react-navigation v7)
+// which requires a NavigationContent context that doesn't exist at this layout
+// level — it only exists inside a Stack/Tabs navigator. Using the raw package
+// avoids that context dependency entirely.
+import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import {
   PlayfairDisplay_400Regular,
@@ -18,14 +21,17 @@ import {
   DMSans_700Bold,
 } from '@expo-google-fonts/dm-sans';
 import { initializeStripe } from '@/lib/stripe';
-import { useAuthStore } from '@/store/authStore';
 
-SplashScreen.preventAutoHideAsync();
+// Prevent the splash screen from auto-hiding before assets load.
+// Called at module scope so it fires before any component renders.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
-  const initialize = useAuthStore((s) => s.initialize);
-
   useEffect(() => {
+    // Only load fonts and init Stripe here — no navigation or auth.
+    // Auth initialization is done in app/index.tsx, which is a screen
+    // rendered inside expo-router's NavigationContainer, so useRouter()
+    // and auth redirects work correctly there.
     Promise.all([
       Font.loadAsync({
         PlayfairDisplay_400Regular,
@@ -35,16 +41,16 @@ export default function RootLayout() {
         DMSans_700Bold,
       }),
       initializeStripe(),
-      initialize(),
-    ]).then(() => {
-      SplashScreen.hideAsync();
-    });
+    ])
+      .catch(() => {})
+      .finally(() => {
+        SplashScreen.hideAsync().catch(() => {});
+      });
   }, []);
 
-  // Never return null — tearing down the layout unmounts NavigationContainer
-  // and causes child screens that call useRouter() to throw
-  // "Couldn't find the prevent remove context".
-  // The splash screen covers the UI until the Promise.all above resolves.
+  // Always render the Slot — never return null.
+  // Returning null would unmount the NavigationContainer and cause every
+  // child screen that calls useRouter() to throw "NavigationContent not found".
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>

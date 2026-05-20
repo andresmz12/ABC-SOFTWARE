@@ -3,9 +3,17 @@ import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
 import { View, ActivityIndicator } from 'react-native';
 
+// This is a screen rendered inside expo-router's NavigationContainer,
+// so useRouter() and auth redirects are safe here.
 export default function Index() {
   const router = useRouter();
-  const { user, loading } = useAuthStore();
+  const { user, loading, initialize } = useAuthStore();
+
+  // Initialize auth session on first mount.
+  // Moved here from _layout.tsx so it runs inside the navigator context.
+  useEffect(() => {
+    initialize();
+  }, []);
 
   useEffect(() => {
     if (loading) return;

@@ -1,4 +1,6 @@
-// Polyfill Intl.PluralRules for Hermes (React Native) before i18next initialises
+// Full Intl polyfill — must come first so PluralRules has a complete Intl base
+import 'intl';
+// PluralRules polyfill with locale data for both supported languages
 import '@formatjs/intl-pluralrules/polyfill';
 import '@formatjs/intl-pluralrules/locale-data/en';
 import '@formatjs/intl-pluralrules/locale-data/es';

@@ -39,6 +39,7 @@
     "expo-splash-screen": "~31.0.13",
     "expo-status-bar": "~3.0.9",
     "i18next": "^23.11.5",
+    "intl": "^1.2.5",
     "nativewind": "^4.2.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
