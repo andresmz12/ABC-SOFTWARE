@@ -93,6 +93,7 @@ export interface Document {
 export interface JobRequest {
   id: string;
   client_id: string;
+  title?: string;
   service_type: 'commercial' | 'residential';
   city: string;
   county?: string;
@@ -103,7 +104,9 @@ export interface JobRequest {
   scheduled_time: string;
   estimated_hours: number;
   budget_usd?: number;
+  budget_max_usd?: number;
   budget_cop?: number;
+  budget_max_cop?: number;
   description?: string;
   photos?: string[];
   status: JobStatus;

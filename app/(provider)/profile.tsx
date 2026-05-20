@@ -1,36 +1,128 @@
-import { View, Text, TouchableOpacity } from 'react-native';
-import { useTranslation } from 'react-i18next';
-import { useAuthStore } from '@/store/authStore';
+import { View, Text, TouchableOpacity, Switch } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useAuthStore } from '@/store/authStore';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import LanguageToggle from '@/components/ui/LanguageToggle';
 
+const SERVICE_AREAS = ['Miami, FL', 'Miami Beach, FL', 'Coral Gables, FL', 'Brickell, FL'];
+const SERVICES = ['Office Deep Clean', 'Residential Cleaning', 'Post-Construction', 'Move-In/Move-Out'];
+
 export default function ProviderProfile() {
-  const { t } = useTranslation();
-  const { user, signOut } = useAuthStore();
+  const { signOut } = useAuthStore();
   const router = useRouter();
+  const [available, setAvailable] = useState(true);
 
   return (
     <ScreenWrapper scroll className="px-5">
-      <View className="pt-6 pb-4">
-        <Text className="text-primary text-2xl font-heading">{t('profile.title')}</Text>
+      <View className="pt-8 pb-4">
+        <Text className="text-primary text-3xl font-heading">My Profile</Text>
       </View>
-      <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
-        <View className="w-16 h-16 bg-primary rounded-full items-center justify-center mb-3">
-          <Text className="text-white text-2xl font-heading">{user?.email?.[0]?.toUpperCase()}</Text>
+
+      {/* Avatar + name card */}
+      <View
+        className="bg-white rounded-2xl p-5 mb-4"
+        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3 }}
+      >
+        <View className="flex-row items-center mb-4">
+          <View className="w-16 h-16 bg-primary rounded-full items-center justify-center mr-4">
+            <Text className="text-white text-2xl font-heading">CP</Text>
+          </View>
+          <View className="flex-1">
+            <Text className="text-text-main font-body-bold text-lg">CleanPro Services LLC</Text>
+            <Text className="text-text-muted font-body text-sm">Company · Miami, FL</Text>
+            <View className="flex-row items-center mt-1">
+              <Text className="text-secondary font-body-bold text-sm">4.8 ★</Text>
+              <Text className="text-text-muted font-body text-xs ml-1">(87 reviews)</Text>
+            </View>
+          </View>
         </View>
-        <Text className="text-text-main font-body-bold text-lg">{user?.email}</Text>
-        <Text className="text-text-muted font-body text-sm capitalize">{user?.role}</Text>
+
+        {/* Badges */}
+        <View className="flex-row flex-wrap gap-1.5">
+          {[
+            { icon: '✅', label: 'Verified',   bg: 'bg-green-50',  text: 'text-green-700' },
+            { icon: '🛡️', label: 'Insured',    bg: 'bg-blue-50',   text: 'text-blue-700' },
+            { icon: '⭐', label: 'Top Rated',  bg: 'bg-amber-50',  text: 'text-amber-700' },
+          ].map((b) => (
+            <View key={b.label} className={`${b.bg} px-2.5 py-1 rounded-full flex-row items-center`}>
+              <Text className="text-xs mr-1">{b.icon}</Text>
+              <Text className={`${b.text} text-xs font-body-medium`}>{b.label}</Text>
+            </View>
+          ))}
+        </View>
       </View>
-      <View className="bg-white rounded-2xl p-5 mb-4 shadow-sm border border-gray-100">
-        <Text className="text-text-main font-body-bold mb-3">{t('language.selectLanguage')}</Text>
+
+      {/* Availability toggle */}
+      <View className="bg-white rounded-2xl p-4 mb-4 flex-row items-center justify-between" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+        <View>
+          <Text className="text-text-main font-body-bold text-sm">Available for jobs</Text>
+          <Text className="text-text-muted font-body text-xs mt-0.5">
+            {available ? 'You appear in search results' : 'Hidden from new requests'}
+          </Text>
+        </View>
+        <Switch
+          value={available}
+          onValueChange={setAvailable}
+          trackColor={{ false: '#D1D5DB', true: '#1B3A6B' }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+
+      {/* Stats */}
+      <View className="flex-row gap-3 mb-4">
+        {[
+          { label: 'Jobs done', value: '47' },
+          { label: 'Response rate', value: '98%' },
+          { label: 'Repeat clients', value: '12' },
+        ].map((s) => (
+          <View
+            key={s.label}
+            className="flex-1 bg-white rounded-2xl p-3 items-center"
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
+          >
+            <Text className="text-primary font-heading text-xl">{s.value}</Text>
+            <Text className="text-text-muted font-body text-xs text-center mt-0.5">{s.label}</Text>
+          </View>
+        ))}
+      </View>
+
+      {/* Service areas */}
+      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+        <Text className="text-text-main font-body-bold text-sm mb-3">Service Areas</Text>
+        <View className="flex-row flex-wrap gap-2">
+          {SERVICE_AREAS.map((area) => (
+            <View key={area} className="bg-accent border border-primary/20 px-3 py-1.5 rounded-full">
+              <Text className="text-primary font-body-medium text-xs">📍 {area}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Services offered */}
+      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+        <Text className="text-text-main font-body-bold text-sm mb-3">Services Offered</Text>
+        <View className="flex-row flex-wrap gap-2">
+          {SERVICES.map((s) => (
+            <View key={s} className="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-full">
+              <Text className="text-text-main font-body-medium text-xs">{s}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Language */}
+      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+        <Text className="text-text-main font-body-bold text-sm mb-3">App Language</Text>
         <LanguageToggle />
       </View>
+
+      {/* Sign out */}
       <TouchableOpacity
         onPress={async () => { await signOut(); router.replace('/(auth)/welcome'); }}
-        className="bg-red-50 border border-red-200 rounded-2xl p-4 items-center"
+        className="bg-red-50 border border-red-200 rounded-2xl p-4 items-center mb-8"
       >
-        <Text className="text-danger font-body-bold">{t('auth.signOut')}</Text>
+        <Text className="text-red-600 font-body-bold">Sign Out</Text>
       </TouchableOpacity>
     </ScreenWrapper>
   );
