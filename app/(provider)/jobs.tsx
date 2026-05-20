@@ -87,7 +87,7 @@ export default function ProviderJobs() {
       ) : jobs.length === 0 ? (
         <EmptyState
           title={`No ${labels[activeTab].toLowerCase()} jobs`}
-          icon="📋"
+          iconName="file-text"
           subtitle={isColombia ? 'Los trabajos a los que apliques aparecerán aquí' : 'Jobs you apply to will appear here'}
         />
       ) : (

@@ -54,17 +54,15 @@ export default function ProviderHome() {
         {/* Stats row */}
         <View className="flex-row gap-3 mt-4">
           <View className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-            <Text className="text-primary text-xl font-heading">47</Text>
+            <Text className="text-primary text-xl font-heading">0</Text>
             <Text className="text-text-muted font-body text-xs">{isColombia ? 'Trabajos' : 'Jobs completed'}</Text>
           </View>
           <View className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-            <Text className="text-secondary text-xl font-heading">4.9 ★</Text>
+            <Text className="text-secondary text-xl font-heading">—</Text>
             <Text className="text-text-muted font-body text-xs">{isColombia ? 'Calificación' : 'Avg. rating'}</Text>
           </View>
           <View className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-            <Text className="text-green-600 text-xl font-heading">
-              {isColombia ? '$2.8M' : '$1.2k'}
-            </Text>
+            <Text className="text-green-600 text-xl font-heading">—</Text>
             <Text className="text-text-muted font-body text-xs">{isColombia ? 'Este mes' : 'This month'}</Text>
           </View>
         </View>
@@ -95,7 +93,7 @@ export default function ProviderHome() {
       )}
 
       {!loading && !isPending && displayJobs.length === 0 ? (
-        <EmptyState title={t('provider.noJobAlerts')} icon="🔍" />
+        <EmptyState title={t('provider.noJobAlerts')} iconName="search" />
       ) : !loading ? (
         <FlatList
           data={displayJobs}

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
@@ -24,7 +24,7 @@ function timeAgo(iso: string): string {
   return `${days}d ago`;
 }
 
-function RequestCard({ req, isColombia }: { req: JobRequest; isColombia: boolean }) {
+function RequestCard({ req, isColombia, onViewBids, onEdit }: { req: JobRequest; isColombia: boolean; onViewBids: () => void; onEdit: () => void; }) {
   const isCommercial = req.service_type === 'commercial';
   const leftColor = isCommercial ? '#1B3A6B' : '#C9A84C';
 
@@ -70,12 +70,12 @@ function RequestCard({ req, isColombia }: { req: JobRequest; isColombia: boolean
       </View>
 
       <View className="border-t border-gray-100 px-4 py-2.5 flex-row justify-between">
-        <TouchableOpacity>
+        <TouchableOpacity onPress={onViewBids}>
           <Text className="text-primary font-body-bold text-sm">
             {isColombia ? 'Ver Ofertas' : 'View Bids'}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={onEdit}>
           <Text className="text-text-muted font-body text-sm">
             {isColombia ? 'Editar' : 'Edit'}
           </Text>
@@ -174,7 +174,7 @@ export default function MyRequests() {
       ) : current.length === 0 ? (
         <EmptyState
           title={`No ${TAB_LABELS[activeTab].toLowerCase()} requests`}
-          icon="📋"
+          iconName="file-text"
           subtitle={isColombia ? 'Publica un trabajo para comenzar' : 'Post a job to get started'}
           ctaLabel={isColombia ? 'Publicar Trabajo' : 'Post a Job'}
           onCta={() => router.push('/(client)/post-job' as any)}
@@ -183,7 +183,20 @@ export default function MyRequests() {
         <FlatList
           data={current}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <RequestCard req={item} isColombia={isColombia} />}
+          renderItem={({ item }) => (
+            <RequestCard
+              req={item}
+              isColombia={isColombia}
+              onViewBids={() => Alert.alert(
+                isColombia ? 'Ofertas' : 'Bids',
+                isColombia ? 'La vista de ofertas estará disponible pronto.' : 'Bid viewing is coming soon.',
+              )}
+              onEdit={() => Alert.alert(
+                isColombia ? 'Editar' : 'Edit',
+                isColombia ? 'La edición de solicitudes estará disponible pronto.' : 'Editing requests is coming soon.',
+              )}
+            />
+          )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         />
       )}

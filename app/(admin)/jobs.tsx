@@ -1,20 +1,116 @@
-import { View, Text } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
 import { C } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
+
+type JobStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+
+interface AdminJob {
+  id: string;
+  title: string | null;
+  service_type: string;
+  city: string;
+  country: string;
+  status: JobStatus;
+  scheduled_date: string;
+  created_at: string;
+  client_email: string;
+}
+
+const STATUS_META: Record<JobStatus, { bg: string; text: string; label: string }> = {
+  open:        { bg: `${C.accent}20`,   text: C.accent,   label: 'OPEN' },
+  in_progress: { bg: '#3B82F620',       text: '#3B82F6',  label: 'ACTIVE' },
+  completed:   { bg: `${C.success}20`,  text: C.success,  label: 'DONE' },
+  cancelled:   { bg: `${C.danger}20`,   text: C.danger,   label: 'CANCELLED' },
+};
+
+function JobRow({ job }: { job: AdminJob }) {
+  const meta = STATUS_META[job.status] ?? STATUS_META.open;
+  return (
+    <View style={{
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.line,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 12,
+    }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
+            {job.title ?? (job.service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning')}
+          </Text>
+          <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+            {job.client_email} · {job.city} · {job.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
+          </Text>
+        </View>
+        <View style={{ backgroundColor: meta.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+          <Text style={{ color: meta.text, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>{meta.label}</Text>
+        </View>
+      </View>
+      <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+        📅 {job.scheduled_date}
+      </Text>
+    </View>
+  );
+}
 
 export default function AdminJobs() {
+  const [jobs, setJobs] = useState<AdminJob[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('job_requests')
+        .select('id, title, service_type, city, country, status, scheduled_date, created_at, users!client_id(email)')
+        .order('created_at', { ascending: false })
+        .limit(100);
+
+      if (data) {
+        setJobs(data.map((j: any) => ({
+          ...j,
+          client_email: j.users?.email ?? 'Unknown',
+        })));
+      }
+    } catch {
+      // keep empty
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+
   return (
     <ScreenWrapper>
       <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>All Jobs</Text>
-        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>Monitor all job requests on the platform</Text>
+        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
+          {loading ? 'Loading...' : `${jobs.length} job${jobs.length !== 1 ? 's' : ''} on the platform`}
+        </Text>
       </View>
-      <EmptyState
-        title="No job requests yet"
-        subtitle="Job requests posted by clients will appear here."
-        iconName="briefcase"
-      />
+
+      {loading ? (
+        <ActivityIndicator style={{ marginTop: 48 }} color={C.accent} />
+      ) : jobs.length === 0 ? (
+        <EmptyState
+          title="No job requests yet"
+          subtitle="Job requests posted by clients will appear here."
+          iconName="briefcase"
+        />
+      ) : (
+        <FlatList
+          data={jobs}
+          keyExtractor={(item) => item.id}
+          renderItem={({ item }) => <JobRow job={item} />}
+          contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </ScreenWrapper>
   );
 }

@@ -42,13 +42,10 @@ export default function CompanyStep4() {
       });
       if (userError) throw userError;
 
-      const addr = formData.address ?? {};
-      const city  = isUSA ? addr.city  : addr.ciudad;
-      const state = isUSA ? addr.state : addr.departamento;
-      const zip   = isUSA ? addr.zip   : '';
-      const street = isUSA
-        ? addr.street
-        : `${addr.viaType ?? ''} ${addr.numeroPrincipal ?? ''}${addr.numeroSecundario ? ' # ' + addr.numeroSecundario : ''}${addr.complemento ? ' ' + addr.complemento : ''}, ${addr.barrio ?? ''}`.trim();
+      const city   = formData.city ?? '';
+      const state  = formData.stateOrDept ?? formData.state ?? '';
+      const zip    = formData.zip ?? '';
+      const street = formData.address ?? '';
 
       const { error: companyError } = await supabase.from('companies').insert({
         user_id: userId,

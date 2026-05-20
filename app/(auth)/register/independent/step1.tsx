@@ -9,6 +9,8 @@ import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import { C } from '@/constants/theme';
+import { useRegistrationStore } from '@/store/registrationStore';
+import type { Country } from '@/types';
 
 const schema = z.object({
   fullName:    z.string().min(2, 'Required'),
@@ -28,10 +30,14 @@ export default function IndependentStep1() {
   const router = useRouter();
   const { country = 'usa' } = useLocalSearchParams<{ country?: string }>();
   const isColombia = country === 'colombia';
+  const { setCountry, mergeFormData } = useRegistrationStore();
+
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
 
   const onNext = (data: FormData) => {
-    router.push({ pathname: '/(auth)/register/independent/step2', params: { ...data, country } } as any);
+    setCountry(country as Country);
+    mergeFormData(data);
+    router.push({ pathname: '/(auth)/register/independent/step2', params: { country } } as any);
   };
 
   return (

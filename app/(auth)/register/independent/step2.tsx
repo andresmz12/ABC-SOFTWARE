@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import { C } from '@/constants/theme';
+import { useRegistrationStore } from '@/store/registrationStore';
 
 const SERVICE_TYPES = [
   { key: 'commercial',  label: 'Commercial', labelEs: 'Comercial',   icon: 'briefcase' as const },
@@ -21,6 +22,7 @@ export default function IndependentStep2() {
   const params = useLocalSearchParams<Record<string, string>>();
   const country = params.country ?? 'usa';
   const isColombia = country === 'colombia';
+  const { mergeFormData } = useRegistrationStore();
   const [serviceType, setServiceType] = useState('both');
   const [selected, setSelected] = useState<string[]>([]);
   const toggle = (s: string) => setSelected((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
@@ -79,7 +81,10 @@ export default function IndependentStep2() {
 
         <Button
           label={isColombia ? 'Continuar' : 'Continue'}
-          onPress={() => router.push({ pathname: '/(auth)/register/independent/step3', params: { country } } as any)}
+          onPress={() => {
+            mergeFormData({ serviceType, serviceAreas: selected });
+            router.push({ pathname: '/(auth)/register/independent/step3', params: { country } } as any);
+          }}
           disabled={selected.length === 0}
         />
         <View style={{ height: 40 }} />

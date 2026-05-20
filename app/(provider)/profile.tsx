@@ -68,19 +68,22 @@ export default function ProviderProfile() {
         <View className="flex-row items-center mb-4">
           <View className="w-16 h-16 bg-primary rounded-full items-center justify-center mr-4">
             <Text className="text-white text-2xl font-heading">
-              {isColombia ? 'LT' : 'CP'}
+              {(user?.email?.[0] ?? 'P').toUpperCase()}
             </Text>
           </View>
           <View className="flex-1">
             <Text className="text-text-main font-body-bold text-lg">
-              {isColombia ? 'Limpieza Total SAS' : 'CleanPro Services LLC'}
+              {user?.email?.split('@')[0] ?? 'ProVendor User'}
             </Text>
             <Text className="text-text-muted font-body text-sm">
-              {isColombia ? 'Empresa · Medellín, Colombia' : 'Company · Miami, FL'}
+              {user?.role === 'company'
+                ? (isColombia ? 'Empresa' : 'Company')
+                : (isColombia ? 'Independiente' : 'Independent')}
+              {user?.country ? ` · ${user.country === 'colombia' ? 'Colombia' : 'United States'}` : ''}
             </Text>
             <View className="flex-row items-center mt-1">
-              <Text className="text-secondary font-body-bold text-sm">4.8 ★</Text>
-              <Text className="text-text-muted font-body text-xs ml-1">(87 {isColombia ? 'reseñas' : 'reviews'})</Text>
+              <Text className="text-secondary font-body-bold text-sm">—</Text>
+              <Text className="text-text-muted font-body text-xs ml-1">(0 {isColombia ? 'reseñas' : 'reviews'})</Text>
             </View>
           </View>
         </View>
@@ -127,9 +130,9 @@ export default function ProviderProfile() {
       {/* Stats */}
       <View className="flex-row gap-3 mb-4">
         {[
-          { label: isColombia ? 'Trabajos' : 'Jobs done', value: '47' },
-          { label: isColombia ? 'Respuesta' : 'Response rate', value: '98%' },
-          { label: isColombia ? 'Recurrentes' : 'Repeat clients', value: '12' },
+          { label: isColombia ? 'Trabajos' : 'Jobs done', value: '0' },
+          { label: isColombia ? 'Respuesta' : 'Response rate', value: '—' },
+          { label: isColombia ? 'Recurrentes' : 'Repeat clients', value: '0' },
         ].map((s) => (
           <View key={s.label} className="flex-1 bg-white rounded-2xl p-3 items-center" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
             <Text className="text-primary font-heading text-xl">{s.value}</Text>
