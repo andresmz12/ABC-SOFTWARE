@@ -1,83 +1,11 @@
 import { View, Text, FlatList } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import JobCard from '@/components/cards/JobCard';
 import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
-import JobCard from '@/components/cards/JobCard';
-import type { JobRequest } from '@/types';
-
-const USA_DEMO_JOBS: JobRequest[] = [
-  {
-    id: 'demo-usa-1',
-    client_id: 'demo-client',
-    service_type: 'commercial',
-    city: 'Miami',
-    state: 'FL',
-    zip: '33101',
-    country: 'usa',
-    scheduled_date: '2026-05-25',
-    scheduled_time: '09:00',
-    estimated_hours: 4,
-    budget_usd: 280,
-    description: 'Office deep clean — 3 floors, 20 workstations. Need supplies included.',
-    status: 'open',
-    created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'demo-usa-2',
-    client_id: 'demo-client-2',
-    service_type: 'residential',
-    city: 'Orlando',
-    state: 'FL',
-    zip: '32801',
-    country: 'usa',
-    scheduled_date: '2026-05-26',
-    scheduled_time: '10:00',
-    estimated_hours: 3,
-    budget_usd: 150,
-    description: '3-bedroom house, weekly cleaning service.',
-    status: 'open',
-    created_at: new Date(Date.now() - 45 * 60 * 1000).toISOString(),
-  },
-];
-
-const CO_DEMO_JOBS: JobRequest[] = [
-  {
-    id: 'demo-co-1',
-    client_id: 'demo-client-co',
-    service_type: 'commercial',
-    city: 'Medellín',
-    county: 'El Poblado',
-    state: 'ANT',
-    zip: '',
-    country: 'colombia',
-    scheduled_date: '2026-05-25',
-    scheduled_time: '08:00',
-    estimated_hours: 5,
-    budget_cop: 450000,
-    description: 'Limpieza de oficina — piso 3, El Poblado. Se requiere personal con experiencia en pisos de mármol.',
-    status: 'open',
-    created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-  },
-  {
-    id: 'demo-co-2',
-    client_id: 'demo-client-co-2',
-    service_type: 'residential',
-    city: 'Bogotá D.C.',
-    county: 'Chapinero',
-    state: 'BOG',
-    zip: '',
-    country: 'colombia',
-    scheduled_date: '2026-05-26',
-    scheduled_time: '09:00',
-    estimated_hours: 4,
-    budget_cop: 320000,
-    description: 'Apartamento de 3 habitaciones, servicio quincenal de limpieza.',
-    status: 'open',
-    created_at: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
-  },
-];
+import { DEMO_JOB_ALERTS, CO_DEMO_JOB_ALERTS } from '@/constants/demoData';
 
 export default function ProviderHome() {
   const { t } = useTranslation();
@@ -85,27 +13,71 @@ export default function ProviderHome() {
   const { openJobs } = useJobStore();
   const isPending = user?.status === 'pending';
   const isColombia = user?.country === 'colombia';
+  const isDemo = user?.id === 'demo';
 
-  const demoJobs = isColombia ? CO_DEMO_JOBS : USA_DEMO_JOBS;
-  const displayJobs = openJobs.length > 0 ? openJobs : (user?.id === 'demo' ? demoJobs : []);
+  const demoAlerts = isColombia ? CO_DEMO_JOB_ALERTS : DEMO_JOB_ALERTS;
+  const displayJobs = openJobs.length > 0 ? openJobs : (isDemo ? demoAlerts : []);
+
+  const greeting = isColombia ? 'Buenos días 👋' : 'Good morning 👋';
+  const providerName = isDemo
+    ? (isColombia ? 'Limpieza Total SAS' : 'CleanPro Services')
+    : 'ProVendor';
+
+  const areaLabel = isColombia
+    ? 'Área metropolitana · Medellín'
+    : 'Miami metro area · tap to apply';
+
+  const alertsLabel = isColombia ? 'Alertas de Trabajo' : 'Job Alerts Near You';
 
   return (
     <ScreenWrapper>
-      <View className="px-5 pt-6 pb-4">
-        <Text className="text-primary text-2xl font-heading">ProVendor</Text>
-        <Text className="text-text-muted font-body text-sm">{t('provider.jobAlerts')}</Text>
+      {/* Header */}
+      <View className="px-5 pt-8 pb-5">
+        <Text className="text-text-muted font-body text-sm">{greeting}</Text>
+        <View className="flex-row items-center">
+          {isColombia && <Text className="text-xl mr-2">🇨🇴</Text>}
+          <Text className="text-primary text-3xl font-heading mt-0.5">{providerName}</Text>
+        </View>
         {isColombia && (
-          <View className="flex-row items-center mt-1">
-            <Text className="text-lg mr-1">🇨🇴</Text>
-            <Text className="text-text-muted font-body text-xs">Colombia · COP</Text>
-          </View>
+          <Text className="text-text-muted font-body text-xs mt-0.5">Colombia · COP</Text>
         )}
+
+        {/* Stats row */}
+        <View className="flex-row gap-3 mt-4">
+          <View className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+            <Text className="text-primary text-xl font-heading">47</Text>
+            <Text className="text-text-muted font-body text-xs">{isColombia ? 'Trabajos' : 'Jobs completed'}</Text>
+          </View>
+          <View className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+            <Text className="text-secondary text-xl font-heading">4.9 ★</Text>
+            <Text className="text-text-muted font-body text-xs">{isColombia ? 'Calificación' : 'Avg. rating'}</Text>
+          </View>
+          <View className="flex-1 bg-white border border-gray-100 rounded-2xl px-4 py-3" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
+            <Text className="text-green-600 text-xl font-heading">
+              {isColombia ? '$2.8M' : '$1.2k'}
+            </Text>
+            <Text className="text-text-muted font-body text-xs">{isColombia ? 'Este mes' : 'This month'}</Text>
+          </View>
+        </View>
       </View>
 
       {isPending && (
         <View className="mx-5 mb-4 bg-yellow-50 border border-yellow-200 rounded-2xl p-4">
           <Text className="text-yellow-800 font-body-bold text-sm mb-1">⏳ {t('provider.pendingApproval')}</Text>
           <Text className="text-yellow-700 font-body text-xs">{t('provider.pendingApprovalMessage')}</Text>
+        </View>
+      )}
+
+      {/* Section label */}
+      {!isPending && (
+        <View className="px-5 mb-3">
+          <View className="flex-row items-center justify-between">
+            <Text className="text-text-main font-body-bold text-base">{alertsLabel}</Text>
+            <View className="bg-secondary/15 px-2.5 py-0.5 rounded-full">
+              <Text className="text-secondary font-body-bold text-xs">{displayJobs.length} new</Text>
+            </View>
+          </View>
+          <Text className="text-text-muted font-body text-xs mt-0.5">{areaLabel}</Text>
         </View>
       )}
 
@@ -116,8 +88,7 @@ export default function ProviderHome() {
           data={displayJobs}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <JobCard job={item} onPress={() => {}} />}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 20 }}
-          ListEmptyComponent={isPending ? null : undefined}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         />
       )}
     </ScreenWrapper>
