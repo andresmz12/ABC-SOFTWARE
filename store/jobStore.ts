@@ -1,29 +1,56 @@
 import { create } from 'zustand';
-import type { JobRequest, JobApplication } from '@/types';
+import { fetchOpenJobs, fetchProviderJobs } from '@/lib/jobService';
+import type { JobRequest, JobApplication, Country } from '@/types';
 
 interface JobState {
   openJobs: JobRequest[];
   myApplications: JobApplication[];
+  appliedJobs: JobRequest[];
+  activeJobs: JobRequest[];
+  completedJobs: JobRequest[];
   activeJob: JobRequest | null;
+  loading: boolean;
   setOpenJobs: (jobs: JobRequest[]) => void;
   setMyApplications: (apps: JobApplication[]) => void;
   setActiveJob: (job: JobRequest | null) => void;
   addJob: (job: JobRequest) => void;
   updateJobStatus: (jobId: string, status: JobRequest['status']) => void;
+  fetchOpenJobs: (country: Country) => Promise<void>;
+  fetchMyJobs: (providerId: string) => Promise<void>;
 }
 
 export const useJobStore = create<JobState>((set) => ({
   openJobs: [],
   myApplications: [],
+  appliedJobs: [],
+  activeJobs: [],
+  completedJobs: [],
   activeJob: null,
+  loading: false,
   setOpenJobs: (jobs) => set({ openJobs: jobs }),
   setMyApplications: (apps) => set({ myApplications: apps }),
   setActiveJob: (job) => set({ activeJob: job }),
   addJob: (job) => set((state) => ({ openJobs: [job, ...state.openJobs] })),
   updateJobStatus: (jobId, status) =>
     set((state) => ({
-      openJobs: state.openJobs.map((j) =>
-        j.id === jobId ? { ...j, status } : j
-      ),
+      openJobs: state.openJobs.map((j) => (j.id === jobId ? { ...j, status } : j)),
     })),
+  fetchOpenJobs: async (country) => {
+    set({ loading: true });
+    try {
+      const jobs = await fetchOpenJobs(country);
+      set({ openJobs: jobs });
+    } finally {
+      set({ loading: false });
+    }
+  },
+  fetchMyJobs: async (providerId) => {
+    set({ loading: true });
+    try {
+      const { applied, active, completed } = await fetchProviderJobs(providerId);
+      set({ appliedJobs: applied, activeJobs: active, completedJobs: completed });
+    } finally {
+      set({ loading: false });
+    }
+  },
 }));

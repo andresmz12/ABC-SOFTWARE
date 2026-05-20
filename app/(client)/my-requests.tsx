@@ -1,10 +1,13 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, FlatList } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
+import { useAuthStore } from '@/store/authStore';
+import { supabase } from '@/lib/supabase';
+import { formatUSD, formatCOP } from '@/lib/countryData';
 import { DEMO_REQUESTS } from '@/constants/demoData';
-import type { DemoRequest } from '@/constants/demoData';
+import type { JobRequest } from '@/types';
 
 type Tab = 'open' | 'in_progress' | 'completed';
 
@@ -14,9 +17,26 @@ const TAB_LABELS: Record<Tab, string> = {
   completed:   'Completed',
 };
 
-function RequestCard({ req }: { req: DemoRequest }) {
-  const isCommercial = req.serviceType === 'commercial';
+function timeAgo(iso: string): string {
+  const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
+  if (days === 0) return 'Today';
+  if (days === 1) return 'Yesterday';
+  return `${days}d ago`;
+}
+
+function RequestCard({ req, isColombia }: { req: JobRequest; isColombia: boolean }) {
+  const isCommercial = req.service_type === 'commercial';
   const leftColor = isCommercial ? '#1B3A6B' : '#C9A84C';
+
+  const budgetText = req.budget_usd
+    ? req.budget_max_usd ? `${formatUSD(req.budget_usd)}–${formatUSD(req.budget_max_usd)}` : formatUSD(req.budget_usd)
+    : req.budget_cop
+    ? req.budget_max_cop ? `${formatCOP(req.budget_cop)}–${formatCOP(req.budget_max_cop)}` : formatCOP(req.budget_cop)
+    : null;
+
+  const location = isColombia
+    ? `${req.county ? req.county + ', ' : ''}${req.city}`
+    : `${req.city}, ${req.state}`;
 
   return (
     <View
@@ -26,7 +46,7 @@ function RequestCard({ req }: { req: DemoRequest }) {
       <View className="p-4">
         <View className="flex-row justify-between items-start mb-2">
           <Text className="text-text-main font-body-bold text-base flex-1 mr-2" numberOfLines={1}>
-            {req.title}
+            {req.title ?? (isCommercial ? 'Commercial Cleaning' : 'Residential Cleaning')}
           </Text>
           <View className={`px-2 py-0.5 rounded-full ${isCommercial ? 'bg-blue-100' : 'bg-amber-100'}`}>
             <Text className={`text-xs font-body-medium ${isCommercial ? 'text-blue-700' : 'text-amber-700'}`}>
@@ -35,27 +55,30 @@ function RequestCard({ req }: { req: DemoRequest }) {
           </View>
         </View>
 
-        <Text className="text-text-muted font-body text-xs mb-2">📍 {req.location} · 📅 {req.date}</Text>
+        <Text className="text-text-muted font-body text-xs mb-2">
+          📍 {location} · 📅 {req.scheduled_date}
+        </Text>
 
         <View className="flex-row items-center justify-between">
-          <View className="bg-secondary/10 px-3 py-1 rounded-full">
-            <Text className="text-secondary font-body-bold text-xs">{req.budget}</Text>
-          </View>
-          <View className="flex-row items-center">
-            <Text className="text-text-muted font-body text-xs mr-1">Bids received:</Text>
-            <View className="bg-primary px-2 py-0.5 rounded-full">
-              <Text className="text-white font-body-bold text-xs">{req.bidsCount}</Text>
+          {budgetText && (
+            <View className="bg-secondary/10 px-3 py-1 rounded-full">
+              <Text className="text-secondary font-body-bold text-xs">{budgetText}</Text>
             </View>
-          </View>
+          )}
+          <Text className="text-text-muted font-body text-xs">{timeAgo(req.created_at)}</Text>
         </View>
       </View>
 
       <View className="border-t border-gray-100 px-4 py-2.5 flex-row justify-between">
         <TouchableOpacity>
-          <Text className="text-primary font-body-bold text-sm">View Bids</Text>
+          <Text className="text-primary font-body-bold text-sm">
+            {isColombia ? 'Ver Ofertas' : 'View Bids'}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity>
-          <Text className="text-text-muted font-body text-sm">Edit</Text>
+          <Text className="text-text-muted font-body text-sm">
+            {isColombia ? 'Editar' : 'Edit'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -65,29 +88,65 @@ function RequestCard({ req }: { req: DemoRequest }) {
 export default function MyRequests() {
   const [activeTab, setActiveTab] = useState<Tab>('open');
   const router = useRouter();
-  const openRequests = DEMO_REQUESTS.filter((r) => r.status === 'open');
-  const activeRequests = DEMO_REQUESTS.filter((r) => r.status === 'in_progress');
-  const completedRequests = DEMO_REQUESTS.filter((r) => r.status === 'completed');
+  const { user } = useAuthStore();
+  const isDemo = user?.id === 'demo';
+  const isColombia = user?.country === 'colombia';
 
-  const data: Record<Tab, DemoRequest[]> = {
-    open: openRequests,
-    in_progress: activeRequests,
-    completed: completedRequests,
-  };
+  const [jobs, setJobs] = useState<{ open: JobRequest[]; in_progress: JobRequest[]; completed: JobRequest[] }>({
+    open: [], in_progress: [], completed: [],
+  });
+  const [loading, setLoading] = useState(false);
 
-  const current = data[activeTab];
+  const loadJobs = useCallback(async () => {
+    if (isDemo) {
+      const open = DEMO_REQUESTS.filter((r) => r.status === 'open').map((r) => ({
+        id: r.id, client_id: 'demo', title: r.title,
+        service_type: r.serviceType, city: r.location.split(',')[0], state: r.location.split(', ')[1] ?? '',
+        zip: '', country: 'usa' as const, scheduled_date: r.date, scheduled_time: '',
+        estimated_hours: 0, budget_usd: parseFloat(r.budget.replace(/[^0-9]/g, '')),
+        status: 'open' as const, created_at: new Date().toISOString(),
+      }));
+      setJobs({ open, in_progress: [], completed: [] });
+      return;
+    }
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const { data } = await supabase
+        .from('job_requests')
+        .select('*')
+        .eq('client_id', user.id)
+        .order('created_at', { ascending: false });
+      const allJobs = data ?? [];
+      setJobs({
+        open:        allJobs.filter((j) => j.status === 'open'),
+        in_progress: allJobs.filter((j) => j.status === 'in_progress'),
+        completed:   allJobs.filter((j) => j.status === 'completed'),
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, isDemo]);
+
+  useEffect(() => { loadJobs(); }, [loadJobs]);
+
+  const current = jobs[activeTab];
 
   return (
     <ScreenWrapper>
       <View className="px-5 pt-8 pb-4">
-        <Text className="text-primary text-3xl font-heading">My Requests</Text>
-        <Text className="text-text-muted font-body text-sm mt-0.5">Track your service requests</Text>
+        <Text className="text-primary text-3xl font-heading">
+          {isColombia ? 'Mis Solicitudes' : 'My Requests'}
+        </Text>
+        <Text className="text-text-muted font-body text-sm mt-0.5">
+          {isColombia ? 'Seguimiento de tus solicitudes' : 'Track your service requests'}
+        </Text>
       </View>
 
       {/* Tab bar */}
       <View className="flex-row mx-5 mb-4 bg-gray-100 rounded-xl p-1">
         {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => {
-          const count = data[tab].length;
+          const count = jobs[tab].length;
           return (
             <TouchableOpacity
               key={tab}
@@ -110,19 +169,21 @@ export default function MyRequests() {
         })}
       </View>
 
-      {current.length === 0 ? (
+      {loading ? (
+        <ActivityIndicator className="mt-8" />
+      ) : current.length === 0 ? (
         <EmptyState
           title={`No ${TAB_LABELS[activeTab].toLowerCase()} requests`}
           icon="📋"
-          subtitle="Post a job to get started"
-          ctaLabel="Post a Job"
+          subtitle={isColombia ? 'Publica un trabajo para comenzar' : 'Post a job to get started'}
+          ctaLabel={isColombia ? 'Publicar Trabajo' : 'Post a Job'}
           onCta={() => router.push('/(client)/post-job' as any)}
         />
       ) : (
         <FlatList
           data={current}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <RequestCard req={item} />}
+          renderItem={({ item }) => <RequestCard req={item} isColombia={isColombia} />}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         />
       )}

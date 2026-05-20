@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import { ADMIN_PROVIDERS, ADMIN_DOC_QUEUE } from '@/constants/demoData';
+import { supabase } from '@/lib/supabase';
 import type { AdminProvider } from '@/constants/demoData';
 
 const STATUS_META: Record<AdminProvider['status'], { label: string; bg: string; text: string; border: string }> = {
@@ -19,17 +20,14 @@ const DOC_STATUS_META: Record<string, { icon: string; bg: string; text: string }
 };
 
 function ConfirmModal({
-  visible,
-  action,
-  providerName,
-  onConfirm,
-  onCancel,
+  visible, action, providerName, onConfirm, onCancel, loading,
 }: {
   visible: boolean;
   action: 'approve' | 'reject';
   providerName: string;
   onConfirm: () => void;
   onCancel: () => void;
+  loading: boolean;
 }) {
   const isApprove = action === 'approve';
   return (
@@ -48,17 +46,23 @@ function ConfirmModal({
           <View className="flex-row gap-3">
             <TouchableOpacity
               onPress={onCancel}
+              disabled={loading}
               className="flex-1 border border-gray-200 rounded-2xl py-3 items-center"
             >
               <Text className="text-text-muted font-body-bold text-sm">Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={onConfirm}
+              disabled={loading}
               className={`flex-1 rounded-2xl py-3 items-center ${isApprove ? 'bg-green-500' : 'bg-red-500'}`}
             >
-              <Text className="text-white font-body-bold text-sm">
-                {isApprove ? 'Approve' : 'Reject'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text className="text-white font-body-bold text-sm">
+                  {isApprove ? 'Approve' : 'Reject'}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -72,6 +76,7 @@ export default function ProviderDetail() {
   const router = useRouter();
   const [modalAction, setModalAction] = useState<'approve' | 'reject' | null>(null);
   const [status, setStatus] = useState<AdminProvider['status'] | null>(null);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const provider = ADMIN_PROVIDERS.find((p) => p.id === id);
   const docEntry = ADMIN_DOC_QUEUE.find((e) => e.providerId === id);
@@ -90,28 +95,50 @@ export default function ProviderDetail() {
   const meta = STATUS_META[currentStatus];
   const initials = provider.name.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
 
-  function handleConfirm() {
+  async function handleConfirm() {
     if (!modalAction) return;
-    setStatus(modalAction === 'approve' ? 'approved' : 'rejected');
-    setModalAction(null);
-    Alert.alert(
-      modalAction === 'approve' ? 'Provider Approved' : 'Provider Rejected',
-      `${provider!.name} has been ${modalAction === 'approve' ? 'approved' : 'rejected'} and notified.`,
-    );
+    setActionLoading(true);
+    try {
+      const newStatus = modalAction === 'approve' ? 'approved' : 'rejected';
+
+      await supabase.from('users').update({ status: newStatus }).eq('email', provider!.email);
+
+      const isApprove = modalAction === 'approve';
+      await supabase.from('notifications').insert({
+        user_id: provider!.id,
+        title_en: isApprove ? 'Account Approved' : 'Application Not Approved',
+        title_es: isApprove ? 'Cuenta Aprobada' : 'Solicitud No Aprobada',
+        body_en: isApprove
+          ? 'Congratulations! Your account has been approved. You can now browse and apply to jobs.'
+          : 'Your application was not approved at this time. Please review your documents and resubmit.',
+        body_es: isApprove
+          ? '¡Felicitaciones! Tu cuenta ha sido aprobada. Ya puedes explorar y aplicar a trabajos.'
+          : 'Tu solicitud no fue aprobada en este momento. Por favor revisa tus documentos y vuelve a enviar.',
+        type: 'account_update',
+        read: false,
+      });
+
+      setStatus(newStatus as AdminProvider['status']);
+      setModalAction(null);
+      Alert.alert(
+        isApprove ? 'Provider Approved' : 'Provider Rejected',
+        `${provider!.name} has been ${isApprove ? 'approved' : 'rejected'} and notified.`,
+      );
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Failed to update provider status.');
+    } finally {
+      setActionLoading(false);
+    }
   }
 
   return (
     <ScreenWrapper scroll className="px-5">
-      {/* Back button */}
       <TouchableOpacity onPress={() => router.back()} className="pt-8 pb-4 flex-row items-center">
         <Text className="text-primary font-body-medium text-sm">← Back to Providers</Text>
       </TouchableOpacity>
 
       {/* Provider header card */}
-      <View
-        className="bg-white rounded-2xl p-5 mb-4"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3 }}
-      >
+      <View className="bg-white rounded-2xl p-5 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3 }}>
         <View className="flex-row items-center mb-4">
           <View className="w-16 h-16 bg-primary rounded-full items-center justify-center mr-4">
             <Text className="text-white text-2xl font-heading">{initials}</Text>
@@ -123,7 +150,6 @@ export default function ProviderDetail() {
           </View>
         </View>
 
-        {/* Status badge */}
         <View className={`${meta.bg} border ${meta.border} rounded-xl px-4 py-2.5 flex-row items-center`}>
           <Text className={`${meta.text} font-body-bold text-sm flex-1`}>{meta.label}</Text>
           <Text className="text-text-muted font-body text-xs">Joined {provider.joinedDate}</Text>
@@ -131,10 +157,7 @@ export default function ProviderDetail() {
       </View>
 
       {/* Contact info */}
-      <View
-        className="bg-white rounded-2xl p-4 mb-4"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-      >
+      <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
         <Text className="text-text-main font-body-bold text-sm mb-3">Contact Information</Text>
         <View className="flex-row items-center mb-2">
           <Text className="text-text-muted font-body text-xs w-16">Email</Text>
@@ -148,20 +171,14 @@ export default function ProviderDetail() {
 
       {/* Documents */}
       {docEntry && (
-        <View
-          className="bg-white rounded-2xl p-4 mb-4"
-          style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}
-        >
+        <View className="bg-white rounded-2xl p-4 mb-4" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
           <Text className="text-text-main font-body-bold text-sm mb-3">
             Submitted Documents ({docEntry.docs.length})
           </Text>
           {docEntry.docs.map((doc, idx) => {
             const dm = DOC_STATUS_META[doc.status];
             return (
-              <View
-                key={idx}
-                className={`flex-row items-center py-2.5 ${idx < docEntry.docs.length - 1 ? 'border-b border-gray-50' : ''}`}
-              >
+              <View key={idx} className={`flex-row items-center py-2.5 ${idx < docEntry.docs.length - 1 ? 'border-b border-gray-50' : ''}`}>
                 <Text className="mr-2.5">{dm.icon}</Text>
                 <Text className="text-text-main font-body text-sm flex-1">{doc.label}</Text>
                 <View className={`${dm.bg} px-2 py-0.5 rounded-full`}>
@@ -173,7 +190,7 @@ export default function ProviderDetail() {
         </View>
       )}
 
-      {/* Action buttons — only show for pending */}
+      {/* Action buttons */}
       {currentStatus === 'pending' && (
         <View className="flex-row gap-3 mb-4">
           <TouchableOpacity
@@ -214,6 +231,7 @@ export default function ProviderDetail() {
         providerName={provider.name}
         onConfirm={handleConfirm}
         onCancel={() => setModalAction(null)}
+        loading={actionLoading}
       />
     </ScreenWrapper>
   );

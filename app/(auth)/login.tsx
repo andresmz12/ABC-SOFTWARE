@@ -80,7 +80,7 @@ export default function Login() {
         )}
       />
 
-      <TouchableOpacity className="self-end mb-6">
+      <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password' as any)} className="self-end mb-6">
         <Text className="text-primary font-body text-sm">{t('auth.forgotPassword')}</Text>
       </TouchableOpacity>
 

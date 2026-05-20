@@ -1,5 +1,7 @@
-import { View, Text, FlatList } from 'react-native';
+import { useEffect } from 'react';
+import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import { useTranslation } from 'react-i18next';
+import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import JobCard from '@/components/cards/JobCard';
 import { useAuthStore } from '@/store/authStore';
@@ -9,11 +11,18 @@ import { DEMO_JOB_ALERTS, CO_DEMO_JOB_ALERTS } from '@/constants/demoData';
 
 export default function ProviderHome() {
   const { t } = useTranslation();
+  const router = useRouter();
   const { user } = useAuthStore();
-  const { openJobs } = useJobStore();
+  const { openJobs, loading, fetchOpenJobs } = useJobStore();
   const isPending = user?.status === 'pending';
   const isColombia = user?.country === 'colombia';
   const isDemo = user?.id === 'demo';
+
+  useEffect(() => {
+    if (!isDemo && user?.country) {
+      fetchOpenJobs(user.country);
+    }
+  }, [user?.country, isDemo]);
 
   const demoAlerts = isColombia ? CO_DEMO_JOB_ALERTS : DEMO_JOB_ALERTS;
   const displayJobs = openJobs.length > 0 ? openJobs : (isDemo ? demoAlerts : []);
@@ -81,16 +90,25 @@ export default function ProviderHome() {
         </View>
       )}
 
-      {!isPending && displayJobs.length === 0 ? (
+      {loading && !isPending && (
+        <ActivityIndicator className="my-8" />
+      )}
+
+      {!loading && !isPending && displayJobs.length === 0 ? (
         <EmptyState title={t('provider.noJobAlerts')} icon="🔍" />
-      ) : (
+      ) : !loading ? (
         <FlatList
           data={displayJobs}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <JobCard job={item} onPress={() => {}} />}
+          renderItem={({ item }) => (
+            <JobCard
+              job={item}
+              onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+            />
+          )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
         />
-      )}
+      ) : null}
     </ScreenWrapper>
   );
 }
