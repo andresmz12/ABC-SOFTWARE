@@ -11,7 +11,7 @@ export default function BrowseProviders() {
         <Text className="text-primary text-2xl font-heading">{t('client.browseProviders')}</Text>
         <Text className="text-text-muted font-body text-sm">{t('client.browseSubtitle')}</Text>
       </View>
-      <EmptyState title="No providers found" icon="🔍" subtitle="Try adjusting your filters." />
+      <EmptyState title={t('client.noProviders')} icon="🔍" subtitle={t('client.adjustFilters')} />
     </ScreenWrapper>
   );
 }

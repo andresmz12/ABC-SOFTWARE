@@ -6,17 +6,17 @@ import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import DocumentUploadCard from '@/components/cards/DocumentUploadCard';
 
-const REQUIRED_DOCS = [
-  { key: 'w9', label: 'W-9 Form (PDF only)' },
-  { key: 'gov_id_front', label: 'Government ID — Front (image)' },
-  { key: 'gov_id_back', label: 'Government ID — Back (image)' },
-  { key: 'background_check', label: 'Background Check Consent Form (PDF)' },
-  { key: 'contractor_agreement', label: 'Independent Contractor Agreement (PDF)' },
-];
-
 export default function IndependentStep3() {
   const router = useRouter();
   const { t } = useTranslation();
+
+  const REQUIRED_DOCS = [
+    { key: 'w9', label: t('registration.docW9') },
+    { key: 'gov_id_front', label: t('registration.docGovIdFront') },
+    { key: 'gov_id_back', label: t('registration.docGovIdBack') },
+    { key: 'background_check', label: t('registration.docBackgroundCheckConsent') },
+    { key: 'contractor_agreement', label: t('registration.docContractorAgreement') },
+  ];
   return (
     <ScreenWrapper scroll className="px-6">
       <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">

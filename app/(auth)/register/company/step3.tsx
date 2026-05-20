@@ -6,17 +6,17 @@ import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import DocumentUploadCard from '@/components/cards/DocumentUploadCard';
 
-const REQUIRED_DOCS = [
-  { key: 'w9', label: 'W-9 Form (PDF only)' },
-  { key: 'insurance', label: 'Certificate of Insurance — General Liability min $1M (PDF)' },
-  { key: 'business_license', label: 'Business License (PDF or image)' },
-  { key: 'ein_letter', label: 'EIN Confirmation Letter (PDF only)' },
-  { key: 'service_agreement', label: 'Signed Service Agreement (PDF)' },
-];
-
 export default function CompanyStep3() {
   const router = useRouter();
   const { t } = useTranslation();
+
+  const REQUIRED_DOCS = [
+    { key: 'w9', label: t('registration.docW9') },
+    { key: 'insurance', label: t('registration.docInsuranceCert') },
+    { key: 'business_license', label: t('registration.docBusinessLicenseLabel') },
+    { key: 'ein_letter', label: t('registration.docEinLetter') },
+    { key: 'service_agreement', label: t('registration.docServiceAgreementSigned') },
+  ];
 
   return (
     <ScreenWrapper scroll className="px-6">

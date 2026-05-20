@@ -1,16 +1,17 @@
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text } from 'react-native';
 import { useTranslation } from 'react-i18next';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 
-const STATS = [
-  { label: 'Pending Approvals', value: '0', icon: '⏳', color: 'bg-yellow-50 border-yellow-200' },
-  { label: 'Active Jobs', value: '0', icon: '💼', color: 'bg-blue-50 border-blue-200' },
-  { label: 'Total Clients', value: '0', icon: '👥', color: 'bg-green-50 border-green-200' },
-  { label: 'Total Revenue', value: '$0', icon: '💰', color: 'bg-purple-50 border-purple-200' },
-];
-
 export default function AdminDashboard() {
   const { t } = useTranslation();
+
+  const STATS = [
+    { label: t('admin.pendingApprovals'), value: '0', icon: '⏳', color: 'bg-yellow-50 border-yellow-200' },
+    { label: t('admin.activeJobs'), value: '0', icon: '💼', color: 'bg-blue-50 border-blue-200' },
+    { label: t('admin.totalClients'), value: '0', icon: '👥', color: 'bg-green-50 border-green-200' },
+    { label: t('admin.totalRevenue'), value: '$0', icon: '💰', color: 'bg-purple-50 border-purple-200' },
+  ];
+
   return (
     <ScreenWrapper scroll className="px-5">
       <View className="pt-8 pb-6">

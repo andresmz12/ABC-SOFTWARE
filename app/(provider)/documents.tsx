@@ -11,7 +11,7 @@ export default function ProviderDocuments() {
         <Text className="text-primary text-2xl font-heading">{t('documents.title')}</Text>
         <Text className="text-text-muted font-body text-sm">{t('documents.subtitle')}</Text>
       </View>
-      <EmptyState title="No documents uploaded yet" icon="📄" subtitle="Upload your documents to get approved." />
+      <EmptyState title={t('provider.noDocuments')} icon="📄" subtitle={t('provider.uploadPrompt')} />
     </ScreenWrapper>
   );
 }

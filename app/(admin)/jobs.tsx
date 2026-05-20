@@ -10,7 +10,7 @@ export default function AdminJobs() {
       <View className="px-5 pt-6 pb-4">
         <Text className="text-primary text-2xl font-heading">{t('admin.jobs')}</Text>
       </View>
-      <EmptyState title="No jobs yet" icon="💼" />
+      <EmptyState title={t('admin.noJobs')} icon="💼" />
     </ScreenWrapper>
   );
 }

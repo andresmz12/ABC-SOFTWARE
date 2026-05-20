@@ -18,14 +18,20 @@ export default function CompanyStep4() {
       <Text className="text-primary text-2xl font-heading mb-6">{t('registration.review')}</Text>
 
       <View className="bg-accent rounded-2xl p-5 mb-6">
-        <Text className="text-primary font-body-bold text-base mb-2">📋 Application Summary</Text>
+        <Text className="text-primary font-body-bold text-base mb-2">📋 {t('registration.applicationSummary')}</Text>
         <Text className="text-text-muted font-body text-sm leading-6">
-          Your company registration has been prepared for review. Our team will verify your documents within 1–3 business days. You'll receive a push notification once approved.
+          {t('registration.reviewParagraphCompany')}
         </Text>
       </View>
 
       <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-6">
-        {['W-9 Form', 'Certificate of Insurance', 'Business License', 'EIN Letter', 'Service Agreement'].map((doc) => (
+        {[
+          t('registration.docSummaryW9'),
+          t('registration.docSummaryCertOfInsurance'),
+          t('registration.docSummaryBusinessLicense'),
+          t('registration.docSummaryEinLetter'),
+          t('registration.docSummaryServiceAgreement'),
+        ].map((doc) => (
           <View key={doc} className="flex-row items-center py-2 border-b border-gray-100 last:border-0">
             <Text className="text-success mr-2">✓</Text>
             <Text className="text-text-main font-body text-sm">{doc}</Text>
@@ -34,7 +40,7 @@ export default function CompanyStep4() {
       </View>
 
       <Button
-        label={t('registration.review') + ' & Submit'}
+        label={t('registration.reviewAndSubmit')}
         onPress={() => router.replace('/(auth)/welcome')}
       />
     </ScreenWrapper>

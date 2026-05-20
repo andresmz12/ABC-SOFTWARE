@@ -10,7 +10,7 @@ export default function AdminDocuments() {
       <View className="px-5 pt-6 pb-4">
         <Text className="text-primary text-2xl font-heading">{t('admin.documents')}</Text>
       </View>
-      <EmptyState title="No documents pending review" icon="📄" />
+      <EmptyState title={t('admin.noDocumentsPending')} icon="📄" />
     </ScreenWrapper>
   );
 }

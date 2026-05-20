@@ -10,7 +10,7 @@ export default function AdminProviders() {
       <View className="px-5 pt-6 pb-4">
         <Text className="text-primary text-2xl font-heading">{t('admin.providers')}</Text>
       </View>
-      <EmptyState title="No providers registered yet" icon="🏢" />
+      <EmptyState title={t('admin.noProviders')} icon="🏢" />
     </ScreenWrapper>
   );
 }

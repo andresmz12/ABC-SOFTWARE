@@ -13,7 +13,7 @@ export default function Index() {
   // Moved here from _layout.tsx so it runs inside the navigator context.
   useEffect(() => {
     initialize();
-  }, []);
+  }, [initialize]);
 
   useEffect(() => {
     if (loading) return;

@@ -32,7 +32,7 @@ export default function ProviderJobs() {
       <EmptyState
         title={t(`provider.no${activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}`)}
         icon="📋"
-        subtitle="Jobs you've applied to will appear here."
+        subtitle={t('provider.appliedSubtitle')}
       />
     </ScreenWrapper>
   );
