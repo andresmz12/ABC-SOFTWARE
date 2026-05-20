@@ -1,8 +1,5 @@
-// Full Intl polyfill — must come first so PluralRules has a complete Intl base
-import 'intl';
-// intl-pluralrules polyfills Intl.PluralRules for Hermes/React Native.
-// Imported before i18next so pluralResolver finds a compliant implementation.
 import 'intl-pluralrules';
+import 'intl';
 
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
