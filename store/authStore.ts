@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
-import type { User } from '@/types';
+import type { User, UserRole } from '@/types';
 
 interface AuthState {
   user: User | null;
@@ -11,6 +11,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
+  enterDemoMode: (role: UserRole) => void;
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -36,5 +37,19 @@ export const useAuthStore = create<AuthState>((set) => ({
     } else {
       set({ loading: false });
     }
+  },
+  enterDemoMode: (role: UserRole) => {
+    set({
+      user: {
+        id: 'demo',
+        email: 'demo@provendor.app',
+        role,
+        status: 'approved',
+        country: 'usa',
+        preferred_language: 'en',
+        created_at: new Date().toISOString(),
+      },
+      loading: false,
+    });
   },
 }));

@@ -3,10 +3,13 @@ import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import LanguageToggle from '@/components/ui/LanguageToggle';
+import { useAuthStore } from '@/store/authStore';
+import type { UserRole } from '@/types';
 
 export default function Welcome() {
   const router = useRouter();
   const { t } = useTranslation();
+  const enterDemoMode = useAuthStore((s) => s.enterDemoMode);
 
   const roles = [
     { key: 'company',     label: t('roles.company'),      desc: t('roles.companyDescription'),     route: '/(auth)/register/company/step1', icon: '🏢' },
@@ -55,6 +58,31 @@ export default function Welcome() {
           <Text className="text-primary font-body-bold">{t('auth.signIn')}</Text>
         </Text>
       </TouchableOpacity>
+
+      {/* ── Demo Mode ── UI review only, bypasses auth ── */}
+      <View className="border-t border-dashed border-gray-200 mt-2 pt-5 pb-8">
+        <Text className="text-xs text-text-muted text-center mb-3 font-body">
+          🔍 Skip Auth — Demo Mode
+        </Text>
+        <View className="flex-row gap-2">
+          {(
+            [
+              { role: 'company'  as UserRole, label: 'Provider', icon: '🏢' },
+              { role: 'client'   as UserRole, label: 'Client',   icon: '🏠' },
+              { role: 'admin'    as UserRole, label: 'Admin',    icon: '⚙️' },
+            ] as const
+          ).map(({ role, label, icon }) => (
+            <TouchableOpacity
+              key={role}
+              onPress={() => enterDemoMode(role)}
+              className="flex-1 border border-dashed border-gray-300 rounded-xl py-3 items-center active:bg-accent"
+            >
+              <Text className="text-xl">{icon}</Text>
+              <Text className="text-text-muted font-body text-xs mt-1">{label}</Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </View>
     </ScreenWrapper>
   );
 }
