@@ -1,89 +1,107 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useAuthStore } from '@/store/authStore';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
-import { DEMO_REQUESTS } from '@/constants/demoData';
+import { Feather } from '@expo/vector-icons';
+import { C } from '@/constants/theme';
 
 export default function ClientHome() {
-  const { t } = useTranslation();
+  const { user } = useAuthStore();
   const router = useRouter();
-
-  const openCount = DEMO_REQUESTS.filter((r) => r.status === 'open').length;
-  const totalBids = DEMO_REQUESTS.reduce((s, r) => s + r.bidsCount, 0);
+  const name = user?.email?.split('@')[0] ?? 'there';
 
   return (
-    <ScreenWrapper scroll className="px-5">
-      <View className="pt-8 pb-6">
-        <Text className="text-text-muted font-body text-sm">Welcome back 👋</Text>
-        <Text className="text-primary text-3xl font-heading mt-0.5">Find a Professional</Text>
+    <ScreenWrapper scroll className="px-6">
+      <View style={{ paddingTop: 40, paddingBottom: 32 }}>
+        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular' }}>Hello, {name}</Text>
+        <Text style={{ color: C.textPrimary, fontSize: 30, fontFamily: 'Inter_700Bold', marginTop: 4, letterSpacing: -0.5 }}>
+          Find a Professional
+        </Text>
+        <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 8, lineHeight: 22 }}>
+          Connect with verified cleaning experts in your area
+        </Text>
       </View>
-
-      {/* Active request summary */}
-      {openCount > 0 && (
-        <TouchableOpacity
-          onPress={() => router.push('/(client)/my-requests' as any)}
-          className="bg-accent border border-primary/20 rounded-2xl p-4 mb-4 flex-row items-center"
-          style={{ shadowColor: '#1B3A6B', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.08, shadowRadius: 5, elevation: 2 }}
-        >
-          <View className="w-10 h-10 bg-primary/10 rounded-full items-center justify-center mr-3">
-            <Text className="text-lg">📋</Text>
-          </View>
-          <View className="flex-1">
-            <Text className="text-primary font-body-bold text-sm">
-              {openCount} active request{openCount > 1 ? 's' : ''}
-            </Text>
-            <Text className="text-text-muted font-body text-xs mt-0.5">
-              {totalBids} bid{totalBids !== 1 ? 's' : ''} received · tap to review
-            </Text>
-          </View>
-          <Text className="text-primary text-lg">→</Text>
-        </TouchableOpacity>
-      )}
 
       {/* Post job CTA */}
       <TouchableOpacity
         onPress={() => router.push('/(client)/post-job' as any)}
-        className="bg-primary rounded-2xl p-6 mb-4"
-        style={{ shadowColor: '#1B3A6B', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.2, shadowRadius: 8, elevation: 5 }}
+        style={{
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: `${C.accent}50`,
+          borderRadius: 20,
+          padding: 24,
+          marginBottom: 16,
+        }}
         activeOpacity={0.9}
       >
-        <Text className="text-secondary font-body text-sm mb-1">Ready for a clean space?</Text>
-        <Text className="text-white text-2xl font-heading">Post a Cleaning Job</Text>
-        <Text className="text-white/70 font-body text-sm mt-2 leading-5">
-          Get bids from verified, insured professionals in your area within minutes.
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+          <View style={{ width: 40, height: 40, backgroundColor: `${C.accent}20`, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+            <Feather name="plus" size={20} color={C.accent} />
+          </View>
+          <Text style={{ color: C.accent, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+            Need a clean space?
+          </Text>
+        </View>
+        <Text style={{ color: C.textPrimary, fontSize: 22, fontFamily: 'Inter_700Bold', marginBottom: 8, letterSpacing: -0.3 }}>
+          Post a Cleaning Job
         </Text>
-        <View className="bg-secondary rounded-xl py-3 px-5 mt-4 self-start">
-          <Text className="text-white font-body-bold text-sm">Get Started →</Text>
+        <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20, marginBottom: 20 }}>
+          Get quotes from verified, insured professionals in your area within minutes.
+        </Text>
+        <View style={{
+          backgroundColor: C.accent,
+          borderRadius: 12,
+          paddingVertical: 14,
+          paddingHorizontal: 24,
+          alignSelf: 'flex-start',
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}>
+          <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold', marginRight: 8 }}>Get Started</Text>
+          <Feather name="arrow-right" size={14} color="#000" />
         </View>
       </TouchableOpacity>
 
-      {/* Browse providers card */}
+      {/* Browse card */}
       <TouchableOpacity
         onPress={() => router.push('/(client)/browse-providers' as any)}
-        className="bg-white border border-gray-100 rounded-2xl p-5 mb-4 flex-row items-center"
-        style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 5, elevation: 2 }}
+        style={{
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: C.line,
+          borderRadius: 20,
+          padding: 20,
+          marginBottom: 24,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}
         activeOpacity={0.85}
       >
-        <View className="flex-1">
-          <Text className="text-text-main font-body-bold text-base mb-0.5">Browse Providers</Text>
-          <Text className="text-text-muted font-body text-sm">View profiles, ratings & availability</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.textPrimary, fontSize: 17, fontFamily: 'Inter_600SemiBold', marginBottom: 4 }}>Browse Providers</Text>
+          <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>View profiles, ratings & availability</Text>
         </View>
-        <View className="w-12 h-12 bg-accent rounded-2xl items-center justify-center ml-3">
-          <Text className="text-2xl">🔍</Text>
+        <View style={{ width: 48, height: 48, backgroundColor: C.surface2, borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 16 }}>
+          <Feather name="search" size={20} color={C.accent} />
         </View>
       </TouchableOpacity>
 
-      {/* Trust indicators */}
-      <View className="bg-white border border-gray-100 rounded-2xl p-4 mb-6" style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 2 }}>
-        <Text className="text-text-main font-body-bold text-sm mb-3">Why ProVendor?</Text>
+      {/* Trust section */}
+      <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 20, padding: 20, marginBottom: 40 }}>
+        <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 16 }}>
+          Why ProVendor
+        </Text>
         {[
-          { icon: '✅', text: 'All providers verified & background checked' },
-          { icon: '🛡️', text: 'Insured professionals — your property is protected' },
-          { icon: '⭐', text: 'Genuine reviews from real clients' },
+          { icon: 'shield' as const, text: 'All providers verified & background checked' },
+          { icon: 'award' as const,  text: 'Insured professionals — your home is protected' },
+          { icon: 'star' as const,   text: 'Genuine reviews from verified clients' },
         ].map((item) => (
-          <View key={item.text} className="flex-row items-center mb-2 last:mb-0">
-            <Text className="mr-2 text-base">{item.icon}</Text>
-            <Text className="text-text-muted font-body text-xs flex-1">{item.text}</Text>
+          <View key={item.text} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}>
+            <View style={{ width: 32, height: 32, backgroundColor: `${C.accent}15`, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+              <Feather name={item.icon} size={14} color={C.accent} />
+            </View>
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>{item.text}</Text>
           </View>
         ))}
       </View>

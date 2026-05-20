@@ -1,26 +1,44 @@
 import { View, Text } from 'react-native';
 
-type Status = 'pending' | 'approved' | 'rejected' | 'expired' | 'suspended' | 'open' | 'in_progress' | 'completed' | 'cancelled' | 'accepted' | 'withdrawn';
+type Status =
+  | 'pending' | 'approved' | 'rejected' | 'expired'
+  | 'suspended' | 'open' | 'in_progress' | 'completed'
+  | 'cancelled' | 'accepted' | 'withdrawn';
 
-const styles: Record<Status, { bg: string; text: string; label: string }> = {
-  pending:     { bg: 'bg-yellow-100', text: 'text-yellow-800', label: 'Pending' },
-  approved:    { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Approved' },
-  rejected:    { bg: 'bg-red-100',    text: 'text-red-800',    label: 'Rejected' },
-  expired:     { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Expired' },
-  suspended:   { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Suspended' },
-  open:        { bg: 'bg-blue-100',   text: 'text-blue-700',   label: 'Open' },
-  in_progress: { bg: 'bg-indigo-100', text: 'text-indigo-700', label: 'In Progress' },
-  completed:   { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Completed' },
-  cancelled:   { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Cancelled' },
-  accepted:    { bg: 'bg-green-100',  text: 'text-green-800',  label: 'Accepted' },
-  withdrawn:   { bg: 'bg-gray-100',   text: 'text-gray-600',   label: 'Withdrawn' },
+const META: Record<Status, { bg: string; border: string; text: string; label: string }> = {
+  pending:     { bg: '#F59E0B18', border: '#F59E0B60', text: '#F59E0B', label: 'PENDING' },
+  approved:    { bg: '#22C55E18', border: '#22C55E60', text: '#22C55E', label: 'APPROVED' },
+  rejected:    { bg: '#EF444418', border: '#EF444460', text: '#EF4444', label: 'REJECTED' },
+  expired:     { bg: '#52525218', border: '#52525260', text: '#525252', label: 'EXPIRED' },
+  suspended:   { bg: '#F59E0B18', border: '#F59E0B60', text: '#F59E0B', label: 'SUSPENDED' },
+  open:        { bg: '#C9A84C18', border: '#C9A84C60', text: '#C9A84C', label: 'OPEN' },
+  in_progress: { bg: '#3B82F618', border: '#3B82F660', text: '#3B82F6', label: 'IN PROGRESS' },
+  completed:   { bg: '#22C55E18', border: '#22C55E60', text: '#22C55E', label: 'COMPLETED' },
+  cancelled:   { bg: '#52525218', border: '#52525260', text: '#525252', label: 'CANCELLED' },
+  accepted:    { bg: '#22C55E18', border: '#22C55E60', text: '#22C55E', label: 'ACCEPTED' },
+  withdrawn:   { bg: '#52525218', border: '#52525260', text: '#525252', label: 'WITHDRAWN' },
 };
 
 export default function StatusBadge({ status }: { status: Status }) {
-  const s = styles[status] ?? styles.pending;
+  const m = META[status] ?? META.pending;
   return (
-    <View className={`${s.bg} px-3 py-1 rounded-full self-start`}>
-      <Text className={`${s.text} text-xs font-body-medium`}>{s.label}</Text>
+    <View style={{
+      backgroundColor: m.bg,
+      borderWidth: 1,
+      borderColor: m.border,
+      borderRadius: 9999,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      alignSelf: 'flex-start',
+    }}>
+      <Text style={{
+        color: m.text,
+        fontSize: 10,
+        fontFamily: 'Inter_600SemiBold',
+        letterSpacing: 0.5,
+      }}>
+        {m.label}
+      </Text>
     </View>
   );
 }

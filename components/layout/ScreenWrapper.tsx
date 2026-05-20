@@ -16,7 +16,9 @@ export default function ScreenWrapper({ children, scroll = false, className = ''
   );
   return (
     <SafeAreaView className="flex-1 bg-background">
-      {scroll ? <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>{content}</ScrollView> : content}
+      {scroll
+        ? <ScrollView className="flex-1 bg-background" showsVerticalScrollIndicator={false}>{content}</ScrollView>
+        : content}
     </SafeAreaView>
   );
 }

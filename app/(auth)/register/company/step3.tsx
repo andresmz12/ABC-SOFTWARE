@@ -1,51 +1,119 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
-import DocumentUploadCard from '@/components/cards/DocumentUploadCard';
-import { useRegistrationStore } from '@/store/registrationStore';
-import { getCompanyDocs } from '@/lib/docRequirements';
+import { C } from '@/constants/theme';
+
+const DOCS = [
+  { key: 'w9',               label: 'W-9 Tax Form',              desc: 'Required for US tax reporting' },
+  { key: 'insurance',        label: 'Certificate of Insurance',  desc: 'Liability coverage documentation' },
+  { key: 'business_license', label: 'Business License',          desc: 'State or local business registration' },
+  { key: 'ein_letter',       label: 'EIN Confirmation Letter',   desc: 'IRS employer identification number' },
+  { key: 'service_agreement',label: 'Signed Service Agreement',  desc: 'Platform terms and conditions' },
+];
 
 export default function CompanyStep3() {
   const router = useRouter();
-  const { t } = useTranslation();
-  const { country } = useRegistrationStore();
-  const isUSA = country !== 'colombia';
+  const [uploaded, setUploaded] = useState<Record<string, string>>({});
 
-  const docs = getCompanyDocs(country ?? 'usa');
+  const handleUpload = (key: string) => {
+    // Real implementation would open document picker
+    setUploaded((p) => ({ ...p, [key]: `${key}_document.pdf` }));
+  };
+
+  const uploadedCount = Object.keys(uploaded).length;
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-      <StepProgressBar current={3} total={4} />
-      <Text className="text-primary text-2xl font-heading mb-2">
-        {isUSA ? 'Upload Documents' : 'Subir Documentos'}
-      </Text>
-      <Text className="text-text-muted font-body text-sm mb-6">
-        {isUSA
-          ? 'Upload all required documents for verification.'
-          : 'Sube todos los documentos requeridos para verificación.'}
-      </Text>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}>
+          <Feather name="chevron-left" size={20} color={C.textPrimary} />
+          <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>Back</Text>
+        </TouchableOpacity>
 
-      {docs.map((doc) => (
-        <DocumentUploadCard
-          key={doc.key}
-          docType={doc.key}
-          label={doc.label}
-          info={doc.info}
-          onUpload={() => {}}
-        />
-      ))}
+        <View style={{ paddingTop: 8, paddingBottom: 8 }}>
+          <StepProgressBar current={3} total={4} />
+          <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Documents</Text>
+          <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6, marginBottom: 20 }}>
+            Upload required documents for platform verification
+          </Text>
 
-      <Button
-        label={t('common.next')}
-        onPress={() => router.push('/(auth)/register/company/step4' as any)}
-        className="mt-2 mb-8"
-      />
-    </ScreenWrapper>
+          {/* Progress */}
+          <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 16, marginBottom: 20 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>Upload progress</Text>
+              <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>{uploadedCount}/{DOCS.length}</Text>
+            </View>
+            <View style={{ height: 4, backgroundColor: C.line, borderRadius: 9999 }}>
+              <View style={{ height: '100%', backgroundColor: C.accent, borderRadius: 9999, width: `${(uploadedCount / DOCS.length) * 100}%` }} />
+            </View>
+          </View>
+        </View>
+
+        {DOCS.map((doc) => {
+          const isUploaded = !!uploaded[doc.key];
+          return (
+            <View
+              key={doc.key}
+              style={{
+                backgroundColor: C.surface,
+                borderWidth: 1,
+                borderColor: isUploaded ? `${C.success}40` : C.line,
+                borderRadius: 16,
+                padding: 18,
+                marginBottom: 12,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+                <View style={{
+                  width: 40, height: 40,
+                  backgroundColor: isUploaded ? `${C.success}15` : C.surface2,
+                  borderRadius: 12,
+                  alignItems: 'center', justifyContent: 'center',
+                  marginRight: 14,
+                }}>
+                  <Feather name={isUploaded ? 'check-circle' : 'file-text'} size={18} color={isUploaded ? C.success : C.accent} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>{doc.label}</Text>
+                  <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>{doc.desc}</Text>
+                  {isUploaded && (
+                    <Text style={{ color: C.success, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 6 }}>
+                      {uploaded[doc.key]}
+                    </Text>
+                  )}
+                </View>
+              </View>
+              <TouchableOpacity
+                onPress={() => handleUpload(doc.key)}
+                style={{
+                  marginTop: 14,
+                  height: 40,
+                  borderWidth: 1,
+                  borderColor: isUploaded ? `${C.success}50` : `${C.accent}50`,
+                  borderRadius: 10,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexDirection: 'row',
+                }}
+                activeOpacity={0.85}
+              >
+                <Feather name={isUploaded ? 'refresh-cw' : 'upload'} size={14} color={isUploaded ? C.success : C.accent} style={{ marginRight: 6 }} />
+                <Text style={{ color: isUploaded ? C.success : C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                  {isUploaded ? 'Replace' : 'Upload'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          );
+        })}
+
+        <View style={{ marginTop: 8, marginBottom: 40 }}>
+          <Button label="Continue" onPress={() => router.push('/(auth)/register/company/step4' as any)} />
+        </View>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

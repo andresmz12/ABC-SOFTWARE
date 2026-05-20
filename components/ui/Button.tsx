@@ -1,6 +1,6 @@
-import { TouchableOpacity, Text, ActivityIndicator, View } from 'react-native';
+import { TouchableOpacity, Text, ActivityIndicator } from 'react-native';
 
-type Variant = 'primary' | 'secondary' | 'outline' | 'danger';
+type Variant = 'primary' | 'secondary' | 'ghost' | 'danger';
 
 interface Props {
   label: string;
@@ -12,13 +12,6 @@ interface Props {
   className?: string;
 }
 
-const variantStyles: Record<Variant, { container: string; text: string }> = {
-  primary:   { container: 'bg-primary',   text: 'text-white' },
-  secondary: { container: 'bg-secondary', text: 'text-white' },
-  outline:   { container: 'bg-transparent border border-primary', text: 'text-primary' },
-  danger:    { container: 'bg-danger',    text: 'text-white' },
-};
-
 export default function Button({
   label,
   onPress,
@@ -28,17 +21,40 @@ export default function Button({
   fullWidth = true,
   className = '',
 }: Props) {
-  const styles = variantStyles[variant];
+  const styles: Record<Variant, { bg: string; text: string; border?: string }> = {
+    primary:   { bg: 'bg-accent',       text: 'text-black' },
+    secondary: { bg: 'bg-transparent',  text: 'text-accent',   border: 'border border-accent' },
+    ghost:     { bg: 'bg-transparent',  text: 'text-primary' },
+    danger:    { bg: 'bg-danger',       text: 'text-white' },
+  };
+
+  const s = styles[variant];
+  const baseClasses = [
+    s.bg,
+    s.border ?? '',
+    'rounded-xl items-center justify-center',
+    fullWidth ? 'w-full' : '',
+    disabled || loading ? 'opacity-40' : '',
+    className,
+  ].filter(Boolean).join(' ');
+
   return (
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
-      className={`${styles.container} rounded-xl py-4 items-center justify-center ${fullWidth ? 'w-full' : ''} ${disabled || loading ? 'opacity-50' : ''} ${className}`}
+      style={{ height: 56 }}
+      className={baseClasses}
+      activeOpacity={0.85}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'outline' ? '#1B3A6B' : '#fff'} />
+        <ActivityIndicator color={variant === 'primary' ? '#000' : '#C9A84C'} />
       ) : (
-        <Text className={`${styles.text} font-body-bold text-base`}>{label}</Text>
+        <Text
+          className={`${s.text} text-base`}
+          style={{ fontFamily: 'Inter_600SemiBold' }}
+        >
+          {label}
+        </Text>
       )}
     </TouchableOpacity>
   );
