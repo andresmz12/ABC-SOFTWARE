@@ -1,7 +1,10 @@
 // Full Intl polyfill — must come first so PluralRules has a complete Intl base
 import 'intl';
-// PluralRules polyfill with locale data for both supported languages
-import '@formatjs/intl-pluralrules/polyfill';
+// polyfill-force always overwrites the native Intl.PluralRules.
+// Hermes (RN 0.81) has a built-in PluralRules that passes shouldPolyfill()'s
+// heuristic but is still incomplete enough to trigger i18next's warning.
+// polyfill-force guarantees the fully spec-compliant implementation is used.
+import '@formatjs/intl-pluralrules/polyfill-force';
 import '@formatjs/intl-pluralrules/locale-data/en';
 import '@formatjs/intl-pluralrules/locale-data/es';
 
