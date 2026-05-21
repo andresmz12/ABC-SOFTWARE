@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import EmptyState from '@/components/ui/EmptyState';
@@ -157,7 +157,7 @@ export default function MyRequests() {
   const current = jobs[activeTab];
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 20 }}>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold' }}>
           {isColombia ? 'Mis Solicitudes' : 'My Requests'}
@@ -244,6 +244,6 @@ export default function MyRequests() {
           showsVerticalScrollIndicator={false}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }

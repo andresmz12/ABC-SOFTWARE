@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
@@ -110,15 +110,15 @@ export default function ProviderDetail() {
 
   if (loading) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={C.accent} size="large" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!provider) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <View style={{ flex: 1, backgroundColor: C.background }}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 20, flexDirection: 'row', alignItems: 'center' }}>
           <Feather name="arrow-left" size={20} color={C.textSecondary} />
           <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>Back</Text>
@@ -129,7 +129,7 @@ export default function ProviderDetail() {
             Provider not found
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -139,7 +139,7 @@ export default function ProviderDetail() {
   const joinedDate = new Date(provider.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -335,6 +335,6 @@ export default function ProviderDetail() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

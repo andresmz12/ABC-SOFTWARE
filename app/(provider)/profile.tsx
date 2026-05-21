@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -72,7 +72,7 @@ export default function ProviderProfile() {
   const initials = displayName.split(' ').map((w) => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 24, marginTop: 12 }}>
           {es ? 'Mi Perfil' : 'My Profile'}
@@ -230,6 +230,6 @@ export default function ProviderProfile() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
@@ -65,7 +65,7 @@ export default function ProviderNotifications() {
   const unread = notifications.filter((n) => !n.read).length;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{
         paddingHorizontal: 20,
         paddingTop: 32,
@@ -190,6 +190,6 @@ export default function ProviderNotifications() {
           }
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }

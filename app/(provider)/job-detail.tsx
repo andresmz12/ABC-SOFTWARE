@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView, SafeAreaView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
@@ -80,15 +80,15 @@ export default function JobDetail() {
 
   if (loadingJob) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center' }}>
         <ActivityIndicator color={C.accent} size="large" />
-      </SafeAreaView>
+      </View>
     );
   }
 
   if (!job) {
     return (
-      <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <View style={{ flex: 1, backgroundColor: C.background }}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 20, flexDirection: 'row', alignItems: 'center' }}>
           <Feather name="arrow-left" size={20} color={C.textSecondary} />
           <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>Back</Text>
@@ -99,7 +99,7 @@ export default function JobDetail() {
             {isColombia ? 'Trabajo no encontrado' : 'Job not found'}
           </Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -121,7 +121,7 @@ export default function JobDetail() {
     : null;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ paddingBottom: 120 }} showsVerticalScrollIndicator={false}>
         <TouchableOpacity
           onPress={() => router.back()}
@@ -385,6 +385,6 @@ export default function JobDetail() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </View>
   );
 }

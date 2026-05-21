@@ -58,7 +58,7 @@ export default function SelectDropdown({
         <TouchableWithoutFeedback onPress={() => { setOpen(false); setQuery(''); }}>
           <View className="flex-1 bg-black/40 justify-end">
             <TouchableWithoutFeedback>
-              <SafeAreaView className="bg-white rounded-t-3xl max-h-[70%]">
+              <View className="bg-white rounded-t-3xl max-h-[70%]">
                 <View className="px-4 pt-4 pb-2 border-b border-gray-100">
                   <View className="w-10 h-1 bg-gray-300 rounded-full self-center mb-3" />
                   {label && <Text className="text-text-main font-body-bold text-base mb-2">{label}</Text>}
@@ -97,7 +97,7 @@ export default function SelectDropdown({
                     </View>
                   }
                 />
-              </SafeAreaView>
+              </View>
             </TouchableWithoutFeedback>
           </View>
         </TouchableWithoutFeedback>

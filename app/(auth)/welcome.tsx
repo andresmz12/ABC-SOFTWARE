@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
 import LanguageToggle from '@/components/ui/LanguageToggle';
@@ -23,7 +22,7 @@ export default function Welcome() {
   const [role, setRole] = useState<Role | null>(null);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
 
         {/* Language toggle */}
@@ -170,6 +169,6 @@ export default function Welcome() {
         </TouchableOpacity>
 
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

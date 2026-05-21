@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, Text, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -24,7 +24,7 @@ export default function ProviderHome() {
   }, [user?.country, isPending]);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 16 }}>
         <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
           {isColombia ? 'Buenos días' : 'Good morning'}
@@ -101,6 +101,6 @@ export default function ProviderHome() {
           showsVerticalScrollIndicator={false}
         />
       ) : null}
-    </SafeAreaView>
+    </View>
   );
 }

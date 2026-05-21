@@ -1,5 +1,4 @@
 import { View, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import React from 'react';
 
 interface Props {
@@ -15,10 +14,10 @@ export default function ScreenWrapper({ children, scroll = false, className = ''
     </View>
   );
   return (
-    <SafeAreaView className="flex-1 bg-background">
+    <View className="flex-1 bg-background">
       {scroll
         ? <ScrollView className="flex-1 bg-background" showsVerticalScrollIndicator={false}>{content}</ScrollView>
         : content}
-    </SafeAreaView>
+    </View>
   );
 }

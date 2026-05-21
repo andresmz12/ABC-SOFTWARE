@@ -4,7 +4,6 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import Input from '@/components/ui/Input';
@@ -62,7 +61,7 @@ export default function ClientRegister() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
         <View style={{ paddingHorizontal: 24 }}>
           <TouchableOpacity
@@ -149,6 +148,6 @@ export default function ClientRegister() {
           )}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

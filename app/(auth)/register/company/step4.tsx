@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
@@ -83,7 +83,7 @@ export default function CompanyStep4() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
         <TouchableOpacity
           onPress={() => router.back()}
@@ -200,6 +200,6 @@ export default function CompanyStep4() {
           )}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }

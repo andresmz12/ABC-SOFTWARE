@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
@@ -85,7 +85,7 @@ export default function ProviderDocuments() {
   const pct = total > 0 ? (approved / total) * 100 : 0;
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <View style={{ marginBottom: 24 }}>
           <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold' }}>
@@ -240,6 +240,6 @@ export default function ProviderDocuments() {
           })
         )}
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
