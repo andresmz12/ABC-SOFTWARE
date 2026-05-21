@@ -1,9 +1,9 @@
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useI18n } from '@/hooks/useI18n';
+import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 
 export default function LanguageToggle() {
-  const { language, switchLanguage } = useI18n();
+  const { lang, setLang } = useLang();
   return (
     <View style={{
       flexDirection: 'row',
@@ -13,12 +13,12 @@ export default function LanguageToggle() {
       borderWidth: 1,
       borderColor: C.line,
     }}>
-      {(['en', 'es'] as const).map((lang) => {
-        const active = language === lang;
+      {(['en', 'es'] as const).map((item) => {
+        const active = lang === item;
         return (
           <TouchableOpacity
-            key={lang}
-            onPress={() => switchLanguage(lang)}
+            key={item}
+            onPress={() => setLang(item)}
             style={{
               paddingHorizontal: 16,
               paddingVertical: 6,
@@ -32,7 +32,7 @@ export default function LanguageToggle() {
               fontSize: 13,
               color: active ? '#000' : C.textMuted,
             }}>
-              {lang.toUpperCase()}
+              {item.toUpperCase()}
             </Text>
           </TouchableOpacity>
         );

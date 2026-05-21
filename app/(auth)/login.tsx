@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
@@ -20,7 +20,7 @@ type FormData = z.infer<typeof schema>;
 
 export default function Login() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t } = useLang();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { initialize } = useAuthStore();

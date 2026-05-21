@@ -1,12 +1,12 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import { useRegistrationStore } from '@/store/registrationStore';
 
 export default function RoleSelect() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t } = useLang();
   const { country, setRole } = useRegistrationStore();
 
   const roles = [

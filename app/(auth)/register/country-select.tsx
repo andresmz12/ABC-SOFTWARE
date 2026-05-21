@@ -2,6 +2,7 @@ import { SafeAreaView, View, Text, TouchableOpacity, ScrollView } from 'react-na
 import { useRouter } from 'expo-router';
 import { useRegistrationStore } from '@/store/registrationStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import type { Country } from '@/types';
 
@@ -33,23 +34,19 @@ const CARDS: CountryCard[] = [
 export default function CountrySelect() {
   const router = useRouter();
   const { setCountry } = useRegistrationStore();
-  const { setLanguage, setCountry: setSettingsCountry } = useSettingsStore();
+  const { setCountry: setSettingsCountry } = useSettingsStore();
+  const { setLang } = useLang();
 
   const handleSelect = async (card: CountryCard) => {
-    // 1. Save country in registration flow
     setCountry(card.country);
-    // 2. Persist country + change language (awaited so i18n updates before navigation)
-    await Promise.all([
-      setSettingsCountry(card.country),
-      setLanguage(card.lang),
-    ]);
+    setLang(card.lang);
+    await setSettingsCountry(card.country);
     router.push('/(auth)/register/role-select' as any);
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
-        {/* Logo block */}
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
           <View style={{
             width: 64,
@@ -73,7 +70,6 @@ export default function CountrySelect() {
           </Text>
         </View>
 
-        {/* Country cards */}
         <View style={{ gap: 16 }}>
           {CARDS.map((card) => (
             <TouchableOpacity

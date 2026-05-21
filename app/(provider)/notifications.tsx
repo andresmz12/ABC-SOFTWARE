@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
+import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
-import { useSettingsStore } from '@/store/settingsStore';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
 import type { Notification } from '@/types';
@@ -26,8 +26,8 @@ function timeAgo(iso: string, lang: string): string {
 }
 
 export default function ProviderNotifications() {
+  const { lang } = useLang();
   const { user } = useAuthStore();
-  const { language: lang } = useSettingsStore();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
@@ -10,15 +10,15 @@ import LanguageToggle from '@/components/ui/LanguageToggle';
 type Country = 'usa' | 'colombia';
 type Role = 'company' | 'independent' | 'client';
 
-const ROLES: { key: Role; icon: keyof typeof Feather.glyphMap; title: string; desc: string; route: string }[] = [
-  { key: 'company',     icon: 'briefcase', title: 'Cleaning Company',     desc: 'Register your business, manage employees and grow your client base', route: '/(auth)/register/company/step1' },
-  { key: 'independent', icon: 'user',      title: 'Independent Cleaner',  desc: 'Work on your own schedule, receive jobs and get paid directly',       route: '/(auth)/register/independent/step1' },
-  { key: 'client',      icon: 'home',      title: 'Client',               desc: 'Post cleaning jobs and hire verified professionals near you',          route: '/(auth)/register/client' },
+const ROLES: { key: Role; icon: keyof typeof Feather.glyphMap; titleKey: string; descKey: string; route: string }[] = [
+  { key: 'company',     icon: 'briefcase', titleKey: 'roles.company',     descKey: 'roles.companyDescription',     route: '/(auth)/register/company/step1' },
+  { key: 'independent', icon: 'user',      titleKey: 'roles.independent', descKey: 'roles.independentDescription', route: '/(auth)/register/independent/step1' },
+  { key: 'client',      icon: 'home',      titleKey: 'roles.client',      descKey: 'roles.clientDescription',      route: '/(auth)/register/client' },
 ];
 
 export default function Welcome() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t } = useLang();
   const [country, setCountry] = useState<Country>('usa');
   const [role, setRole] = useState<Role | null>(null);
 
@@ -47,18 +47,18 @@ export default function Welcome() {
             ProVendor
           </Text>
           <Text style={{ color: C.textSecondary, fontSize: 16, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 24, maxWidth: 280 }}>
-            Connect with verified cleaning professionals in the USA and Colombia
+            {t('auth.welcomeSubtitle')}
           </Text>
         </View>
 
         {/* Country selection */}
         <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
-          Select your country
+          {t('registration.selectCountryTitle')}
         </Text>
         <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
           {([
-            { key: 'usa' as Country, flag: '🇺🇸', label: 'United States' },
-            { key: 'colombia' as Country, flag: '🇨🇴', label: 'Colombia' },
+            { key: 'usa' as Country, flag: '🇺🇸', labelKey: 'registration.usaTitle' },
+            { key: 'colombia' as Country, flag: '🇨🇴', labelKey: 'registration.colombiaTitle' },
           ]).map((c) => {
             const active = country === c.key;
             return (
@@ -82,7 +82,7 @@ export default function Welcome() {
                   fontSize: 13,
                   fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
                 }}>
-                  {c.label}
+                  {t(c.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -91,7 +91,7 @@ export default function Welcome() {
 
         {/* Role selection */}
         <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
-          I am a...
+          {t('roles.selectRole')}
         </Text>
 
         {ROLES.map((r) => {
@@ -126,10 +126,10 @@ export default function Welcome() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold', marginBottom: 4 }}>
-                  {r.title}
+                  {t(r.titleKey)}
                 </Text>
                 <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18 }}>
-                  {r.desc}
+                  {t(r.descKey)}
                 </Text>
               </View>
               {active && <Feather name="check-circle" size={20} color={C.accent} style={{ marginLeft: 12 }} />}
@@ -157,15 +157,15 @@ export default function Welcome() {
           activeOpacity={0.85}
         >
           <Text style={{ color: role ? '#000' : C.textMuted, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
-            Get Started
+            {t('onboarding.getStarted')}
           </Text>
         </TouchableOpacity>
 
         {/* Sign in link */}
         <TouchableOpacity onPress={() => router.push('/(auth)/login')} style={{ alignItems: 'center', paddingVertical: 8 }}>
           <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular' }}>
-            Already have an account?{' '}
-            <Text style={{ color: C.accent, fontFamily: 'Inter_600SemiBold' }}>Sign In</Text>
+            {t('auth.alreadyHaveAccount')}{' '}
+            <Text style={{ color: C.accent, fontFamily: 'Inter_600SemiBold' }}>{t('auth.signIn')}</Text>
           </Text>
         </TouchableOpacity>
 

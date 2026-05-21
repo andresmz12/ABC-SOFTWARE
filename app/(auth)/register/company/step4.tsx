@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useRegistrationStore } from '@/store/registrationStore';
 import { getCompanyDocs } from '@/lib/docRequirements';
@@ -11,7 +11,7 @@ import { C } from '@/constants/theme';
 
 export default function CompanyStep4() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t } = useLang();
   const { country, formData, reset } = useRegistrationStore();
   const isUSA = country !== 'colombia';
   const [loading, setLoading] = useState(false);
