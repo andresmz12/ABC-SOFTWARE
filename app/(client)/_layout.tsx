@@ -1,12 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
-
-type FeatherName = keyof typeof Feather.glyphMap;
-
-function TabIcon({ name, focused }: { name: FeatherName; focused: boolean }) {
-  return <Feather name={name} size={22} color={focused ? C.accent : C.textMuted} />;
-}
+import TabIcon from '@/components/ui/TabIcon';
 
 export default function ClientLayout() {
   return (

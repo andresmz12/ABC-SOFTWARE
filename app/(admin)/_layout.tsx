@@ -1,12 +1,6 @@
 import { Tabs } from 'expo-router';
-import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
-
-type FeatherName = keyof typeof Feather.glyphMap;
-
-function TabIcon({ name, focused }: { name: FeatherName; focused: boolean }) {
-  return <Feather name={name} size={22} color={focused ? C.accent2 : C.textMuted} />;
-}
+import TabIcon from '@/components/ui/TabIcon';
 
 export default function AdminLayout() {
   return (
@@ -26,10 +20,10 @@ export default function AdminLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="dashboard"       options={{ title: 'Dashboard', tabBarIcon: ({ focused }) => <TabIcon name="grid"       focused={focused} /> }} />
-      <Tabs.Screen name="providers"       options={{ title: 'Providers', tabBarIcon: ({ focused }) => <TabIcon name="users"      focused={focused} /> }} />
-      <Tabs.Screen name="jobs"            options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase"  focused={focused} /> }} />
-      <Tabs.Screen name="profile"         options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"       focused={focused} /> }} />
+      <Tabs.Screen name="dashboard"       options={{ title: 'Dashboard', tabBarIcon: ({ focused }) => <TabIcon name="grid"      focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen name="providers"       options={{ title: 'Providers', tabBarIcon: ({ focused }) => <TabIcon name="users"     focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen name="jobs"            options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase" focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen name="profile"         options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"      focused={focused} activeColor={C.accent2} /> }} />
       <Tabs.Screen name="documents"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail" options={{ href: null }} />
     </Tabs>

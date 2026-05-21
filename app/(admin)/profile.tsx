@@ -1,24 +1,28 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import LanguageToggle from '@/components/ui/LanguageToggle';
+import Input from '@/components/ui/Input';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
 
 type TestRole = 'company' | 'independent' | 'client';
 interface TestAccount { email: string; password: string; }
+interface EditingState { role: TestRole; email: string; password: string; }
 
 const storageKey = (role: TestRole) => `test_account_${role}`;
 
-const ROLE_META: { role: TestRole; icon: keyof typeof Feather.glyphMap; label: string; labelEs: string; route: string }[] = [
-  { role: 'company',     icon: 'briefcase', label: 'Company',     labelEs: 'Empresa',       route: '/(provider)/home' },
-  { role: 'independent', icon: 'user',      label: 'Independent', labelEs: 'Independiente', route: '/(provider)/home' },
-  { role: 'client',      icon: 'home',      label: 'Client',      labelEs: 'Cliente',       route: '/(client)/home' },
+const ROLE_META = [
+  { role: 'company'     as TestRole, icon: 'briefcase' as const, label: 'Company',     labelEs: 'Empresa',       route: '/(provider)/home' },
+  { role: 'independent' as TestRole, icon: 'user'      as const, label: 'Independent', labelEs: 'Independiente', route: '/(provider)/home' },
+  { role: 'client'      as TestRole, icon: 'home'      as const, label: 'Client',      labelEs: 'Cliente',       route: '/(client)/home' },
 ];
+
+const ROLE_MAP = Object.fromEntries(ROLE_META.map(m => [m.role, m])) as Record<TestRole, typeof ROLE_META[0]>;
 
 export default function AdminProfile() {
   const { user, signOut, initialize } = useAuthStore();
@@ -27,38 +31,35 @@ export default function AdminProfile() {
   const es = lang === 'es';
 
   const [testAccounts, setTestAccounts] = useState<Partial<Record<TestRole, TestAccount>>>({});
-  const [expandedRole, setExpandedRole] = useState<TestRole | null>(null);
-  const [editEmail, setEditEmail] = useState('');
-  const [editPassword, setEditPassword] = useState('');
+  const [editing, setEditing] = useState<EditingState | null>(null);
   const [loggingInAs, setLoggingInAs] = useState<TestRole | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const entries = await Promise.all(
-        ROLE_META.map(async ({ role }) => {
-          const raw = await AsyncStorage.getItem(storageKey(role));
-          return [role, raw ? (JSON.parse(raw) as TestAccount) : null] as [TestRole, TestAccount | null];
-        })
-      );
-      const accounts: Partial<Record<TestRole, TestAccount>> = {};
-      entries.forEach(([role, acct]) => { if (acct) accounts[role] = acct; });
-      setTestAccounts(accounts);
-    })();
-  }, []);
+  const loadTestAccounts = async () => {
+    const entries = await Promise.all(
+      ROLE_META.map(async ({ role }) => {
+        const raw = await AsyncStorage.getItem(storageKey(role));
+        return [role, raw ? (JSON.parse(raw) as TestAccount) : null] as [TestRole, TestAccount | null];
+      })
+    );
+    const accounts: Partial<Record<TestRole, TestAccount>> = {};
+    entries.forEach(([role, acct]) => { if (acct) accounts[role] = acct; });
+    setTestAccounts(accounts);
+  };
 
-  const saveTestAccount = async (role: TestRole) => {
-    if (!editEmail.trim() || !editPassword.trim()) return;
-    const acct: TestAccount = { email: editEmail.trim(), password: editPassword.trim() };
+  useEffect(() => { loadTestAccounts(); }, []);
+
+  const saveTestAccount = async () => {
+    if (!editing || !editing.email.trim() || !editing.password.trim()) return;
+    const { role, email, password } = editing;
+    const acct: TestAccount = { email: email.trim(), password: password.trim() };
     await AsyncStorage.setItem(storageKey(role), JSON.stringify(acct));
     setTestAccounts((prev) => ({ ...prev, [role]: acct }));
-    setExpandedRole(null);
-    setEditEmail('');
-    setEditPassword('');
+    setEditing(null);
   };
 
   const removeTestAccount = async (role: TestRole) => {
     await AsyncStorage.removeItem(storageKey(role));
-    setTestAccounts((prev) => { const next = { ...prev }; delete next[role]; return next; });
+    setTestAccounts(({ [role]: _, ...rest }) => rest);
   };
 
   const quickLogin = async (role: TestRole) => {
@@ -69,8 +70,7 @@ export default function AdminProfile() {
       const { error } = await supabase.auth.signInWithPassword({ email: acct.email, password: acct.password });
       if (error) throw error;
       await initialize();
-      const meta = ROLE_META.find((m) => m.role === role)!;
-      router.replace(meta.route as any);
+      router.replace(ROLE_MAP[role].route as any);
     } catch (e: any) {
       Alert.alert(es ? 'Error de Login' : 'Login Failed', e.message ?? 'Check credentials and try again.');
     } finally {
@@ -87,7 +87,6 @@ export default function AdminProfile() {
           {es ? 'Perfil Admin' : 'Admin Profile'}
         </Text>
 
-        {/* Avatar card */}
         <View style={{
           backgroundColor: C.surface,
           borderWidth: 1,
@@ -121,7 +120,6 @@ export default function AdminProfile() {
           </View>
         </View>
 
-        {/* Language */}
         <View style={{
           backgroundColor: C.surface,
           borderWidth: 1,
@@ -136,7 +134,6 @@ export default function AdminProfile() {
           <LanguageToggle />
         </View>
 
-        {/* Test Accounts */}
         <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
           {es ? 'Cuentas de Prueba' : 'Test Accounts'}
         </Text>
@@ -144,7 +141,7 @@ export default function AdminProfile() {
         <View style={{ gap: 12, marginBottom: 28 }}>
           {ROLE_META.map(({ role, icon, label, labelEs }) => {
             const saved = testAccounts[role];
-            const isExpanded = expandedRole === role;
+            const isExpanded = editing?.role === role;
             const isLoggingIn = loggingInAs === role;
             const displayLabel = es ? labelEs : label;
 
@@ -156,7 +153,6 @@ export default function AdminProfile() {
                 borderRadius: 16,
                 padding: 16,
               }}>
-                {/* Card header */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: (saved || isExpanded) ? 12 : 0 }}>
                   <View style={{
                     width: 40,
@@ -177,11 +173,7 @@ export default function AdminProfile() {
                   </View>
                   {!isExpanded && (
                     <TouchableOpacity
-                      onPress={() => {
-                        setExpandedRole(role);
-                        setEditEmail(saved?.email ?? '');
-                        setEditPassword(saved?.password ?? '');
-                      }}
+                      onPress={() => setEditing({ role, email: saved?.email ?? '', password: saved?.password ?? '' })}
                       style={{
                         backgroundColor: C.surface2,
                         paddingHorizontal: 12,
@@ -198,51 +190,26 @@ export default function AdminProfile() {
                   )}
                 </View>
 
-                {/* Edit form */}
                 {isExpanded && (
                   <View>
-                    <TextInput
-                      value={editEmail}
-                      onChangeText={setEditEmail}
+                    <Input
+                      value={editing!.email}
+                      onChangeText={(v) => setEditing(prev => prev ? { ...prev, email: v } : null)}
                       placeholder="Email"
-                      placeholderTextColor={C.textMuted}
                       autoCapitalize="none"
                       keyboardType="email-address"
-                      style={{
-                        backgroundColor: C.surface2,
-                        borderRadius: 10,
-                        paddingHorizontal: 14,
-                        paddingVertical: 10,
-                        color: C.textPrimary,
-                        fontSize: 14,
-                        fontFamily: 'Inter_400Regular',
-                        borderWidth: 1,
-                        borderColor: C.line,
-                        marginBottom: 8,
-                      }}
+                      iconName="mail"
                     />
-                    <TextInput
-                      value={editPassword}
-                      onChangeText={setEditPassword}
+                    <Input
+                      value={editing!.password}
+                      onChangeText={(v) => setEditing(prev => prev ? { ...prev, password: v } : null)}
                       placeholder="Password"
-                      placeholderTextColor={C.textMuted}
                       secureTextEntry
-                      style={{
-                        backgroundColor: C.surface2,
-                        borderRadius: 10,
-                        paddingHorizontal: 14,
-                        paddingVertical: 10,
-                        color: C.textPrimary,
-                        fontSize: 14,
-                        fontFamily: 'Inter_400Regular',
-                        borderWidth: 1,
-                        borderColor: C.line,
-                        marginBottom: 12,
-                      }}
+                      iconName="lock"
                     />
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <TouchableOpacity
-                        onPress={() => { setExpandedRole(null); setEditEmail(''); setEditPassword(''); }}
+                        onPress={() => setEditing(null)}
                         style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line, alignItems: 'center' }}
                       >
                         <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
@@ -250,7 +217,7 @@ export default function AdminProfile() {
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
-                        onPress={() => saveTestAccount(role)}
+                        onPress={saveTestAccount}
                         style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: C.accent, alignItems: 'center' }}
                       >
                         <Text style={{ color: '#000', fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
@@ -261,7 +228,6 @@ export default function AdminProfile() {
                   </View>
                 )}
 
-                {/* Quick login row */}
                 {saved && !isExpanded && (
                   <View style={{ flexDirection: 'row', gap: 8 }}>
                     <TouchableOpacity
@@ -312,7 +278,6 @@ export default function AdminProfile() {
           })}
         </View>
 
-        {/* Sign out */}
         <TouchableOpacity
           onPress={async () => { await signOut(); router.replace('/(auth)/welcome' as any); }}
           style={{
