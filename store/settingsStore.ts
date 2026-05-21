@@ -1,6 +1,5 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import i18n from '@/lib/i18n';
 import type { Language, Country } from '@/types';
 
 interface SettingsState {
@@ -16,7 +15,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   country: 'usa',
   setLanguage: async (lang) => {
     await AsyncStorage.setItem('preferred_language', lang);
-    await i18n.changeLanguage(lang);
     set({ language: lang });
   },
   setCountry: async (country) => {
@@ -29,7 +27,6 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       AsyncStorage.getItem('selected_country'),
     ]);
     if (lang) {
-      await i18n.changeLanguage(lang as Language);
       set({ language: lang as Language });
     }
     if (country) {

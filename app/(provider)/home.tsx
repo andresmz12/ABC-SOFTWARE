@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import JobCard from '@/components/cards/JobCard';
@@ -10,7 +10,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { C } from '@/constants/theme';
 
 export default function ProviderHome() {
-  const { t } = useTranslation();
+  const { t } = useLang();
   const router = useRouter();
   const { user } = useAuthStore();
   const { openJobs, loading, fetchOpenJobs } = useJobStore();

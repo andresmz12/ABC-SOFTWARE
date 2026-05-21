@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
@@ -18,7 +18,7 @@ const ROLES: { key: Role; icon: keyof typeof Feather.glyphMap; titleKey: string;
 
 export default function Welcome() {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t } = useLang();
   const [country, setCountry] = useState<Country>('usa');
   const [role, setRole] = useState<Role | null>(null);
 

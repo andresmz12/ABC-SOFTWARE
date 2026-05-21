@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
-import { useTranslation } from 'react-i18next';
+import { useLang } from '@/context/LanguageContext';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -27,7 +27,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function PostJob() {
-  const { t } = useTranslation();
+  const { t } = useLang();
   const router = useRouter();
   const { user } = useAuthStore();
   const { addJob } = useJobStore();
