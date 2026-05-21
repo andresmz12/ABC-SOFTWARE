@@ -1,0 +1,338 @@
+import { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, TextInput, ScrollView, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuthStore } from '@/store/authStore';
+import { useLang } from '@/context/LanguageContext';
+import LanguageToggle from '@/components/ui/LanguageToggle';
+import { supabase } from '@/lib/supabase';
+import { C } from '@/constants/theme';
+
+type TestRole = 'company' | 'independent' | 'client';
+interface TestAccount { email: string; password: string; }
+
+const storageKey = (role: TestRole) => `test_account_${role}`;
+
+const ROLE_META: { role: TestRole; icon: keyof typeof Feather.glyphMap; label: string; labelEs: string; route: string }[] = [
+  { role: 'company',     icon: 'briefcase', label: 'Company',     labelEs: 'Empresa',       route: '/(provider)/home' },
+  { role: 'independent', icon: 'user',      label: 'Independent', labelEs: 'Independiente', route: '/(provider)/home' },
+  { role: 'client',      icon: 'home',      label: 'Client',      labelEs: 'Cliente',       route: '/(client)/home' },
+];
+
+export default function AdminProfile() {
+  const { user, signOut, initialize } = useAuthStore();
+  const router = useRouter();
+  const { lang } = useLang();
+  const es = lang === 'es';
+
+  const [testAccounts, setTestAccounts] = useState<Partial<Record<TestRole, TestAccount>>>({});
+  const [expandedRole, setExpandedRole] = useState<TestRole | null>(null);
+  const [editEmail, setEditEmail] = useState('');
+  const [editPassword, setEditPassword] = useState('');
+  const [loggingInAs, setLoggingInAs] = useState<TestRole | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const entries = await Promise.all(
+        ROLE_META.map(async ({ role }) => {
+          const raw = await AsyncStorage.getItem(storageKey(role));
+          return [role, raw ? (JSON.parse(raw) as TestAccount) : null] as [TestRole, TestAccount | null];
+        })
+      );
+      const accounts: Partial<Record<TestRole, TestAccount>> = {};
+      entries.forEach(([role, acct]) => { if (acct) accounts[role] = acct; });
+      setTestAccounts(accounts);
+    })();
+  }, []);
+
+  const saveTestAccount = async (role: TestRole) => {
+    if (!editEmail.trim() || !editPassword.trim()) return;
+    const acct: TestAccount = { email: editEmail.trim(), password: editPassword.trim() };
+    await AsyncStorage.setItem(storageKey(role), JSON.stringify(acct));
+    setTestAccounts((prev) => ({ ...prev, [role]: acct }));
+    setExpandedRole(null);
+    setEditEmail('');
+    setEditPassword('');
+  };
+
+  const removeTestAccount = async (role: TestRole) => {
+    await AsyncStorage.removeItem(storageKey(role));
+    setTestAccounts((prev) => { const next = { ...prev }; delete next[role]; return next; });
+  };
+
+  const quickLogin = async (role: TestRole) => {
+    const acct = testAccounts[role];
+    if (!acct) return;
+    setLoggingInAs(role);
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email: acct.email, password: acct.password });
+      if (error) throw error;
+      await initialize();
+      const meta = ROLE_META.find((m) => m.role === role)!;
+      router.replace(meta.route as any);
+    } catch (e: any) {
+      Alert.alert(es ? 'Error de Login' : 'Login Failed', e.message ?? 'Check credentials and try again.');
+    } finally {
+      setLoggingInAs(null);
+    }
+  };
+
+  const initials = (user?.email ?? 'A').slice(0, 2).toUpperCase();
+
+  return (
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 64 }} showsVerticalScrollIndicator={false}>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 24, marginTop: 12 }}>
+          {es ? 'Perfil Admin' : 'Admin Profile'}
+        </Text>
+
+        {/* Avatar card */}
+        <View style={{
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: C.line,
+          borderRadius: 20,
+          padding: 20,
+          marginBottom: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+        }}>
+          <View style={{
+            width: 56,
+            height: 56,
+            backgroundColor: '#1a1a2e',
+            borderRadius: 28,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginRight: 16,
+            borderWidth: 1,
+            borderColor: C.accent2,
+          }}>
+            <Text style={{ color: C.accent2, fontSize: 20, fontFamily: 'Inter_700Bold' }}>{initials}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
+              {user?.email}
+            </Text>
+            <Text style={{ color: C.accent2, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Administrator
+            </Text>
+          </View>
+        </View>
+
+        {/* Language */}
+        <View style={{
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: C.line,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 28,
+        }}>
+          <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
+            {es ? 'Idioma de la App' : 'App Language'}
+          </Text>
+          <LanguageToggle />
+        </View>
+
+        {/* Test Accounts */}
+        <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
+          {es ? 'Cuentas de Prueba' : 'Test Accounts'}
+        </Text>
+
+        <View style={{ gap: 12, marginBottom: 28 }}>
+          {ROLE_META.map(({ role, icon, label, labelEs }) => {
+            const saved = testAccounts[role];
+            const isExpanded = expandedRole === role;
+            const isLoggingIn = loggingInAs === role;
+            const displayLabel = es ? labelEs : label;
+
+            return (
+              <View key={role} style={{
+                backgroundColor: C.surface,
+                borderWidth: 1,
+                borderColor: isExpanded ? C.accent : C.line,
+                borderRadius: 16,
+                padding: 16,
+              }}>
+                {/* Card header */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: (saved || isExpanded) ? 12 : 0 }}>
+                  <View style={{
+                    width: 40,
+                    height: 40,
+                    backgroundColor: C.surface2,
+                    borderRadius: 12,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 12,
+                  }}>
+                    <Feather name={icon} size={18} color={C.textMuted} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{displayLabel}</Text>
+                    <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 }} numberOfLines={1}>
+                      {saved ? saved.email : (es ? 'Sin cuenta guardada' : 'No account saved')}
+                    </Text>
+                  </View>
+                  {!isExpanded && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setExpandedRole(role);
+                        setEditEmail(saved?.email ?? '');
+                        setEditPassword(saved?.password ?? '');
+                      }}
+                      style={{
+                        backgroundColor: C.surface2,
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: C.line,
+                      }}
+                    >
+                      <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_500Medium' }}>
+                        {saved ? (es ? 'Editar' : 'Edit') : (es ? 'Configurar' : 'Set')}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+
+                {/* Edit form */}
+                {isExpanded && (
+                  <View>
+                    <TextInput
+                      value={editEmail}
+                      onChangeText={setEditEmail}
+                      placeholder="Email"
+                      placeholderTextColor={C.textMuted}
+                      autoCapitalize="none"
+                      keyboardType="email-address"
+                      style={{
+                        backgroundColor: C.surface2,
+                        borderRadius: 10,
+                        paddingHorizontal: 14,
+                        paddingVertical: 10,
+                        color: C.textPrimary,
+                        fontSize: 14,
+                        fontFamily: 'Inter_400Regular',
+                        borderWidth: 1,
+                        borderColor: C.line,
+                        marginBottom: 8,
+                      }}
+                    />
+                    <TextInput
+                      value={editPassword}
+                      onChangeText={setEditPassword}
+                      placeholder="Password"
+                      placeholderTextColor={C.textMuted}
+                      secureTextEntry
+                      style={{
+                        backgroundColor: C.surface2,
+                        borderRadius: 10,
+                        paddingHorizontal: 14,
+                        paddingVertical: 10,
+                        color: C.textPrimary,
+                        fontSize: 14,
+                        fontFamily: 'Inter_400Regular',
+                        borderWidth: 1,
+                        borderColor: C.line,
+                        marginBottom: 12,
+                      }}
+                    />
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <TouchableOpacity
+                        onPress={() => { setExpandedRole(null); setEditEmail(''); setEditPassword(''); }}
+                        style={{ flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: C.line, alignItems: 'center' }}
+                      >
+                        <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+                          {es ? 'Cancelar' : 'Cancel'}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => saveTestAccount(role)}
+                        style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: C.accent, alignItems: 'center' }}
+                      >
+                        <Text style={{ color: '#000', fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                          {es ? 'Guardar' : 'Save'}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
+
+                {/* Quick login row */}
+                {saved && !isExpanded && (
+                  <View style={{ flexDirection: 'row', gap: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => removeTestAccount(role)}
+                      style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: 10,
+                        borderWidth: 1,
+                        borderColor: `${C.danger}40`,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Feather name="trash-2" size={15} color={C.danger} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => quickLogin(role)}
+                      disabled={isLoggingIn}
+                      style={{
+                        flex: 1,
+                        height: 40,
+                        borderRadius: 10,
+                        backgroundColor: '#0d1f0d',
+                        borderWidth: 1,
+                        borderColor: `${C.success}50`,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        opacity: isLoggingIn ? 0.7 : 1,
+                      }}
+                    >
+                      {isLoggingIn ? (
+                        <ActivityIndicator size="small" color={C.success} />
+                      ) : (
+                        <>
+                          <Feather name="log-in" size={14} color={C.success} style={{ marginRight: 6 }} />
+                          <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                            {es ? `Entrar como ${displayLabel}` : `Login as ${label}`}
+                          </Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            );
+          })}
+        </View>
+
+        {/* Sign out */}
+        <TouchableOpacity
+          onPress={async () => { await signOut(); router.replace('/(auth)/welcome' as any); }}
+          style={{
+            backgroundColor: `${C.danger}15`,
+            borderWidth: 1,
+            borderColor: `${C.danger}40`,
+            borderRadius: 16,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexDirection: 'row',
+          }}
+          activeOpacity={0.85}
+        >
+          <Feather name="log-out" size={16} color={C.danger} style={{ marginRight: 8 }} />
+          <Text style={{ color: C.danger, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+            {es ? 'Cerrar Sesión' : 'Sign Out'}
+          </Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </View>
+  );
+}
