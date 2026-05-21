@@ -31,7 +31,7 @@ export default function ClientRegister() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
 
-  const { control, handleSubmit, watch, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, watch, trigger, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { country: initialCountry as 'usa' | 'colombia' },
   });
@@ -39,11 +39,13 @@ export default function ClientRegister() {
   const country = watch('country');
 
   const onSubmit = async (data: FormData) => {
+    console.log('Create Account tapped');
     setLoading(true);
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
     });
+    console.log('signUp result:', authData, authError);
     if (authError || !authData.user) {
       Alert.alert('Error', authError?.message ?? 'Registration failed');
       setLoading(false);
@@ -52,10 +54,11 @@ export default function ClientRegister() {
     await supabase.from('users').insert({
       id: authData.user.id, email: data.email, role: 'client', status: 'approved', country: data.country,
     });
-    await supabase.from('clients').insert({
+    const clientResult = await supabase.from('clients').insert({
       user_id: authData.user.id, full_name: data.fullName, phone: data.phone,
       address: '', city: data.city, zip: data.zip, country: data.country,
     });
+    console.log('insert result:', clientResult);
     setLoading(false);
     router.replace('/(client)/home');
   };
@@ -93,7 +96,10 @@ export default function ClientRegister() {
                 <Input label="Phone" value={value} onChangeText={onChange} keyboardType="phone-pad" iconName="phone" placeholder="(305) 555-0000" error={errors.phone?.message} />
               )} />
               <View style={{ marginTop: 8, marginBottom: 16 }}>
-                <Button label="Continue" onPress={() => setStep(2)} />
+                <Button label="Continue" onPress={async () => {
+                  const ok = await trigger(['fullName', 'email', 'password', 'phone']);
+                  if (ok) setStep(2);
+                }} />
               </View>
             </>
           )}
@@ -129,7 +135,10 @@ export default function ClientRegister() {
                 <Input label="ZIP Code" value={value} onChangeText={onChange} keyboardType="number-pad" iconName="hash" placeholder="33101" error={errors.zip?.message} />
               )} />
               <View style={{ marginTop: 8, marginBottom: 16 }}>
-                <Button label="Continue" onPress={() => setStep(3)} />
+                <Button label="Continue" onPress={async () => {
+                  const ok = await trigger(['country', 'city', 'zip']);
+                  if (ok) setStep(3);
+                }} />
               </View>
             </>
           )}
