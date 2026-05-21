@@ -5,7 +5,7 @@ import EmptyState from '@/components/ui/EmptyState';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
-import { useAuthStore } from '@/store/authStore';
+import { useLang } from '@/context/LanguageContext';
 
 interface Provider {
   id: string;
@@ -16,8 +16,17 @@ interface Provider {
   serviceType: string;
 }
 
-function ProviderCard({ provider }: { provider: Provider }) {
+function ProviderCard({ provider, es }: { provider: Provider; es: boolean }) {
   const isCompany = provider.role === 'company';
+  const roleLabel = isCompany
+    ? (es ? 'Empresa de Limpieza' : 'Cleaning Company')
+    : (es ? 'Limpiador Independiente' : 'Independent Cleaner');
+  const serviceLabel = provider.serviceType === 'commercial'
+    ? (es ? 'Comercial' : 'Commercial')
+    : provider.serviceType === 'residential'
+    ? (es ? 'Residencial' : 'Residential')
+    : (es ? 'Ambos' : 'Both');
+
   return (
     <View style={{
       backgroundColor: C.surface,
@@ -46,7 +55,7 @@ function ProviderCard({ provider }: { provider: Provider }) {
           {provider.name}
         </Text>
         <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-          {isCompany ? 'Cleaning Company' : 'Independent Cleaner'} · {provider.serviceType}
+          {roleLabel} · {serviceLabel}
         </Text>
       </View>
       <View style={{
@@ -55,17 +64,20 @@ function ProviderCard({ provider }: { provider: Provider }) {
         paddingHorizontal: 8,
         paddingVertical: 4,
       }}>
-        <Text style={{ color: C.success, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>VERIFIED</Text>
+        <Text style={{ color: C.success, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
+          {es ? 'VERIFICADO' : 'VERIFIED'}
+        </Text>
       </View>
     </View>
   );
 }
 
 export default function BrowseProviders() {
+  const { t, lang } = useLang();
+  const es = lang === 'es';
   const [query, setQuery] = useState('');
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
-  const { user } = useAuthStore();
 
   const loadProviders = useCallback(async () => {
     setLoading(true);
@@ -86,8 +98,8 @@ export default function BrowseProviders() {
             ? (u.companies?.[0]?.company_name ?? u.email.split('@')[0])
             : (u.independents?.[0]?.full_name ?? u.email.split('@')[0]),
           serviceType: u.role === 'company'
-            ? (u.companies?.[0]?.service_type ?? 'Both')
-            : (u.independents?.[0]?.service_type ?? 'Both'),
+            ? (u.companies?.[0]?.service_type ?? 'both')
+            : (u.independents?.[0]?.service_type ?? 'both'),
         }));
         setProviders(mapped);
       }
@@ -110,11 +122,14 @@ export default function BrowseProviders() {
   return (
     <ScreenWrapper>
       <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
-        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Find Providers</Text>
-        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>Verified professionals near you</Text>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
+          {t('client.findProviders')}
+        </Text>
+        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
+          {t('client.verifiedNearYou')}
+        </Text>
       </View>
 
-      {/* Search bar */}
       <View style={{
         marginHorizontal: 24,
         marginTop: 16,
@@ -132,7 +147,7 @@ export default function BrowseProviders() {
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder="Search by name or service..."
+          placeholder={t('client.searchPlaceholder')}
           placeholderTextColor={C.textMuted}
           style={{ flex: 1, color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular' }}
         />
@@ -147,17 +162,17 @@ export default function BrowseProviders() {
         <ActivityIndicator style={{ marginTop: 48 }} color={C.accent} />
       ) : filtered.length === 0 ? (
         <EmptyState
-          title={query.length > 0 ? 'No results found' : 'No approved providers yet'}
+          title={query.length > 0 ? t('common.noResults') : t('client.noProvidersYet')}
           subtitle={query.length > 0
-            ? `No providers match "${query}"`
-            : 'Verified providers in your area will appear here once they complete the approval process.'}
+            ? `${t('client.noProvidersMatch')} "${query}"`
+            : t('client.browseSubtitle')}
           iconName="users"
         />
       ) : (
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ProviderCard provider={item} />}
+          renderItem={({ item }) => <ProviderCard provider={item} es={es} />}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         />

@@ -256,7 +256,23 @@
     "paymentMethods": "Payment Methods",
     "serviceHistory": "Service History",
     "upcomingServices": "Upcoming Services",
-    "noUpcoming": "No upcoming services scheduled."
+    "noUpcoming": "No upcoming services scheduled.",
+    "findProviders": "Find Providers",
+    "verifiedNearYou": "Verified professionals near you",
+    "searchPlaceholder": "Search by name or service...",
+    "cleaningCompany": "Cleaning Company",
+    "independentCleaner": "Independent Cleaner",
+    "verified": "VERIFIED",
+    "noProvidersYet": "No approved providers yet",
+    "noProvidersMatch": "No providers match",
+    "requestsSubtitle": "Track your service requests",
+    "editRequest": "Edit Request",
+    "cancelRequest": "Cancel Request",
+    "cancelConfirmTitle": "Cancel this request?",
+    "cancelConfirmMsg": "Are you sure? Providers who applied will no longer see this request.",
+    "requestCancelled": "Request cancelled",
+    "saveChanges": "Save Changes",
+    "viewBids": "View Bids"
   },
   "jobs": {
     "jobDetails": "Job Details",
@@ -306,7 +322,10 @@
     "one_time": "One Time",
     "weekly": "Weekly",
     "biweekly": "Bi-Weekly",
-    "monthly": "Monthly"
+    "monthly": "Monthly",
+    "commercialCleaning": "Commercial Cleaning",
+    "residentialCleaning": "Residential Cleaning",
+    "editTitle": "Edit Request"
   },
   "documents": {
     "title": "Documents",

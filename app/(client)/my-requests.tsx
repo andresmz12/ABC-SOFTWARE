@@ -1,21 +1,21 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
 import EmptyState from '@/components/ui/EmptyState';
+import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
 import { fetchJobBids, acceptBid } from '@/lib/jobService';
 import { formatUSD, formatCOP } from '@/lib/countryData';
-import { C } from '@/constants/theme';
 import { useLang } from '@/context/LanguageContext';
+import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 import type { BidWithProvider } from '@/lib/jobService';
 
 type Tab = 'open' | 'in_progress' | 'completed';
-
-const TAB_LABELS: Record<Tab, string> = { open: 'Open', in_progress: 'Active', completed: 'Done' };
-const TAB_LABELS_ES: Record<Tab, string> = { open: 'Abiertas', in_progress: 'Activas', completed: 'Listas' };
 
 function timeAgo(iso: string, es: boolean): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -23,6 +23,8 @@ function timeAgo(iso: string, es: boolean): string {
   if (days === 1) return es ? 'Ayer' : 'Yesterday';
   return es ? `Hace ${days}d` : `${days}d ago`;
 }
+
+// ─── Bids Modal ────────────────────────────────────────────────────────────────
 
 interface BidsModalProps {
   job: JobRequest | null;
@@ -50,11 +52,12 @@ function BidsModal({ job, visible, isColombia, es, onClose, onAccepted }: BidsMo
 
   const handleAccept = async (bid: BidWithProvider) => {
     if (!job) return;
+    const amount = bid.bid_amount_usd ? formatUSD(bid.bid_amount_usd) : formatCOP(bid.bid_amount_cop ?? 0);
     Alert.alert(
       es ? '¿Aceptar oferta?' : 'Accept this bid?',
       es
-        ? `¿Confirmas aceptar la oferta de ${bid.provider_name} por ${bid.bid_amount_usd ? formatUSD(bid.bid_amount_usd) : formatCOP(bid.bid_amount_cop ?? 0)}?`
-        : `Confirm accepting ${bid.provider_name}'s bid for ${bid.bid_amount_usd ? formatUSD(bid.bid_amount_usd) : formatCOP(bid.bid_amount_cop ?? 0)}?`,
+        ? `¿Confirmas aceptar la oferta de ${bid.provider_name} por ${amount}?`
+        : `Confirm accepting ${bid.provider_name}'s bid for ${amount}?`,
       [
         { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
         {
@@ -163,14 +166,7 @@ function BidsModal({ job, visible, isColombia, es, onClose, onAccepted }: BidsMo
                           {' · '}{timeAgo(bid.applied_at, es)}
                         </Text>
                       </View>
-                      <View style={{
-                        backgroundColor: C.surface2,
-                        borderRadius: 12,
-                        paddingHorizontal: 12,
-                        paddingVertical: 6,
-                        borderWidth: 1,
-                        borderColor: C.accent,
-                      }}>
+                      <View style={{ backgroundColor: C.surface2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: C.accent }}>
                         <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_700Bold' }}>{bidAmount(bid)}</Text>
                       </View>
                     </View>
@@ -228,16 +224,300 @@ function BidsModal({ job, visible, isColombia, es, onClose, onAccepted }: BidsMo
   );
 }
 
+// ─── Edit Modal ────────────────────────────────────────────────────────────────
+
+interface EditModalProps {
+  job: JobRequest | null;
+  visible: boolean;
+  es: boolean;
+  isColombia: boolean;
+  onClose: () => void;
+  onSaved: () => void;
+}
+
+function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModalProps) {
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [estimatedHours, setEstimatedHours] = useState('');
+  const [budget, setBudget] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date());
+  const [pickerTime, setPickerTime] = useState(new Date());
+
+  useEffect(() => {
+    if (!job || !visible) return;
+    setScheduledDate(job.scheduled_date ?? '');
+    setScheduledTime(job.scheduled_time ?? '');
+    setEstimatedHours(String(job.estimated_hours ?? ''));
+    setBudget(String(job.budget_usd ?? job.budget_cop ?? ''));
+    setDescription(job.description ?? '');
+    if (job.scheduled_date) {
+      const d = new Date(job.scheduled_date + 'T12:00:00');
+      if (!isNaN(d.getTime())) setPickerDate(d);
+    }
+    if (job.scheduled_time) {
+      const [h, m] = job.scheduled_time.split(':');
+      const t = new Date();
+      t.setHours(parseInt(h, 10), parseInt(m, 10));
+      setPickerTime(t);
+    }
+  }, [job?.id, visible]);
+
+  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
+    if (Platform.OS === 'android') setShowDatePicker(false);
+    if (date) {
+      setPickerDate(date);
+      setScheduledDate(format(date, 'yyyy-MM-dd'));
+    }
+  };
+
+  const handleTimeChange = (event: DateTimePickerEvent, time?: Date) => {
+    if (Platform.OS === 'android') setShowTimePicker(false);
+    if (time) {
+      setPickerTime(time);
+      setScheduledTime(format(time, 'HH:mm'));
+    }
+  };
+
+  const dateDisplay = scheduledDate
+    ? (es ? format(new Date(scheduledDate + 'T12:00:00'), 'dd/MM/yyyy') : format(new Date(scheduledDate + 'T12:00:00'), 'MM/dd/yyyy'))
+    : (es ? 'Seleccionar Fecha' : 'Select Date');
+  const timeDisplay = scheduledTime || (es ? 'Seleccionar Hora' : 'Select Time');
+
+  const handleSave = async () => {
+    if (!job) return;
+    if (!scheduledDate || !scheduledTime || !estimatedHours || !budget) {
+      Alert.alert(
+        es ? 'Campos requeridos' : 'Required fields',
+        es ? 'Por favor completa todos los campos.' : 'Please fill in all fields.',
+      );
+      return;
+    }
+    setSaving(true);
+    try {
+      const budgetNum = parseFloat(budget.replace(/[^0-9.]/g, ''));
+      const updateData: Record<string, unknown> = {
+        scheduled_date: scheduledDate,
+        scheduled_time: scheduledTime,
+        estimated_hours: parseFloat(estimatedHours),
+        description: description || null,
+      };
+      if (isColombia) {
+        updateData.budget_cop = budgetNum;
+        updateData.budget_usd = null;
+      } else {
+        updateData.budget_usd = budgetNum;
+        updateData.budget_cop = null;
+      }
+      const { error } = await supabase.from('job_requests').update(updateData).eq('id', job.id);
+      if (error) throw error;
+      onSaved();
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Error', e.message ?? 'Failed to save.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const PickerRow = ({ label, value, hasValue, onPress, iconName }: {
+    label: string; value: string; hasValue: boolean; onPress: () => void; iconName: keyof typeof Feather.glyphMap;
+  }) => (
+    <View style={{ marginBottom: 16 }}>
+      <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+        {label}
+      </Text>
+      <TouchableOpacity
+        onPress={onPress}
+        style={{
+          backgroundColor: C.background,
+          borderWidth: 1,
+          borderColor: C.line,
+          borderRadius: 12,
+          height: 52,
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingHorizontal: 14,
+        }}
+        activeOpacity={0.75}
+      >
+        <Feather name={iconName} size={16} color={C.textMuted} style={{ marginRight: 10 }} />
+        <Text style={{ flex: 1, color: hasValue ? C.textPrimary : C.textMuted, fontSize: 15, fontFamily: 'Inter_400Regular' }}>
+          {value}
+        </Text>
+        <Feather name="chevron-down" size={16} color={C.textMuted} />
+      </TouchableOpacity>
+    </View>
+  );
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+        <View style={{
+          backgroundColor: C.surface,
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          paddingTop: 20,
+          paddingBottom: 40,
+          maxHeight: '90%',
+          borderTopWidth: 1,
+          borderTopColor: C.line,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 20 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
+              {es ? 'Editar Solicitud' : 'Edit Request'}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="x" size={18} color={C.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+            <PickerRow
+              label={es ? 'Fecha Programada' : 'Scheduled Date'}
+              value={dateDisplay}
+              hasValue={!!scheduledDate}
+              onPress={() => setShowDatePicker(true)}
+              iconName="calendar"
+            />
+            <PickerRow
+              label={es ? 'Hora Programada' : 'Scheduled Time'}
+              value={timeDisplay}
+              hasValue={!!scheduledTime}
+              onPress={() => setShowTimePicker(true)}
+              iconName="clock"
+            />
+            <Input
+              label={es ? 'Horas Estimadas' : 'Estimated Hours'}
+              value={estimatedHours}
+              onChangeText={setEstimatedHours}
+              keyboardType="decimal-pad"
+              iconName="clock"
+            />
+            <Input
+              label={isColombia ? `${es ? 'Presupuesto' : 'Budget'} (COP)` : `${es ? 'Presupuesto' : 'Budget'} (USD)`}
+              value={budget}
+              onChangeText={setBudget}
+              keyboardType="decimal-pad"
+              iconName="dollar-sign"
+            />
+            <Input
+              label={es ? 'Descripción' : 'Description'}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={3}
+            />
+
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={{
+                  flex: 1,
+                  height: 52,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: C.line,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
+                  {es ? 'Cancelar' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={saving}
+                style={{
+                  flex: 2,
+                  height: 52,
+                  borderRadius: 12,
+                  backgroundColor: C.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: saving ? 0.6 : 1,
+                }}
+                activeOpacity={0.85}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Guardar Cambios' : 'Save Changes'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
+        </View>
+      </View>
+
+      {/* iOS date picker */}
+      {showDatePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide" visible={showDatePicker}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+            <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: C.line }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={{ color: C.textMuted, fontSize: 16 }}>{es ? 'Cancelar' : 'Cancel'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                  <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker mode="date" display="spinner" value={pickerDate} minimumDate={new Date()} onChange={handleDateChange} style={{ height: 200 }} textColor={C.textPrimary} />
+            </View>
+          </View>
+        </Modal>
+      )}
+      {showTimePicker && Platform.OS === 'ios' && (
+        <Modal transparent animationType="slide" visible={showTimePicker}>
+          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
+            <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: C.line }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={{ color: C.textMuted, fontSize: 16 }}>{es ? 'Cancelar' : 'Cancel'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                  <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
+                </TouchableOpacity>
+              </View>
+              <DateTimePicker mode="time" display="spinner" value={pickerTime} onChange={handleTimeChange} style={{ height: 200 }} textColor={C.textPrimary} />
+            </View>
+          </View>
+        </Modal>
+      )}
+      {showDatePicker && Platform.OS === 'android' && (
+        <DateTimePicker mode="date" display="default" value={pickerDate} minimumDate={new Date()} onChange={handleDateChange} />
+      )}
+      {showTimePicker && Platform.OS === 'android' && (
+        <DateTimePicker mode="time" display="default" value={pickerTime} onChange={handleTimeChange} />
+      )}
+    </Modal>
+  );
+}
+
+// ─── Request Card ──────────────────────────────────────────────────────────────
+
 function RequestCard({
   req,
   isColombia,
   es,
   onViewBids,
+  onEdit,
+  onCancel,
 }: {
   req: JobRequest;
   isColombia: boolean;
   es: boolean;
   onViewBids: () => void;
+  onEdit: () => void;
+  onCancel: () => void;
 }) {
   const isCommercial = req.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -245,6 +525,13 @@ function RequestCard({
     ? formatUSD(req.budget_usd)
     : req.budget_cop ? formatCOP(req.budget_cop) : null;
   const location = isColombia ? req.city : `${req.city}, ${req.state}`;
+
+  const serviceLabel = isCommercial
+    ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning')
+    : (es ? 'Limpieza Residencial' : 'Residential Cleaning');
+  const serviceTag = isCommercial
+    ? (es ? 'COMERCIAL' : 'COMMERCIAL')
+    : (es ? 'RESIDENCIAL' : 'RESIDENTIAL');
 
   return (
     <View style={{
@@ -260,7 +547,7 @@ function RequestCard({
       <View style={{ padding: 16 }}>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
           <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1, marginRight: 8 }} numberOfLines={1}>
-            {isCommercial ? (isColombia ? 'Limpieza Comercial' : 'Commercial Cleaning') : (isColombia ? 'Limpieza Residencial' : 'Residential Cleaning')}
+            {serviceLabel}
           </Text>
           <View style={{
             backgroundColor: isCommercial ? '#0d1a2d' : '#2d1a0d',
@@ -270,9 +557,7 @@ function RequestCard({
             borderWidth: 1,
             borderColor: accentColor,
           }}>
-            <Text style={{ color: accentColor, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
-              {isCommercial ? (isColombia ? 'COMERCIAL' : 'COMMERCIAL') : (isColombia ? 'RESIDENCIAL' : 'RESIDENTIAL')}
-            </Text>
+            <Text style={{ color: accentColor, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>{serviceTag}</Text>
           </View>
         </View>
 
@@ -289,14 +574,7 @@ function RequestCard({
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           {budgetText && (
-            <View style={{
-              backgroundColor: C.surface2,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-              borderRadius: 20,
-              borderWidth: 1,
-              borderColor: C.accent,
-            }}>
+            <View style={{ backgroundColor: C.surface2, paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20, borderWidth: 1, borderColor: C.accent }}>
               <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>{budgetText}</Text>
             </View>
           )}
@@ -306,44 +584,96 @@ function RequestCard({
         </View>
       </View>
 
-      <View style={{ borderTopWidth: 1, borderTopColor: C.line, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+      {/* Footer */}
+      <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
         {req.status === 'open' ? (
-          <TouchableOpacity onPress={onViewBids} style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Feather name="tag" size={13} color={C.accent} style={{ marginRight: 4 }} />
-            <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
-              {isColombia ? 'Ver Ofertas' : 'View Bids'}
-            </Text>
-          </TouchableOpacity>
+          <>
+            {/* View bids row */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
+              <TouchableOpacity onPress={onViewBids} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="tag" size={13} color={C.accent} style={{ marginRight: 4 }} />
+                <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Ver Ofertas' : 'View Bids'}
+                </Text>
+              </TouchableOpacity>
+              <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                {req.estimated_hours}h
+              </Text>
+            </View>
+            {/* Edit / Cancel row */}
+            <View style={{ flexDirection: 'row', borderTopWidth: 1, borderTopColor: C.line }}>
+              <TouchableOpacity
+                onPress={onEdit}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 4 }}
+                activeOpacity={0.75}
+              >
+                <Feather name="edit-2" size={13} color={C.textSecondary} />
+                <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+                  {es ? 'Editar' : 'Edit'}
+                </Text>
+              </TouchableOpacity>
+              <View style={{ width: 1, backgroundColor: C.line }} />
+              <TouchableOpacity
+                onPress={onCancel}
+                style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 4 }}
+                activeOpacity={0.75}
+              >
+                <Feather name="x-circle" size={13} color={C.danger} />
+                <Text style={{ color: C.danger, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+                  {es ? 'Cancelar' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         ) : (
-          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Feather name="check-circle" size={13} color={req.status === 'in_progress' ? '#3B82F6' : C.success} style={{ marginRight: 4 }} />
-            <Text style={{ color: req.status === 'in_progress' ? '#3B82F6' : C.success, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
-              {req.status === 'in_progress' ? (isColombia ? 'En Progreso' : 'In Progress') : (isColombia ? 'Completado' : 'Completed')}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather
+                name={req.status === 'in_progress' ? 'zap' : 'check-circle'}
+                size={13}
+                color={req.status === 'in_progress' ? '#3B82F6' : req.status === 'cancelled' ? C.danger : C.success}
+                style={{ marginRight: 4 }}
+              />
+              <Text style={{ color: req.status === 'in_progress' ? '#3B82F6' : req.status === 'cancelled' ? C.danger : C.success, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                {req.status === 'in_progress'
+                  ? (es ? 'En Progreso' : 'In Progress')
+                  : req.status === 'cancelled'
+                  ? (es ? 'Cancelada' : 'Cancelled')
+                  : (es ? 'Completada' : 'Completed')}
+              </Text>
+            </View>
+            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+              {req.estimated_hours}h
             </Text>
           </View>
         )}
-        <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-          {req.estimated_hours}h
-        </Text>
       </View>
     </View>
   );
 }
 
+// ─── Main Screen ───────────────────────────────────────────────────────────────
+
 export default function MyRequests() {
   const [activeTab, setActiveTab] = useState<Tab>('open');
   const router = useRouter();
   const { user } = useAuthStore();
-  const { lang } = useLang();
+  const { t, lang } = useLang();
   const es = lang === 'es';
   const isColombia = user?.country === 'colombia';
-  const labels = isColombia ? TAB_LABELS_ES : TAB_LABELS;
+
+  const TAB_LABELS: Record<Tab, string> = {
+    open: es ? 'Abiertas' : 'Open',
+    in_progress: es ? 'Activas' : 'Active',
+    completed: es ? 'Listas' : 'Done',
+  };
 
   const [jobs, setJobs] = useState<{ open: JobRequest[]; in_progress: JobRequest[]; completed: JobRequest[] }>({
     open: [], in_progress: [], completed: [],
   });
   const [loading, setLoading] = useState(false);
   const [bidsJob, setBidsJob] = useState<JobRequest | null>(null);
+  const [editJob, setEditJob] = useState<JobRequest | null>(null);
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
@@ -358,7 +688,7 @@ export default function MyRequests() {
       setJobs({
         open:        allJobs.filter((j) => j.status === 'open'),
         in_progress: allJobs.filter((j) => j.status === 'in_progress'),
-        completed:   allJobs.filter((j) => j.status === 'completed'),
+        completed:   allJobs.filter((j) => j.status === 'completed' || j.status === 'cancelled'),
       });
     } finally {
       setLoading(false);
@@ -367,19 +697,47 @@ export default function MyRequests() {
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
 
+  const handleCancel = (job: JobRequest) => {
+    Alert.alert(
+      es ? '¿Cancelar solicitud?' : 'Cancel this request?',
+      es
+        ? '¿Estás seguro? Los proveedores que aplicaron no podrán ver esta solicitud.'
+        : 'Are you sure? Providers who applied will no longer see this request.',
+      [
+        { text: es ? 'No' : 'No', style: 'cancel' },
+        {
+          text: es ? 'Sí, cancelar' : 'Yes, cancel',
+          style: 'destructive',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('job_requests')
+              .update({ status: 'cancelled' })
+              .eq('id', job.id);
+            if (error) {
+              Alert.alert('Error', error.message);
+            } else {
+              loadJobs();
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const current = jobs[activeTab];
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 20 }}>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold' }}>
-          {isColombia ? 'Mis Solicitudes' : 'My Requests'}
+          {t('client.myRequests')}
         </Text>
         <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
-          {isColombia ? 'Seguimiento de tus servicios' : 'Track your service requests'}
+          {t('client.requestsSubtitle')}
         </Text>
       </View>
 
+      {/* Tab bar */}
       <View style={{
         flexDirection: 'row',
         marginHorizontal: 20,
@@ -390,7 +748,7 @@ export default function MyRequests() {
         borderWidth: 1,
         borderColor: C.line,
       }}>
-        {(Object.keys(labels) as Tab[]).map((tab) => {
+        {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => {
           const isActive = activeTab === tab;
           const count = jobs[tab].length;
           return (
@@ -413,7 +771,7 @@ export default function MyRequests() {
                 fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular',
                 color: isActive ? '#000' : C.textSecondary,
               }}>
-                {labels[tab]}
+                {TAB_LABELS[tab]}
               </Text>
               {count > 0 && (
                 <View style={{
@@ -439,10 +797,10 @@ export default function MyRequests() {
         </View>
       ) : current.length === 0 ? (
         <EmptyState
-          title={isColombia ? `Sin solicitudes ${labels[activeTab].toLowerCase()}` : `No ${labels[activeTab].toLowerCase()} requests`}
-          subtitle={isColombia ? 'Publica un trabajo para comenzar' : 'Post a job to get started'}
+          title={es ? `Sin solicitudes ${TAB_LABELS[activeTab].toLowerCase()}` : `No ${TAB_LABELS[activeTab].toLowerCase()} requests`}
+          subtitle={es ? 'Publica un trabajo para comenzar' : 'Post a job to get started'}
           iconName="clipboard"
-          ctaLabel={isColombia ? 'Publicar Trabajo' : 'Post a Job'}
+          ctaLabel={es ? 'Publicar Trabajo' : 'Post a Job'}
           onCta={() => router.push('/(client)/post-job' as any)}
         />
       ) : (
@@ -455,6 +813,8 @@ export default function MyRequests() {
               isColombia={isColombia}
               es={es}
               onViewBids={() => setBidsJob(item)}
+              onEdit={() => setEditJob(item)}
+              onCancel={() => handleCancel(item)}
             />
           )}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
@@ -469,6 +829,15 @@ export default function MyRequests() {
         es={es}
         onClose={() => setBidsJob(null)}
         onAccepted={() => { loadJobs(); setActiveTab('in_progress'); }}
+      />
+
+      <EditModal
+        job={editJob}
+        visible={!!editJob}
+        es={es}
+        isColombia={isColombia}
+        onClose={() => setEditJob(null)}
+        onSaved={() => loadJobs()}
       />
     </View>
   );

@@ -35,11 +35,15 @@ function StatCard({ icon, value, label, color }: { icon: keyof typeof Feather.gl
   );
 }
 
-function MiniJobCard({ job, isColombia, onPress }: { job: JobRequest; isColombia: boolean; onPress: () => void }) {
+function MiniJobCard({ job, isColombia, es, onPress }: { job: JobRequest; isColombia: boolean; es: boolean; onPress: () => void }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
   const STATUS_COLORS: Record<string, string> = { open: C.accent, in_progress: '#3B82F6', completed: C.success };
-  const STATUS_LABELS: Record<string, string> = { open: 'OPEN', in_progress: 'ACTIVE', completed: 'DONE' };
+  const STATUS_LABELS: Record<string, string> = {
+    open: es ? 'ABIERTA' : 'OPEN',
+    in_progress: es ? 'ACTIVA' : 'ACTIVE',
+    completed: es ? 'LISTA' : 'DONE',
+  };
   const statusColor = STATUS_COLORS[job.status] ?? C.textMuted;
   const budgetText = job.budget_usd ? formatUSD(job.budget_usd) : job.budget_cop ? formatCOP(job.budget_cop) : null;
   const location = isColombia ? job.city : `${job.city}, ${job.state}`;
@@ -63,7 +67,7 @@ function MiniJobCard({ job, isColombia, onPress }: { job: JobRequest; isColombia
     >
       <View style={{ flex: 1 }}>
         <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 3 }} numberOfLines={1}>
-          {isCommercial ? (isColombia ? 'Limpieza Comercial' : 'Commercial Cleaning') : (isColombia ? 'Limpieza Residencial' : 'Residential Cleaning')}
+          {isCommercial ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning') : (es ? 'Limpieza Residencial' : 'Residential Cleaning')}
         </Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Feather name="map-pin" size={11} color={C.textMuted} />
@@ -210,6 +214,7 @@ export default function ClientHome() {
                     key={job.id}
                     job={job}
                     isColombia={isColombia}
+                    es={es}
                     onPress={() => router.push('/(client)/my-requests' as any)}
                   />
                 ))}
@@ -266,31 +271,6 @@ export default function ClientHome() {
               <Feather name="chevron-right" size={18} color={C.textMuted} />
             </TouchableOpacity>
 
-            <View style={{
-              marginHorizontal: 20,
-              backgroundColor: C.surface,
-              borderWidth: 1,
-              borderColor: C.line,
-              borderRadius: 16,
-              padding: 18,
-              marginBottom: 8,
-            }}>
-              <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 14 }}>
-                {es ? 'Condiciones de Pago' : 'Payment Terms'}
-              </Text>
-              {[
-                { icon: 'calendar' as const, text: es ? 'Pago neto a 30 días tras el servicio' : 'Net-30 payment terms after service' },
-                { icon: 'shield' as const,   text: es ? 'Fondos retenidos hasta confirmación'  : 'Funds held until service confirmed' },
-                { icon: 'zap' as const,      text: es ? 'Liberación anticipada disponible (comisión aplica)' : 'Early release available (fee applies)' },
-              ].map((item) => (
-                <View key={item.text} style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
-                  <View style={{ width: 28, height: 28, backgroundColor: `${C.accent}15`, borderRadius: 8, alignItems: 'center', justifyContent: 'center', marginRight: 12, marginTop: 1 }}>
-                    <Feather name={item.icon} size={13} color={C.accent} />
-                  </View>
-                  <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 18 }}>{item.text}</Text>
-                </View>
-              ))}
-            </View>
           </>
         )}
       </ScrollView>
