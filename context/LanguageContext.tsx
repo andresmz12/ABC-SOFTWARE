@@ -5,10 +5,11 @@ import es from '../locales/es.json';
 
 type Lang = 'en' | 'es';
 
-const translations: Record<Lang, any> = { en, es };
+const translations: Record<Lang, Record<string, any>> = { en, es };
 
-function getNestedValue(obj: any, key: string): string {
-  return key.split('.').reduce((o, k) => o?.[k], obj) ?? key;
+function getNestedValue(obj: Record<string, any>, key: string): string {
+  const result = key.split('.').reduce((o: any, k: string) => o?.[k], obj);
+  return typeof result === 'string' ? result : key;
 }
 
 interface LangContextType {
@@ -26,9 +27,10 @@ const LangContext = createContext<LangContextType>({
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>('en');
 
-  const setLang = useCallback(async (newLang: Lang) => {
+  const setLang = useCallback((newLang: Lang) => {
+    console.log('Language changed to:', newLang);
     setLangState(newLang);
-    await AsyncStorage.setItem('app_lang', newLang);
+    AsyncStorage.setItem('app_lang', newLang).catch(() => {});
   }, []);
 
   const t = useCallback((key: string) => {

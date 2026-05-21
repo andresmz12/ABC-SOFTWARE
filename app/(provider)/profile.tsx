@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
+import { useLang } from '@/context/LanguageContext';
 import LanguageToggle from '@/components/ui/LanguageToggle';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
@@ -10,7 +11,8 @@ import { C } from '@/constants/theme';
 export default function ProviderProfile() {
   const { user, signOut } = useAuthStore();
   const router = useRouter();
-  const isColombia = user?.country === 'colombia';
+  const { lang } = useLang();
+  const es = lang === 'es';
 
   const [available, setAvailable] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
@@ -73,7 +75,7 @@ export default function ProviderProfile() {
     <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 24, marginTop: 12 }}>
-          {isColombia ? 'Mi Perfil' : 'My Profile'}
+          {es ? 'Mi Perfil' : 'My Profile'}
         </Text>
 
         {/* Avatar card */}
@@ -106,7 +108,7 @@ export default function ProviderProfile() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ color: C.textPrimary, fontSize: 17, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
-                  {displayName || (isColombia ? 'Sin nombre' : 'No name')}
+                  {displayName || (es ? 'Sin nombre' : 'No name')}
                 </Text>
                 <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2, textTransform: 'capitalize' }}>
                   {user?.role} · {user?.country}
@@ -132,12 +134,12 @@ export default function ProviderProfile() {
         }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-              {isColombia ? 'Disponible para trabajos' : 'Available for jobs'}
+              {es ? 'Disponible para trabajos' : 'Available for jobs'}
             </Text>
             <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 3 }}>
               {available
-                ? (isColombia ? 'Apareces en los resultados' : 'You appear in search results')
-                : (isColombia ? 'Oculto para nuevas solicitudes' : 'Hidden from new requests')}
+                ? (es ? 'Apareces en los resultados' : 'You appear in search results')
+                : (es ? 'Oculto para nuevas solicitudes' : 'Hidden from new requests')}
             </Text>
           </View>
           {togglingAvailability ? (
@@ -162,11 +164,11 @@ export default function ProviderProfile() {
           borderColor: C.line,
         }}>
           <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
-            {isColombia ? 'Áreas de Servicio' : 'Service Areas'}
+            {es ? 'Áreas de Servicio' : 'Service Areas'}
           </Text>
           {serviceAreas.length === 0 ? (
             <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
-              {isColombia ? 'Sin áreas configuradas' : 'No service areas configured'}
+              {es ? 'Sin áreas configuradas' : 'No service areas configured'}
             </Text>
           ) : (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
@@ -199,7 +201,7 @@ export default function ProviderProfile() {
           borderColor: C.line,
         }}>
           <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
-            {isColombia ? 'Idioma de la App' : 'App Language'}
+            {es ? 'Idioma de la App' : 'App Language'}
           </Text>
           <LanguageToggle />
         </View>
@@ -224,7 +226,7 @@ export default function ProviderProfile() {
         >
           <Feather name="log-out" size={16} color={C.danger} style={{ marginRight: 8 }} />
           <Text style={{ color: C.danger, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
-            {isColombia ? 'Cerrar Sesión' : 'Sign Out'}
+            {es ? 'Cerrar Sesión' : 'Sign Out'}
           </Text>
         </TouchableOpacity>
       </ScrollView>
