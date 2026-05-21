@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import { Feather } from '@expo/vector-icons';
 import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
 import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import { supabase } from '@/lib/supabase';
+import { C } from '@/constants/theme';
 
 const schema = z.object({
   serviceType: z.enum(['commercial', 'residential']),
@@ -84,80 +84,175 @@ export default function PostJob() {
         [{ text: 'OK', onPress: () => router.push('/(client)/my-requests' as any) }],
       );
     } catch (e: any) {
-      Alert.alert(
-        isColombia ? 'Error' : 'Error',
-        e.message ?? 'Failed to post job.',
-      );
+      Alert.alert('Error', e.message ?? 'Failed to post job.');
     } finally {
       setSubmitting(false);
     }
   };
 
+  const SectionLabel = ({ text }: { text: string }) => (
+    <Text style={{ color: C.textSecondary, fontSize: 11, letterSpacing: 1, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', marginBottom: 10, marginTop: 4 }}>
+      {text}
+    </Text>
+  );
+
   return (
-    <ScreenWrapper scroll className="px-5">
-      <View className="pt-6 pb-4">
-        <Text className="text-primary text-2xl font-heading">{t('client.postJob')}</Text>
-      </View>
-
-      <Text className="text-text-main font-body-medium mb-3">{t('jobs.serviceType')}</Text>
-      <View className="flex-row gap-3 mb-4">
-        {(['commercial', 'residential'] as const).map((type) => (
-          <TouchableOpacity
-            key={type}
-            onPress={() => setValue('serviceType', type)}
-            className={`flex-1 border rounded-xl py-3 items-center ${serviceType === type ? 'bg-primary border-primary' : 'border-gray-200'}`}
-          >
-            <Text className={`font-body-medium ${serviceType === type ? 'text-white' : 'text-text-main'}`}>
-              {t(`jobs.${type}`)}
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 28, marginTop: 12 }}>
+            <TouchableOpacity onPress={() => router.back()} style={{ marginRight: 12 }}>
+              <Feather name="arrow-left" size={22} color={C.textSecondary} />
+            </TouchableOpacity>
+            <Text style={{ color: C.textPrimary, fontSize: 24, fontFamily: 'Inter_700Bold' }}>
+              {isColombia ? 'Publicar Trabajo' : t('client.postJob')}
             </Text>
+          </View>
+
+          <SectionLabel text={isColombia ? 'Tipo de Servicio' : t('jobs.serviceType')} />
+          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 20 }}>
+            {(['commercial', 'residential'] as const).map((type) => {
+              const isActive = serviceType === type;
+              return (
+                <TouchableOpacity
+                  key={type}
+                  onPress={() => setValue('serviceType', type)}
+                  style={{
+                    flex: 1,
+                    borderWidth: 1.5,
+                    borderColor: isActive ? C.accent : C.line,
+                    borderRadius: 12,
+                    paddingVertical: 12,
+                    alignItems: 'center',
+                    backgroundColor: isActive ? '#2d1a0d' : C.surface,
+                  }}
+                  activeOpacity={0.75}
+                >
+                  <Feather
+                    name={type === 'commercial' ? 'briefcase' : 'home'}
+                    size={18}
+                    color={isActive ? C.accent : C.textSecondary}
+                    style={{ marginBottom: 4 }}
+                  />
+                  <Text style={{
+                    fontSize: 13,
+                    fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular',
+                    color: isActive ? C.accent : C.textSecondary,
+                  }}>
+                    {t(`jobs.${type}`)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <SectionLabel text={isColombia ? 'Ubicación' : 'Location'} />
+          <Controller control={control} name="city" render={({ field: { onChange, value } }) => (
+            <Input
+              label={isColombia ? 'Ciudad / Municipio' : t('registration.city')}
+              value={value}
+              onChangeText={onChange}
+              iconName="map-pin"
+              error={errors.city?.message}
+            />
+          )} />
+          <Controller control={control} name="state" render={({ field: { onChange, value } }) => (
+            <Input
+              label={isColombia ? 'Departamento' : t('registration.state')}
+              value={value}
+              onChangeText={onChange}
+              error={errors.state?.message}
+            />
+          )} />
+          <Controller control={control} name="zip" render={({ field: { onChange, value } }) => (
+            <Input
+              label={isColombia ? 'Barrio (opcional)' : t('registration.zip')}
+              value={value}
+              onChangeText={onChange}
+              keyboardType={isColombia ? 'default' : 'number-pad'}
+              error={errors.zip?.message}
+            />
+          )} />
+
+          <SectionLabel text={isColombia ? 'Fecha y Hora' : 'Schedule'} />
+          <Controller control={control} name="scheduledDate" render={({ field: { onChange, value } }) => (
+            <Input
+              label={t('jobs.scheduledDate')}
+              value={value}
+              onChangeText={onChange}
+              placeholder={isColombia ? 'DD/MM/AAAA' : 'MM/DD/YYYY'}
+              iconName="calendar"
+              error={errors.scheduledDate?.message}
+            />
+          )} />
+          <Controller control={control} name="scheduledTime" render={({ field: { onChange, value } }) => (
+            <Input
+              label={t('jobs.scheduledTime')}
+              value={value}
+              onChangeText={onChange}
+              placeholder="HH:MM"
+              iconName="clock"
+              error={errors.scheduledTime?.message}
+            />
+          )} />
+          <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
+            <Input
+              label={t('jobs.estimatedHours')}
+              value={value}
+              onChangeText={onChange}
+              keyboardType="decimal-pad"
+              error={errors.estimatedHours?.message}
+            />
+          )} />
+
+          <SectionLabel text={isColombia ? 'Presupuesto' : 'Budget'} />
+          <Controller control={control} name="budget" render={({ field: { onChange, value } }) => (
+            <Input
+              label={isColombia ? 'Presupuesto (COP)' : t('jobs.budget')}
+              placeholder={isColombia ? 'Ej: 350000' : 'e.g. 150'}
+              value={value}
+              onChangeText={onChange}
+              keyboardType="decimal-pad"
+              iconName="dollar-sign"
+              error={errors.budget?.message}
+            />
+          )} />
+
+          <SectionLabel text={isColombia ? 'Descripción' : 'Description'} />
+          <Controller control={control} name="description" render={({ field: { onChange, value } }) => (
+            <Input
+              label={t('jobs.description')}
+              value={value}
+              onChangeText={onChange}
+              multiline
+              numberOfLines={3}
+            />
+          )} />
+
+          <TouchableOpacity
+            onPress={handleSubmit(onSubmit)}
+            disabled={submitting}
+            style={{
+              backgroundColor: C.accent,
+              borderRadius: 12,
+              height: 56,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: submitting ? 0.6 : 1,
+              marginTop: 12,
+            }}
+            activeOpacity={0.85}
+          >
+            {submitting ? (
+              <ActivityIndicator color="#000" />
+            ) : (
+              <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+                {isColombia ? 'Publicar Trabajo' : t('common.submit')}
+              </Text>
+            )}
           </TouchableOpacity>
-        ))}
-      </View>
-
-      <Controller control={control} name="city" render={({ field: { onChange, value } }) => (
-        <Input label={isColombia ? 'Ciudad / Municipio' : t('registration.city')} value={value} onChangeText={onChange} error={errors.city?.message} />
-      )} />
-      <Controller control={control} name="state" render={({ field: { onChange, value } }) => (
-        <Input label={isColombia ? 'Departamento' : t('registration.state')} value={value} onChangeText={onChange} error={errors.state?.message} />
-      )} />
-      {!isColombia && (
-        <Controller control={control} name="zip" render={({ field: { onChange, value } }) => (
-          <Input label={t('registration.zip')} value={value} onChangeText={onChange} keyboardType="number-pad" error={errors.zip?.message} />
-        )} />
-      )}
-      {isColombia && (
-        <Controller control={control} name="zip" render={({ field: { onChange, value } }) => (
-          <Input label="Barrio (opcional)" value={value} onChangeText={onChange} />
-        )} />
-      )}
-      <Controller control={control} name="scheduledDate" render={({ field: { onChange, value } }) => (
-        <Input label={t('jobs.scheduledDate')} value={value} onChangeText={onChange} placeholder={isColombia ? 'DD/MM/AAAA' : 'MM/DD/YYYY'} error={errors.scheduledDate?.message} />
-      )} />
-      <Controller control={control} name="scheduledTime" render={({ field: { onChange, value } }) => (
-        <Input label={t('jobs.scheduledTime')} value={value} onChangeText={onChange} placeholder="HH:MM" error={errors.scheduledTime?.message} />
-      )} />
-      <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
-        <Input label={t('jobs.estimatedHours')} value={value} onChangeText={onChange} keyboardType="decimal-pad" error={errors.estimatedHours?.message} />
-      )} />
-      <Controller control={control} name="budget" render={({ field: { onChange, value } }) => (
-        <Input
-          label={isColombia ? 'Presupuesto (COP)' : t('jobs.budget')}
-          placeholder={isColombia ? 'Ej: 350000' : 'e.g. 150'}
-          value={value}
-          onChangeText={onChange}
-          keyboardType="decimal-pad"
-          error={errors.budget?.message}
-        />
-      )} />
-      <Controller control={control} name="description" render={({ field: { onChange, value } }) => (
-        <Input label={t('jobs.description')} value={value} onChangeText={onChange} multiline numberOfLines={3} />
-      )} />
-
-      {submitting ? (
-        <ActivityIndicator className="my-4" />
-      ) : (
-        <Button label={isColombia ? 'Publicar Trabajo' : t('common.submit')} onPress={handleSubmit(onSubmit)} className="mt-2 mb-6" />
-      )}
-    </ScreenWrapper>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

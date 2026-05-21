@@ -1,15 +1,15 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useTranslation } from 'react-i18next';
+import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
+import { C } from '@/constants/theme';
 
 const schema = z.object({
   email: z.string().email(),
@@ -22,6 +22,7 @@ export default function Login() {
   const router = useRouter();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { initialize } = useAuthStore();
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
@@ -30,12 +31,13 @@ export default function Login() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    setError(null);
+    const { error: authError } = await supabase.auth.signInWithPassword({
       email: data.email,
       password: data.password,
     });
-    if (error) {
-      Alert.alert(t('auth.loginFailed'), error.message);
+    if (authError) {
+      setError(authError.message);
     } else {
       await initialize();
     }
@@ -43,55 +45,110 @@ export default function Login() {
   };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24 }} keyboardShouldPersistTaps="handled">
+          <TouchableOpacity
+            onPress={() => router.back()}
+            style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 32 }}
+          >
+            <Feather name="arrow-left" size={20} color={C.textSecondary} />
+            <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
+              {t('common.back')}
+            </Text>
+          </TouchableOpacity>
 
-      <Text className="text-primary text-3xl font-heading mb-1 mt-4">{t('auth.signIn')}</Text>
-      <Text className="text-text-muted font-body mb-8">{t('auth.welcomeSubtitle')}</Text>
+          <Text style={{ color: C.textPrimary, fontSize: 32, fontFamily: 'Inter_700Bold', marginBottom: 4 }}>
+            {t('auth.signIn')}
+          </Text>
+          <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular', marginBottom: 32 }}>
+            {t('auth.welcomeSubtitle')}
+          </Text>
 
-      <Controller
-        control={control}
-        name="email"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label={t('auth.email')}
-            value={value}
-            onChangeText={onChange}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            error={errors.email?.message}
+          {error && (
+            <View style={{
+              backgroundColor: '#3a1a1a',
+              borderRadius: 12,
+              padding: 12,
+              marginBottom: 16,
+              borderWidth: 1,
+              borderColor: C.danger,
+            }}>
+              <Text style={{ color: C.danger, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{error}</Text>
+            </View>
+          )}
+
+          <Controller
+            control={control}
+            name="email"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label={t('auth.email')}
+                value={value}
+                onChangeText={onChange}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                iconName="mail"
+                error={errors.email?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <Controller
-        control={control}
-        name="password"
-        render={({ field: { onChange, value } }) => (
-          <Input
-            label={t('auth.password')}
-            value={value}
-            onChangeText={onChange}
-            secureTextEntry
-            error={errors.password?.message}
+          <Controller
+            control={control}
+            name="password"
+            render={({ field: { onChange, value } }) => (
+              <Input
+                label={t('auth.password')}
+                value={value}
+                onChangeText={onChange}
+                secureTextEntry
+                iconName="lock"
+                error={errors.password?.message}
+              />
+            )}
           />
-        )}
-      />
 
-      <TouchableOpacity onPress={() => router.push('/(auth)/forgot-password' as any)} className="self-end mb-6">
-        <Text className="text-primary font-body text-sm">{t('auth.forgotPassword')}</Text>
-      </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/forgot-password' as any)}
+            style={{ alignSelf: 'flex-end', marginBottom: 24, marginTop: -4 }}
+          >
+            <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+              {t('auth.forgotPassword')}
+            </Text>
+          </TouchableOpacity>
 
-      <Button label={t('auth.signIn')} onPress={handleSubmit(onSubmit)} loading={loading} />
+          <TouchableOpacity
+            onPress={handleSubmit(onSubmit)}
+            disabled={loading}
+            style={{
+              backgroundColor: C.accent,
+              borderRadius: 12,
+              height: 56,
+              alignItems: 'center',
+              justifyContent: 'center',
+              opacity: loading ? 0.6 : 1,
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+              {loading ? '...' : t('auth.signIn')}
+            </Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => router.push('/(auth)/welcome')} className="py-6 items-center">
-        <Text className="text-text-muted font-body">
-          {t('auth.dontHaveAccount')}{' '}
-          <Text className="text-primary font-body-bold">{t('auth.registerHere')}</Text>
-        </Text>
-      </TouchableOpacity>
-    </ScreenWrapper>
+          <TouchableOpacity
+            onPress={() => router.push('/(auth)/welcome' as any)}
+            style={{ paddingVertical: 24, alignItems: 'center' }}
+          >
+            <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular' }}>
+              {t('auth.dontHaveAccount')}{' '}
+              <Text style={{ color: C.accent, fontFamily: 'Inter_600SemiBold' }}>
+                {t('auth.registerHere')}
+              </Text>
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

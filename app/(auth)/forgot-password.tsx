@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, SafeAreaView, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import Input from '@/components/ui/Input';
-import Button from '@/components/ui/Button';
+import { C } from '@/constants/theme';
 
 const schema = z.object({ email: z.string().email() });
 type FormData = z.infer<typeof schema>;
@@ -16,6 +16,7 @@ export default function ForgotPassword() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const { control, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -23,63 +24,133 @@ export default function ForgotPassword() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
-    const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
+    setError(null);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(data.email, {
       redirectTo: 'provendor://reset-password',
     });
     setLoading(false);
-    if (error) {
-      Alert.alert('Error', error.message);
+    if (resetError) {
+      setError(resetError.message);
     } else {
       setSent(true);
     }
   };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← Back</Text>
-      </TouchableOpacity>
-
-      <Text className="text-primary text-3xl font-heading mb-1 mt-4">Reset Password</Text>
-      <Text className="text-text-muted font-body mb-8">
-        Enter your email and we'll send you a link to reset your password.
-      </Text>
-
-      {sent ? (
-        <View className="bg-green-50 border border-green-200 rounded-2xl p-5 items-center">
-          <Text className="text-4xl mb-3">📬</Text>
-          <Text className="text-green-700 font-body-bold text-base mb-1">Check your email</Text>
-          <Text className="text-green-600 font-body text-sm text-center leading-5">
-            We sent a password reset link to your email address.
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24 }} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 32 }}
+        >
+          <Feather name="arrow-left" size={20} color={C.textSecondary} />
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
+            Back
           </Text>
-          <TouchableOpacity onPress={() => router.replace('/(auth)/login')} className="mt-4">
-            <Text className="text-primary font-body-bold">Back to Sign In</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        <>
-          <Controller
-            control={control}
-            name="email"
-            render={({ field: { onChange, value } }) => (
-              <Input
-                label="Email Address"
-                value={value}
-                onChangeText={onChange}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                error={errors.email?.message}
-              />
-            )}
-          />
+        </TouchableOpacity>
 
-          {loading ? (
-            <ActivityIndicator className="mt-4" />
-          ) : (
-            <Button label="Send Reset Link" onPress={handleSubmit(onSubmit)} className="mt-2" />
-          )}
-        </>
-      )}
-    </ScreenWrapper>
+        <Text style={{ color: C.textPrimary, fontSize: 32, fontFamily: 'Inter_700Bold', marginBottom: 4 }}>
+          Reset Password
+        </Text>
+        <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular', marginBottom: 32 }}>
+          Enter your email and we'll send you a reset link.
+        </Text>
+
+        {sent ? (
+          <View style={{
+            backgroundColor: C.surface,
+            borderRadius: 20,
+            padding: 32,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: C.success,
+          }}>
+            <View style={{
+              width: 72,
+              height: 72,
+              backgroundColor: '#0d2d1a',
+              borderRadius: 36,
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 20,
+            }}>
+              <Feather name="mail" size={32} color={C.success} />
+            </View>
+            <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', marginBottom: 8 }}>
+              Check your email
+            </Text>
+            <Text style={{
+              color: C.textSecondary,
+              fontSize: 14,
+              fontFamily: 'Inter_400Regular',
+              textAlign: 'center',
+              lineHeight: 22,
+              marginBottom: 28,
+            }}>
+              We sent a password reset link to your email address.
+            </Text>
+            <TouchableOpacity onPress={() => router.replace('/(auth)/login' as any)}>
+              <Text style={{ color: C.accent, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                Back to Sign In
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            {error && (
+              <View style={{
+                backgroundColor: '#3a1a1a',
+                borderRadius: 12,
+                padding: 12,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: C.danger,
+              }}>
+                <Text style={{ color: C.danger, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{error}</Text>
+              </View>
+            )}
+
+            <Controller
+              control={control}
+              name="email"
+              render={({ field: { onChange, value } }) => (
+                <Input
+                  label="Email Address"
+                  value={value}
+                  onChangeText={onChange}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  iconName="mail"
+                  error={errors.email?.message}
+                />
+              )}
+            />
+
+            <TouchableOpacity
+              onPress={handleSubmit(onSubmit)}
+              disabled={loading}
+              style={{
+                backgroundColor: C.accent,
+                borderRadius: 12,
+                height: 56,
+                alignItems: 'center',
+                justifyContent: 'center',
+                opacity: loading ? 0.6 : 1,
+                marginTop: 8,
+              }}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#000" />
+              ) : (
+                <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+                  Send Reset Link
+                </Text>
+              )}
+            </TouchableOpacity>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
   );
 }

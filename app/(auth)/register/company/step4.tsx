@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
-import Button from '@/components/ui/Button';
-import StepProgressBar from '@/components/ui/StepProgressBar';
+import { Feather } from '@expo/vector-icons';
 import { useRegistrationStore } from '@/store/registrationStore';
 import { getCompanyDocs } from '@/lib/docRequirements';
 import { supabase } from '@/lib/supabase';
+import StepProgressBar from '@/components/ui/StepProgressBar';
+import { C } from '@/constants/theme';
 
 export default function CompanyStep4() {
   const router = useRouter();
@@ -25,13 +25,11 @@ export default function CompanyStep4() {
         email: formData.email,
         password: formData.password,
       });
-
       if (signUpError) throw signUpError;
       const userId = authData.user?.id;
       if (!userId) throw new Error('No user ID returned from sign up');
 
       const lang = country === 'colombia' ? 'es' : 'en';
-
       const { error: userError } = await supabase.from('users').insert({
         id: userId,
         email: formData.email,
@@ -88,64 +86,123 @@ export default function CompanyStep4() {
   };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-      <StepProgressBar current={4} total={4} />
-      <Text className="text-primary text-2xl font-heading mb-6">
-        {isUSA ? 'Review & Submit' : 'Revisar y Enviar'}
-      </Text>
-
-      <View className="bg-accent rounded-2xl p-5 mb-4">
-        <Text className="text-primary font-body-bold text-base mb-2">
-          📋 {isUSA ? 'Application Summary' : 'Resumen de Solicitud'}
-        </Text>
-        <Text className="text-text-muted font-body text-sm leading-6">
-          {isUSA
-            ? "Your company registration has been prepared for review. Our team will verify your documents within 1–3 business days. You'll receive a push notification once approved."
-            : 'Tu registro de empresa ha sido preparado para revisión. Nuestro equipo verificará tus documentos en un plazo de 1 a 3 días hábiles. Recibirás una notificación una vez aprobado.'}
-        </Text>
-      </View>
-
-      {formData.companyName ? (
-        <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-4">
-          <Text className="text-text-main font-body-bold text-sm mb-3">
-            {isUSA ? 'Company Details' : 'Datos de la Empresa'}
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}
+        >
+          <Feather name="arrow-left" size={20} color={C.textSecondary} />
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
+            {t('common.back')}
           </Text>
-          {([
-            [isUSA ? 'Company Name' : 'Razón Social', formData.companyName],
-            [isUSA ? 'Tax ID' : 'NIT', formData.taxId],
-            [isUSA ? 'Business Type' : 'Tipo de Sociedad', formData.bizType],
-            ['Email', formData.email],
-          ] as [string, string][]).filter(([, v]) => v).map(([label, value]) => (
-            <View key={label} className="flex-row justify-between py-1.5 border-b border-gray-50">
-              <Text className="text-text-muted font-body text-sm">{label}</Text>
-              <Text className="text-text-main font-body-medium text-sm">{value}</Text>
+        </TouchableOpacity>
+
+        <StepProgressBar current={4} total={4} />
+
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 24 }}>
+          {isUSA ? 'Review & Submit' : 'Revisar y Enviar'}
+        </Text>
+
+        <View style={{
+          backgroundColor: '#0d2d1a',
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: C.success,
+        }}>
+          <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
+            {isUSA ? 'Application Summary' : 'Resumen de Solicitud'}
+          </Text>
+          <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 20 }}>
+            {isUSA
+              ? 'Your company registration is ready for review. Our team will verify your documents within 1-3 business days.'
+              : 'Tu registro de empresa está listo para revisión. Nuestro equipo verificará tus documentos en 1 a 3 días hábiles.'}
+          </Text>
+        </View>
+
+        {formData.companyName ? (
+          <View style={{
+            backgroundColor: C.surface,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: C.line,
+          }}>
+            <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
+              {isUSA ? 'Company Details' : 'Datos de la Empresa'}
+            </Text>
+            {([
+              [isUSA ? 'Company Name' : 'Razón Social', formData.companyName],
+              [isUSA ? 'Tax ID' : 'NIT', formData.taxId],
+              [isUSA ? 'Business Type' : 'Tipo de Sociedad', formData.bizType],
+              ['Email', formData.email],
+            ] as [string, string][]).filter(([, v]) => v).map(([label, value], idx, arr) => (
+              <View key={label} style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingVertical: 10,
+                borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
+                borderBottomColor: C.line,
+              }}>
+                <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{label}</Text>
+                <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={{
+          backgroundColor: C.surface,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 32,
+          borderWidth: 1,
+          borderColor: C.line,
+        }}>
+          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
+            {isUSA ? 'Documents Checklist' : 'Lista de Documentos'}
+          </Text>
+          {docs.map((doc, idx) => (
+            <View key={doc.key} style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 10,
+              borderBottomWidth: idx < docs.length - 1 ? 1 : 0,
+              borderBottomColor: C.line,
+            }}>
+              <Feather name="check-circle" size={16} color={C.success} style={{ marginRight: 10 }} />
+              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
+                {doc.label}
+              </Text>
             </View>
           ))}
         </View>
-      ) : null}
 
-      <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-6">
-        <Text className="text-text-main font-body-bold text-sm mb-3">
-          {isUSA ? 'Documents Checklist' : 'Lista de Documentos'}
-        </Text>
-        {docs.map((doc) => (
-          <View key={doc.key} className="flex-row items-center py-2 border-b border-gray-100 last:border-0">
-            <Text className="text-success mr-2">✓</Text>
-            <Text className="text-text-main font-body text-sm flex-1">{doc.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Button
-        label={loading ? (isUSA ? 'Submitting...' : 'Enviando...') : (isUSA ? 'Review & Submit' : 'Enviar para Revisión')}
-        onPress={handleSubmit}
-        disabled={loading}
-        className="mb-8"
-      />
-      {loading && <ActivityIndicator className="mb-4" />}
-    </ScreenWrapper>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={loading}
+          style={{
+            backgroundColor: C.accent,
+            borderRadius: 12,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: loading ? 0.6 : 1,
+          }}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+              {isUSA ? 'Submit for Review' : 'Enviar para Revisión'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

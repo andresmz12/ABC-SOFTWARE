@@ -1,13 +1,13 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
-import Button from '@/components/ui/Button';
-import StepProgressBar from '@/components/ui/StepProgressBar';
+import { Feather } from '@expo/vector-icons';
 import { useRegistrationStore } from '@/store/registrationStore';
 import { getIndependentDocs } from '@/lib/docRequirements';
 import { supabase } from '@/lib/supabase';
+import StepProgressBar from '@/components/ui/StepProgressBar';
+import { C } from '@/constants/theme';
 
 export default function IndependentStep4() {
   const router = useRouter();
@@ -25,13 +25,11 @@ export default function IndependentStep4() {
         email: formData.email,
         password: formData.password,
       });
-
       if (signUpError) throw signUpError;
       const userId = authData.user?.id;
       if (!userId) throw new Error('No user ID returned from sign up');
 
       const lang = country === 'colombia' ? 'es' : 'en';
-
       const { error: userError } = await supabase.from('users').insert({
         id: userId,
         email: formData.email,
@@ -89,63 +87,122 @@ export default function IndependentStep4() {
   };
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-4">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-      <StepProgressBar current={4} total={4} />
-      <Text className="text-primary text-2xl font-heading mb-6">
-        {isUSA ? 'Review & Submit' : 'Revisar y Enviar'}
-      </Text>
-
-      <View className="bg-accent rounded-2xl p-5 mb-4">
-        <Text className="text-primary font-body-bold text-base mb-2">
-          🔍 {isUSA ? 'Identity Verification' : 'Verificación de Identidad'}
-        </Text>
-        <Text className="text-text-muted font-body text-sm leading-6">
-          {isUSA
-            ? "As an independent contractor, you'll also be prompted to complete identity verification. This builds trust with clients and helps you get more jobs."
-            : 'Como contratista independiente, también se te pedirá completar la verificación de identidad. Esto genera confianza con los clientes y te ayuda a conseguir más trabajos.'}
-        </Text>
-      </View>
-
-      {formData.fullName ? (
-        <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-4">
-          <Text className="text-text-main font-body-bold text-sm mb-3">
-            {isUSA ? 'Personal Details' : 'Datos Personales'}
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity
+          onPress={() => router.back()}
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}
+        >
+          <Feather name="arrow-left" size={20} color={C.textSecondary} />
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
+            {t('common.back')}
           </Text>
-          {([
-            [isUSA ? 'Full Name' : 'Nombre Completo', formData.fullName],
-            [isUSA ? 'Date of Birth' : 'Fecha de Nacimiento', formData.dateOfBirth],
-            ['Email', formData.email],
-          ] as [string, string][]).filter(([, v]) => v).map(([label, value]) => (
-            <View key={label} className="flex-row justify-between py-1.5 border-b border-gray-50">
-              <Text className="text-text-muted font-body text-sm">{label}</Text>
-              <Text className="text-text-main font-body-medium text-sm">{value}</Text>
+        </TouchableOpacity>
+
+        <StepProgressBar current={4} total={4} />
+
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginBottom: 24 }}>
+          {isUSA ? 'Review & Submit' : 'Revisar y Enviar'}
+        </Text>
+
+        <View style={{
+          backgroundColor: '#1a1a2e',
+          borderRadius: 16,
+          padding: 20,
+          marginBottom: 16,
+          borderWidth: 1,
+          borderColor: C.accent2,
+        }}>
+          <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
+            {isUSA ? 'Identity Verification' : 'Verificación de Identidad'}
+          </Text>
+          <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 20 }}>
+            {isUSA
+              ? "As an independent contractor, you'll be prompted to complete identity verification to build trust with clients."
+              : 'Como contratista independiente, deberás completar la verificación de identidad para generar confianza con los clientes.'}
+          </Text>
+        </View>
+
+        {formData.fullName ? (
+          <View style={{
+            backgroundColor: C.surface,
+            borderRadius: 16,
+            padding: 16,
+            marginBottom: 16,
+            borderWidth: 1,
+            borderColor: C.line,
+          }}>
+            <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
+              {isUSA ? 'Personal Details' : 'Datos Personales'}
+            </Text>
+            {([
+              [isUSA ? 'Full Name' : 'Nombre Completo', formData.fullName],
+              [isUSA ? 'Date of Birth' : 'Fecha de Nacimiento', formData.dateOfBirth],
+              ['Email', formData.email],
+            ] as [string, string][]).filter(([, v]) => v).map(([label, value], idx, arr) => (
+              <View key={label} style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                paddingVertical: 10,
+                borderBottomWidth: idx < arr.length - 1 ? 1 : 0,
+                borderBottomColor: C.line,
+              }}>
+                <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{label}</Text>
+                <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>{value}</Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        <View style={{
+          backgroundColor: C.surface,
+          borderRadius: 16,
+          padding: 16,
+          marginBottom: 32,
+          borderWidth: 1,
+          borderColor: C.line,
+        }}>
+          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
+            {isUSA ? 'Documents Checklist' : 'Lista de Documentos'}
+          </Text>
+          {docs.map((doc, idx) => (
+            <View key={doc.key} style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              paddingVertical: 10,
+              borderBottomWidth: idx < docs.length - 1 ? 1 : 0,
+              borderBottomColor: C.line,
+            }}>
+              <Feather name="check-circle" size={16} color={C.success} style={{ marginRight: 10 }} />
+              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
+                {doc.label}
+              </Text>
             </View>
           ))}
         </View>
-      ) : null}
 
-      <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-6">
-        <Text className="text-text-main font-body-bold text-sm mb-3">
-          {isUSA ? 'Documents Checklist' : 'Lista de Documentos'}
-        </Text>
-        {docs.map((doc) => (
-          <View key={doc.key} className="flex-row items-center py-2 border-b border-gray-100 last:border-0">
-            <Text className="text-success mr-2">✓</Text>
-            <Text className="text-text-main font-body text-sm flex-1">{doc.label}</Text>
-          </View>
-        ))}
-      </View>
-
-      <Button
-        label={loading ? (isUSA ? 'Submitting...' : 'Enviando...') : (isUSA ? 'Submit for Review' : 'Enviar para Revisión')}
-        onPress={handleSubmit}
-        disabled={loading}
-        className="mb-8"
-      />
-      {loading && <ActivityIndicator className="mb-4" />}
-    </ScreenWrapper>
+        <TouchableOpacity
+          onPress={handleSubmit}
+          disabled={loading}
+          style={{
+            backgroundColor: C.accent,
+            borderRadius: 12,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            opacity: loading ? 0.6 : 1,
+          }}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color="#000" />
+          ) : (
+            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+              {isUSA ? 'Submit for Review' : 'Enviar para Revisión'}
+            </Text>
+          )}
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 }

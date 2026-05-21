@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
+import { Feather } from '@expo/vector-icons';
 import EmptyState from '@/components/ui/EmptyState';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
 import { formatUSD, formatCOP } from '@/lib/countryData';
-import { DEMO_REQUESTS } from '@/constants/demoData';
+import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 
 type Tab = 'open' | 'in_progress' | 'completed';
@@ -14,7 +14,13 @@ type Tab = 'open' | 'in_progress' | 'completed';
 const TAB_LABELS: Record<Tab, string> = {
   open:        'Open',
   in_progress: 'Active',
-  completed:   'Completed',
+  completed:   'Done',
+};
+
+const TAB_LABELS_ES: Record<Tab, string> = {
+  open:        'Abiertas',
+  in_progress: 'Activas',
+  completed:   'Listas',
 };
 
 function timeAgo(iso: string): string {
@@ -26,7 +32,7 @@ function timeAgo(iso: string): string {
 
 function RequestCard({ req, isColombia }: { req: JobRequest; isColombia: boolean }) {
   const isCommercial = req.service_type === 'commercial';
-  const leftColor = isCommercial ? '#1B3A6B' : '#C9A84C';
+  const accentColor = isCommercial ? C.accent2 : C.accent;
 
   const budgetText = req.budget_usd
     ? req.budget_max_usd ? `${formatUSD(req.budget_usd)}–${formatUSD(req.budget_max_usd)}` : formatUSD(req.budget_usd)
@@ -35,48 +41,77 @@ function RequestCard({ req, isColombia }: { req: JobRequest; isColombia: boolean
     : null;
 
   const location = isColombia
-    ? `${req.county ? req.county + ', ' : ''}${req.city}`
+    ? `${(req as any).county ? (req as any).county + ', ' : ''}${req.city}`
     : `${req.city}, ${req.state}`;
 
   return (
-    <View
-      className="bg-white rounded-2xl mb-3 overflow-hidden"
-      style={{ borderLeftWidth: 4, borderLeftColor: leftColor, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 6, elevation: 3 }}
-    >
-      <View className="p-4">
-        <View className="flex-row justify-between items-start mb-2">
-          <Text className="text-text-main font-body-bold text-base flex-1 mr-2" numberOfLines={1}>
-            {req.title ?? (isCommercial ? 'Commercial Cleaning' : 'Residential Cleaning')}
+    <View style={{
+      backgroundColor: C.surface,
+      borderRadius: 16,
+      marginBottom: 12,
+      overflow: 'hidden',
+      borderLeftWidth: 3,
+      borderLeftColor: accentColor,
+      borderWidth: 1,
+      borderColor: C.line,
+    }}>
+      <View style={{ padding: 16 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+          <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1, marginRight: 8 }} numberOfLines={1}>
+            {(req as any).title ?? (isCommercial ? 'Commercial Cleaning' : 'Residential Cleaning')}
           </Text>
-          <View className={`px-2 py-0.5 rounded-full ${isCommercial ? 'bg-blue-100' : 'bg-amber-100'}`}>
-            <Text className={`text-xs font-body-medium ${isCommercial ? 'text-blue-700' : 'text-amber-700'}`}>
-              {isCommercial ? '🏢 Commercial' : '🏠 Residential'}
+          <View style={{
+            backgroundColor: isCommercial ? '#0d1a2d' : '#2d1a0d',
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+            borderRadius: 8,
+            borderWidth: 1,
+            borderColor: accentColor,
+          }}>
+            <Text style={{ color: accentColor, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+              {isCommercial ? 'Commercial' : 'Residential'}
             </Text>
           </View>
         </View>
 
-        <Text className="text-text-muted font-body text-xs mb-2">
-          📍 {location} · 📅 {req.scheduled_date}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+          <Feather name="map-pin" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
+          <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular', marginRight: 12 }}>
+            {location}
+          </Text>
+          <Feather name="calendar" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
+          <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+            {req.scheduled_date}
+          </Text>
+        </View>
 
-        <View className="flex-row items-center justify-between">
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           {budgetText && (
-            <View className="bg-secondary/10 px-3 py-1 rounded-full">
-              <Text className="text-secondary font-body-bold text-xs">{budgetText}</Text>
+            <View style={{
+              backgroundColor: C.surface2,
+              paddingHorizontal: 10,
+              paddingVertical: 4,
+              borderRadius: 20,
+              borderWidth: 1,
+              borderColor: C.accent,
+            }}>
+              <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>{budgetText}</Text>
             </View>
           )}
-          <Text className="text-text-muted font-body text-xs">{timeAgo(req.created_at)}</Text>
+          <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginLeft: 'auto' }}>
+            {timeAgo(req.created_at)}
+          </Text>
         </View>
       </View>
 
-      <View className="border-t border-gray-100 px-4 py-2.5 flex-row justify-between">
+      <View style={{ borderTopWidth: 1, borderTopColor: C.line, paddingHorizontal: 16, paddingVertical: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
         <TouchableOpacity>
-          <Text className="text-primary font-body-bold text-sm">
+          <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
             {isColombia ? 'Ver Ofertas' : 'View Bids'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity>
-          <Text className="text-text-muted font-body text-sm">
+          <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
             {isColombia ? 'Editar' : 'Edit'}
           </Text>
         </TouchableOpacity>
@@ -89,8 +124,8 @@ export default function MyRequests() {
   const [activeTab, setActiveTab] = useState<Tab>('open');
   const router = useRouter();
   const { user } = useAuthStore();
-  const isDemo = user?.id === 'demo';
   const isColombia = user?.country === 'colombia';
+  const labels = isColombia ? TAB_LABELS_ES : TAB_LABELS;
 
   const [jobs, setJobs] = useState<{ open: JobRequest[]; in_progress: JobRequest[]; completed: JobRequest[] }>({
     open: [], in_progress: [], completed: [],
@@ -98,17 +133,6 @@ export default function MyRequests() {
   const [loading, setLoading] = useState(false);
 
   const loadJobs = useCallback(async () => {
-    if (isDemo) {
-      const open = DEMO_REQUESTS.filter((r) => r.status === 'open').map((r) => ({
-        id: r.id, client_id: 'demo', title: r.title,
-        service_type: r.serviceType, city: r.location.split(',')[0], state: r.location.split(', ')[1] ?? '',
-        zip: '', country: 'usa' as const, scheduled_date: r.date, scheduled_time: '',
-        estimated_hours: 0, budget_usd: parseFloat(r.budget.replace(/[^0-9]/g, '')),
-        status: 'open' as const, created_at: new Date().toISOString(),
-      }));
-      setJobs({ open, in_progress: [], completed: [] });
-      return;
-    }
     if (!user?.id) return;
     setLoading(true);
     try {
@@ -126,56 +150,88 @@ export default function MyRequests() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, isDemo]);
+  }, [user?.id]);
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
 
   const current = jobs[activeTab];
 
   return (
-    <ScreenWrapper>
-      <View className="px-5 pt-8 pb-4">
-        <Text className="text-primary text-3xl font-heading">
+    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+      <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 20 }}>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold' }}>
           {isColombia ? 'Mis Solicitudes' : 'My Requests'}
         </Text>
-        <Text className="text-text-muted font-body text-sm mt-0.5">
-          {isColombia ? 'Seguimiento de tus solicitudes' : 'Track your service requests'}
+        <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
+          {isColombia ? 'Seguimiento de tus servicios' : 'Track your service requests'}
         </Text>
       </View>
 
       {/* Tab bar */}
-      <View className="flex-row mx-5 mb-4 bg-gray-100 rounded-xl p-1">
-        {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => {
+      <View style={{
+        flexDirection: 'row',
+        marginHorizontal: 20,
+        marginBottom: 16,
+        backgroundColor: C.surface,
+        borderRadius: 12,
+        padding: 4,
+        borderWidth: 1,
+        borderColor: C.line,
+      }}>
+        {(Object.keys(labels) as Tab[]).map((tab) => {
+          const isActive = activeTab === tab;
           const count = jobs[tab].length;
           return (
             <TouchableOpacity
               key={tab}
               onPress={() => setActiveTab(tab)}
-              className={`flex-1 py-2 items-center rounded-lg ${activeTab === tab ? 'bg-white' : ''}`}
-              style={activeTab === tab ? { shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 3, elevation: 2 } : undefined}
+              style={{
+                flex: 1,
+                paddingVertical: 8,
+                alignItems: 'center',
+                borderRadius: 8,
+                backgroundColor: isActive ? C.accent : 'transparent',
+                flexDirection: 'row',
+                justifyContent: 'center',
+              }}
+              activeOpacity={0.75}
             >
-              <View className="flex-row items-center">
-                <Text className={`text-xs font-body-medium ${activeTab === tab ? 'text-primary' : 'text-text-muted'}`}>
-                  {TAB_LABELS[tab]}
-                </Text>
-                {count > 0 && (
-                  <View className={`ml-1 w-4 h-4 rounded-full items-center justify-center ${activeTab === tab ? 'bg-secondary' : 'bg-gray-300'}`}>
-                    <Text className="text-white text-xs" style={{ fontSize: 9 }}>{count}</Text>
-                  </View>
-                )}
-              </View>
+              <Text style={{
+                fontSize: 12,
+                fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular',
+                color: isActive ? '#000' : C.textSecondary,
+              }}>
+                {labels[tab]}
+              </Text>
+              {count > 0 && (
+                <View style={{
+                  marginLeft: 5,
+                  width: 16,
+                  height: 16,
+                  borderRadius: 8,
+                  backgroundColor: isActive ? 'rgba(0,0,0,0.2)' : C.surface2,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 9, color: isActive ? '#000' : C.textSecondary, fontFamily: 'Inter_600SemiBold' }}>
+                    {count}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           );
         })}
       </View>
 
       {loading ? (
-        <ActivityIndicator className="mt-8" />
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={C.accent} size="large" />
+        </View>
       ) : current.length === 0 ? (
         <EmptyState
-          title={`No ${TAB_LABELS[activeTab].toLowerCase()} requests`}
-          icon="📋"
+          title={`No ${labels[activeTab].toLowerCase()} requests`}
           subtitle={isColombia ? 'Publica un trabajo para comenzar' : 'Post a job to get started'}
+          iconName="clipboard"
           ctaLabel={isColombia ? 'Publicar Trabajo' : 'Post a Job'}
           onCta={() => router.push('/(client)/post-job' as any)}
         />
@@ -184,9 +240,10 @@ export default function MyRequests() {
           data={current}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <RequestCard req={item} isColombia={isColombia} />}
-          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
+          showsVerticalScrollIndicator={false}
         />
       )}
-    </ScreenWrapper>
+    </SafeAreaView>
   );
 }
