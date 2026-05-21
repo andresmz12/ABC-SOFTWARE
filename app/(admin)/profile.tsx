@@ -134,8 +134,13 @@ export default function AdminProfile() {
           <LanguageToggle />
         </View>
 
-        <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 12 }}>
+        <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 8 }}>
           {es ? 'Cuentas de Prueba' : 'Test Accounts'}
+        </Text>
+        <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 12, lineHeight: 18 }}>
+          {es
+            ? 'Las credenciales deben coincidir con una cuenta real registrada en Supabase.'
+            : 'Email and password must match a real account registered in Supabase.'}
         </Text>
 
         <View style={{ gap: 12, marginBottom: 28 }}>

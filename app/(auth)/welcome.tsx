@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
@@ -18,15 +19,16 @@ const ROLES: { key: Role; icon: keyof typeof Feather.glyphMap; titleKey: string;
 export default function Welcome() {
   const router = useRouter();
   const { t } = useLang();
+  const insets = useSafeAreaInsets();
   const [country, setCountry] = useState<Country>('usa');
   const [role, setRole] = useState<Role | null>(null);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40 }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 40, paddingTop: insets.top }}>
 
         {/* Language toggle */}
-        <View style={{ alignItems: 'flex-end', paddingTop: 16, paddingBottom: 8 }}>
+        <View style={{ alignItems: 'flex-end', paddingTop: 8, paddingBottom: 8 }}>
           <LanguageToggle />
         </View>
 
