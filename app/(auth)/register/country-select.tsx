@@ -1,4 +1,4 @@
-import { SafeAreaView, View, Text, TouchableOpacity, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRegistrationStore } from '@/store/registrationStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -45,7 +45,7 @@ export default function CountrySelect() {
   };
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: C.background }}>
+    <View style={{ flex: 1, backgroundColor: C.background }}>
       <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }}>
         <View style={{ alignItems: 'center', paddingVertical: 40 }}>
           <View style={{
@@ -111,6 +111,6 @@ export default function CountrySelect() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
