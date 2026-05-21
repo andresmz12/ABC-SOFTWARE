@@ -3,14 +3,14 @@ import { useSettingsStore } from '@/store/settingsStore';
 import type { Language } from '@/types';
 
 export const useI18n = () => {
-  const { t, i18n } = useTranslation();
-  const { setLanguage } = useSettingsStore();
+  const { t } = useTranslation();
+  // language from Zustand — this triggers React re-renders reliably.
+  // i18n.language is a plain object property and does NOT cause re-renders.
+  const { language, setLanguage } = useSettingsStore();
 
   const switchLanguage = async (lang: Language) => {
     await setLanguage(lang);
   };
 
-  // Use i18n.language as the source of truth — it is always in sync
-  // because setLanguage now calls i18n.changeLanguage internally.
-  return { t, language: i18n.language as Language, switchLanguage };
+  return { t, language, switchLanguage };
 };

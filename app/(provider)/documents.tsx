@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, SafeAreaView, ScrollView } from 'react-native';
-import { useTranslation } from 'react-i18next';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
+import { useSettingsStore } from '@/store/settingsStore';
 import { uploadDocument } from '@/lib/uploadDocument';
 import { getCompanyDocs, getIndependentDocs } from '@/lib/docRequirements';
 import { supabase } from '@/lib/supabase';
@@ -24,9 +24,8 @@ const STATUS_COLORS: Record<DocStatus, { color: string; bg: string }> = {
 };
 
 export default function ProviderDocuments() {
-  const { i18n } = useTranslation();
   const { user } = useAuthStore();
-  const lang = i18n.language;
+  const { language: lang } = useSettingsStore();
 
   const [docItems, setDocItems] = useState<DocItem[]>([]);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
