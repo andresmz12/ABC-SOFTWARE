@@ -13,6 +13,91 @@ export async function fetchOpenJobs(country: Country): Promise<JobRequest[]> {
   return data ?? [];
 }
 
+export async function fetchOpenJobsForProvider(
+  providerId: string,
+  providerRole: 'company' | 'independent',
+  country: Country,
+): Promise<JobRequest[]> {
+  const profileTable = providerRole === 'company' ? 'companies' : 'independents';
+  const [areasRes, profileRes] = await Promise.all([
+    supabase.from('service_areas').select('state').eq('provider_id', providerId),
+    supabase.from(profileTable).select('service_type').eq('user_id', providerId).single(),
+  ]);
+
+  const states = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string))];
+  const providerServiceType = (profileRes.data as any)?.service_type ?? 'both';
+
+  let query = supabase
+    .from('job_requests')
+    .select('*')
+    .eq('status', 'open')
+    .eq('country', country)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (providerRole === 'independent') {
+    query = query.eq('service_type', 'residential');
+  } else if (providerServiceType !== 'both') {
+    query = query.eq('service_type', providerServiceType);
+  }
+
+  if (states.length > 0) {
+    query = query.in('state', states);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return data ?? [];
+}
+
+export interface BidWithProvider {
+  id: string;
+  job_request_id: string;
+  provider_id: string;
+  provider_name: string;
+  provider_type: 'company' | 'independent';
+  bid_amount_usd?: number;
+  bid_amount_cop?: number;
+  message?: string;
+  status: string;
+  applied_at: string;
+}
+
+export async function fetchJobBids(jobRequestId: string): Promise<BidWithProvider[]> {
+  const { data: apps, error } = await supabase
+    .from('job_applications')
+    .select('*')
+    .eq('job_request_id', jobRequestId)
+    .order('applied_at', { ascending: false });
+
+  if (error || !apps?.length) return [];
+
+  const providerIds = apps.map((a) => a.provider_id);
+  const [companiesRes, independentsRes] = await Promise.all([
+    supabase.from('companies').select('user_id, company_name').in('user_id', providerIds),
+    supabase.from('independents').select('user_id, full_name').in('user_id', providerIds),
+  ]);
+
+  const nameMap: Record<string, string> = {};
+  (companiesRes.data ?? []).forEach((c: any) => { nameMap[c.user_id] = c.company_name; });
+  (independentsRes.data ?? []).forEach((i: any) => { if (!nameMap[i.user_id]) nameMap[i.user_id] = i.full_name; });
+
+  return apps.map((a) => ({
+    ...a,
+    provider_name: nameMap[a.provider_id] ?? 'Provider',
+  }));
+}
+
+export async function acceptBid(applicationId: string, jobRequestId: string): Promise<void> {
+  const [acceptRes, , jobRes] = await Promise.all([
+    supabase.from('job_applications').update({ status: 'accepted' }).eq('id', applicationId),
+    supabase.from('job_applications').update({ status: 'rejected' }).eq('job_request_id', jobRequestId).neq('id', applicationId),
+    supabase.from('job_requests').update({ status: 'in_progress' }).eq('id', jobRequestId),
+  ]);
+  if (acceptRes.error) throw acceptRes.error;
+  if (jobRes.error) throw jobRes.error;
+}
+
 export async function fetchClientJobs(clientId: string): Promise<{
   open: JobRequest[];
   active: JobRequest[];

@@ -104,6 +104,7 @@ export default function JobDetail() {
   }
 
   const isCommercial = job.service_type === 'commercial';
+  const isNotEligible = job.service_type === 'commercial' && user?.role === 'independent';
   const accentColor = isCommercial ? C.accent2 : C.accent;
   const timer = job.expires_at ? countdown(job.expires_at) : null;
   const location = isColombia
@@ -269,7 +270,23 @@ export default function JobDetail() {
         borderTopWidth: 1,
         borderTopColor: C.line,
       }}>
-        {applied ? (
+        {isNotEligible ? (
+          <View style={{
+            backgroundColor: '#1a0d0d',
+            borderRadius: 12,
+            paddingVertical: 16,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: `${C.danger}40`,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="slash" size={16} color={C.danger} style={{ marginRight: 8 }} />
+              <Text style={{ color: C.danger, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {isColombia ? 'Solo empresas pueden aplicar a trabajos comerciales' : 'Only companies can apply to commercial jobs'}
+              </Text>
+            </View>
+          </View>
+        ) : applied ? (
           <View style={{
             backgroundColor: '#0d2d1a',
             borderRadius: 12,

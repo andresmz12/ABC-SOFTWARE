@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { fetchOpenJobs, fetchProviderJobs } from '@/lib/jobService';
+import { fetchOpenJobs, fetchOpenJobsForProvider, fetchProviderJobs } from '@/lib/jobService';
 import type { JobRequest, JobApplication, Country } from '@/types';
 
 interface JobState {
@@ -15,7 +15,7 @@ interface JobState {
   setActiveJob: (job: JobRequest | null) => void;
   addJob: (job: JobRequest) => void;
   updateJobStatus: (jobId: string, status: JobRequest['status']) => void;
-  fetchOpenJobs: (country: Country) => Promise<void>;
+  fetchOpenJobs: (country: Country, providerId?: string, providerRole?: 'company' | 'independent') => Promise<void>;
   fetchMyJobs: (providerId: string) => Promise<void>;
 }
 
@@ -35,10 +35,12 @@ export const useJobStore = create<JobState>((set) => ({
     set((state) => ({
       openJobs: state.openJobs.map((j) => (j.id === jobId ? { ...j, status } : j)),
     })),
-  fetchOpenJobs: async (country) => {
+  fetchOpenJobs: async (country, providerId, providerRole) => {
     set({ loading: true });
     try {
-      const jobs = await fetchOpenJobs(country);
+      const jobs = (providerId && providerRole)
+        ? await fetchOpenJobsForProvider(providerId, providerRole, country)
+        : await fetchOpenJobs(country);
       set({ openJobs: jobs });
     } finally {
       set({ loading: false });
