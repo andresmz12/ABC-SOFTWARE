@@ -38,10 +38,16 @@ export default function Login() {
     });
     if (authError) {
       setError(authError.message);
-    } else {
-      await initialize();
+      setLoading(false);
+      return;
     }
+    await initialize();
     setLoading(false);
+    const { user: loggedInUser } = useAuthStore.getState();
+    if (loggedInUser?.role === 'client') router.replace('/(client)/home');
+    else if (loggedInUser?.role === 'company' || loggedInUser?.role === 'independent') router.replace('/(provider)/home');
+    else if (loggedInUser?.role === 'admin') router.replace('/(admin)/dashboard');
+    else router.replace('/(auth)/welcome');
   };
 
   return (

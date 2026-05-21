@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import { C } from '@/constants/theme';
 
-const DOCS = [
+const US_DOCS = [
   { key: 'w9',               label: 'W-9 Tax Form',              desc: 'Required for US tax reporting' },
   { key: 'insurance',        label: 'Certificate of Insurance',  desc: 'Liability coverage documentation' },
   { key: 'business_license', label: 'Business License',          desc: 'State or local business registration' },
@@ -15,8 +15,20 @@ const DOCS = [
   { key: 'service_agreement',label: 'Signed Service Agreement',  desc: 'Platform terms and conditions' },
 ];
 
+const CO_DOCS = [
+  { key: 'rut',              label: 'RUT',                         desc: 'Registro Único Tributario' },
+  { key: 'insurance',        label: 'Póliza de Responsabilidad',   desc: 'Cobertura de responsabilidad civil' },
+  { key: 'camara',           label: 'Cámara de Comercio',          desc: 'Registro mercantil de la empresa' },
+  { key: 'nit_cert',         label: 'Certificado NIT',             desc: 'Número de identificación tributaria' },
+  { key: 'service_agreement',label: 'Acuerdo de Servicio',         desc: 'Términos y condiciones de la plataforma' },
+];
+
 export default function CompanyStep3() {
   const router = useRouter();
+  const params = useLocalSearchParams<Record<string, string>>();
+  const country = params.country ?? 'usa';
+  const isColombia = country === 'colombia';
+  const DOCS = isColombia ? CO_DOCS : US_DOCS;
   const [uploaded, setUploaded] = useState<Record<string, string>>({});
 
   const handleUpload = (key: string) => {
@@ -36,9 +48,11 @@ export default function CompanyStep3() {
 
         <View style={{ paddingTop: 8, paddingBottom: 8 }}>
           <StepProgressBar current={3} total={4} />
-          <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>Documents</Text>
+          <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
+            {isColombia ? 'Documentos' : 'Documents'}
+          </Text>
           <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6, marginBottom: 20 }}>
-            Upload required documents for platform verification
+            {isColombia ? 'Sube los documentos requeridos para verificación' : 'Upload required documents for platform verification'}
           </Text>
 
           {/* Progress */}
@@ -103,7 +117,7 @@ export default function CompanyStep3() {
               >
                 <Feather name={isUploaded ? 'refresh-cw' : 'upload'} size={14} color={isUploaded ? C.success : C.accent} style={{ marginRight: 6 }} />
                 <Text style={{ color: isUploaded ? C.success : C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
-                  {isUploaded ? 'Replace' : 'Upload'}
+                  {isUploaded ? (isColombia ? 'Reemplazar' : 'Replace') : (isColombia ? 'Subir' : 'Upload')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -111,7 +125,10 @@ export default function CompanyStep3() {
         })}
 
         <View style={{ marginTop: 8, marginBottom: 40 }}>
-          <Button label="Continue" onPress={() => router.push('/(auth)/register/company/step4' as any)} />
+          <Button
+            label={isColombia ? 'Continuar' : 'Continue'}
+            onPress={() => router.push({ pathname: '/(auth)/register/company/step4', params: { country } } as any)}
+          />
         </View>
       </ScrollView>
     </SafeAreaView>
