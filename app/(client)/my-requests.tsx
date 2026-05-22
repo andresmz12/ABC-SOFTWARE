@@ -268,7 +268,7 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
   }, [job?.id, visible]);
 
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === 'android') setShowDatePicker(false);
+    setShowDatePicker(false);
     if (date) {
       setPickerDate(date);
       setScheduledDate(format(date, 'yyyy-MM-dd'));
@@ -276,7 +276,7 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
   };
 
   const handleTimeChange = (event: DateTimePickerEvent, time?: Date) => {
-    if (Platform.OS === 'android') setShowTimePicker(false);
+    setShowTimePicker(false);
     if (time) {
       setPickerTime(time);
       setScheduledTime(format(time, 'HH:mm'));
@@ -457,46 +457,24 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
         </View>
       </View>
 
-      {/* iOS date picker */}
-      {showDatePicker && Platform.OS === 'ios' && (
-        <Modal transparent animationType="slide" visible={showDatePicker}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
-            <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: C.line }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={{ color: C.textMuted, fontSize: 16 }}>{es ? 'Cancelar' : 'Cancel'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowDatePicker(false)}>
-                  <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker mode="date" display="spinner" value={pickerDate} minimumDate={new Date()} onChange={handleDateChange} style={{ height: 200 }} textColor={C.textPrimary} />
-            </View>
-          </View>
-        </Modal>
+      {showDatePicker && (
+        <DateTimePicker
+          value={pickerDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
+          onChange={handleDateChange}
+          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
+        />
       )}
-      {showTimePicker && Platform.OS === 'ios' && (
-        <Modal transparent animationType="slide" visible={showTimePicker}>
-          <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
-            <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 16, paddingBottom: 40, paddingHorizontal: 20, borderTopWidth: 1, borderTopColor: C.line }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <Text style={{ color: C.textMuted, fontSize: 16 }}>{es ? 'Cancelar' : 'Cancel'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setShowTimePicker(false)}>
-                  <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
-                </TouchableOpacity>
-              </View>
-              <DateTimePicker mode="time" display="spinner" value={pickerTime} onChange={handleTimeChange} style={{ height: 200 }} textColor={C.textPrimary} />
-            </View>
-          </View>
-        </Modal>
-      )}
-      {showDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker mode="date" display="default" value={pickerDate} minimumDate={new Date()} onChange={handleDateChange} />
-      )}
-      {showTimePicker && Platform.OS === 'android' && (
-        <DateTimePicker mode="time" display="default" value={pickerTime} onChange={handleTimeChange} />
+      {showTimePicker && (
+        <DateTimePicker
+          value={pickerTime}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleTimeChange}
+          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
+        />
       )}
     </Modal>
   );

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
 import { useForm, Controller } from 'react-hook-form';
@@ -53,7 +53,7 @@ export default function PostJob() {
   const scheduledTime = watch('scheduledTime');
 
   const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-    if (Platform.OS === 'android') setShowDatePicker(false);
+    setShowDatePicker(false);
     if (date) {
       setPickerDate(date);
       setValue('scheduledDate', format(date, 'yyyy-MM-dd'), { shouldValidate: true });
@@ -61,7 +61,7 @@ export default function PostJob() {
   };
 
   const handleTimeChange = (event: DateTimePickerEvent, time?: Date) => {
-    if (Platform.OS === 'android') setShowTimePicker(false);
+    setShowTimePicker(false);
     if (time) {
       setPickerTime(time);
       setValue('scheduledTime', format(time, 'HH:mm'), { shouldValidate: true });
@@ -161,47 +161,6 @@ export default function PostJob() {
       </TouchableOpacity>
       {error && <Text style={{ color: C.danger, fontSize: 12, marginTop: 4 }}>{error}</Text>}
     </View>
-  );
-
-  const DatePickerModal = ({ mode, visible, onClose, value, onChange }: {
-    mode: 'date' | 'time'; visible: boolean; onClose: () => void;
-    value: Date; onChange: (e: DateTimePickerEvent, d?: Date) => void;
-  }) => (
-    <Modal transparent animationType="slide" visible={visible}>
-      <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.6)' }}>
-        <View style={{
-          backgroundColor: C.surface,
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          paddingTop: 16,
-          paddingBottom: 40,
-          paddingHorizontal: 20,
-          borderTopWidth: 1,
-          borderTopColor: C.line,
-        }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ color: C.textMuted, fontSize: 16, fontFamily: 'Inter_400Regular' }}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
-              {mode === 'date' ? t('jobs.selectDate') : t('jobs.selectTime')}
-            </Text>
-            <TouchableOpacity onPress={onClose}>
-              <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{t('common.done')}</Text>
-            </TouchableOpacity>
-          </View>
-          <DateTimePicker
-            mode={mode}
-            display="spinner"
-            value={value}
-            minimumDate={mode === 'date' ? new Date() : undefined}
-            onChange={onChange}
-            style={{ height: 200 }}
-            textColor={C.textPrimary}
-          />
-        </View>
-      </View>
-    </Modal>
   );
 
   return (
@@ -353,32 +312,24 @@ export default function PostJob() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* iOS pickers */}
-      {Platform.OS === 'ios' && (
-        <>
-          <DatePickerModal
-            mode="date"
-            visible={showDatePicker}
-            onClose={() => setShowDatePicker(false)}
-            value={pickerDate}
-            onChange={handleDateChange}
-          />
-          <DatePickerModal
-            mode="time"
-            visible={showTimePicker}
-            onClose={() => setShowTimePicker(false)}
-            value={pickerTime}
-            onChange={handleTimeChange}
-          />
-        </>
+      {showDatePicker && (
+        <DateTimePicker
+          value={pickerDate}
+          mode="date"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          minimumDate={new Date()}
+          onChange={handleDateChange}
+          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
+        />
       )}
-
-      {/* Android pickers */}
-      {showDatePicker && Platform.OS === 'android' && (
-        <DateTimePicker mode="date" display="default" value={pickerDate} minimumDate={new Date()} onChange={handleDateChange} />
-      )}
-      {showTimePicker && Platform.OS === 'android' && (
-        <DateTimePicker mode="time" display="default" value={pickerTime} onChange={handleTimeChange} />
+      {showTimePicker && (
+        <DateTimePicker
+          value={pickerTime}
+          mode="time"
+          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+          onChange={handleTimeChange}
+          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
+        />
       )}
     </View>
   );
