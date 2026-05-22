@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
@@ -30,17 +30,6 @@ export default function CompanyStep4() {
       if (signUpError) throw signUpError;
       const userId = authData.user?.id;
       if (!userId) throw new Error('No user ID returned from sign up');
-
-      const lang = country === 'colombia' ? 'es' : 'en';
-      const { error: userError } = await supabase.from('users').insert({
-        id: userId,
-        email: formData.email,
-        role: 'company',
-        status: 'pending',
-        country: country ?? 'usa',
-        preferred_language: lang,
-      });
-      if (userError) throw userError;
 
       const city   = formData.city ?? '';
       const state  = formData.stateOrDept ?? formData.state ?? '';
@@ -87,7 +76,8 @@ export default function CompanyStep4() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}
@@ -203,6 +193,7 @@ export default function CompanyStep4() {
           )}
         </TouchableOpacity>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
@@ -60,9 +60,6 @@ export default function ClientRegister() {
       setLoading(false);
       return;
     }
-    await supabase.from('users').insert({
-      id: authData.user.id, email: data.email, role: 'client', status: 'approved', country: data.country,
-    });
     const clientResult = await supabase.from('clients').insert({
       user_id: authData.user.id, full_name: data.fullName, phone: data.phone,
       address: '', city: data.city, zip: data.zip, country: data.country,
@@ -75,7 +72,8 @@ export default function ClientRegister() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top }}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top, paddingBottom: 120 }}>
         <View style={{ paddingHorizontal: 24 }}>
           <TouchableOpacity
             onPress={() => step > 1 ? setStep(step - 1) : router.back()}
@@ -175,6 +173,7 @@ export default function ClientRegister() {
           )}
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </View>
   );
 }
