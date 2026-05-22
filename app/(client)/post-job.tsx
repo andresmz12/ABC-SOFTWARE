@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
@@ -6,9 +6,9 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Feather } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import Input from '@/components/ui/Input';
 import LocationSelector from '@/components/ui/LocationSelector';
+import ScrollPicker from '@/components/ui/ScrollPicker';
 import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import { supabase } from '@/lib/supabase';
@@ -26,6 +26,31 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+// Build lists of dates (today + 60 days) and times (every 30 min)
+function buildDateItems(): { label: string; date: Date }[] {
+  const items = [];
+  for (let i = 0; i <= 60; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    items.push({ label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }), date: d });
+  }
+  return items;
+}
+
+function buildTimeItems(): { label: string; hours: number; minutes: number }[] {
+  const items = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const suffix = h < 12 ? 'AM' : 'PM';
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      const mm = m === 0 ? '00' : '30';
+      items.push({ label: `${h12}:${mm} ${suffix}`, hours: h, minutes: m });
+    }
+  }
+  return items;
+}
+
 export default function PostJob() {
   const { t, lang } = useLang();
   const router = useRouter();
@@ -35,8 +60,11 @@ export default function PostJob() {
   const isColombia = user?.country === 'colombia';
   const es = lang === 'es';
 
-  const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
+  const dateItems = useMemo(() => buildDateItems(), []);
+  const timeItems = useMemo(() => buildTimeItems(), []);
+
+  const [dateIndex, setDateIndex] = useState(0);
+  const [timeIndex, setTimeIndex] = useState(16); // default 8:00 AM
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
 
@@ -47,11 +75,17 @@ export default function PostJob() {
 
   const serviceType = watch('serviceType');
 
+  const selectedDate = dateItems[dateIndex].date;
+  const selectedTime = timeItems[timeIndex];
+
   const onSubmit = async (data: FormData) => {
     if (!user) return;
     setSubmitting(true);
     try {
       const budgetNum = parseFloat(data.budget.replace(/[^0-9.]/g, ''));
+      const d = selectedDate;
+      const hh = String(selectedTime.hours).padStart(2, '0');
+      const mm = String(selectedTime.minutes).padStart(2, '0');
       const insertData: Record<string, unknown> = {
         client_id: user.id,
         service_type: data.serviceType,
@@ -59,8 +93,8 @@ export default function PostJob() {
         state: data.state,
         zip: data.zip,
         country: user.country,
-        scheduled_date: date.toISOString().split('T')[0],
-        scheduled_time: time.toTimeString().split(' ')[0],
+        scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        scheduled_time: `${hh}:${mm}:00`,
         estimated_hours: parseFloat(data.estimatedHours),
         description: data.description ?? null,
         status: 'open',
@@ -173,44 +207,15 @@ export default function PostJob() {
             onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
             style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
           >
-            <Text style={{ color: '#fff' }}>
-              📅 {date.toLocaleDateString()}
-            </Text>
+            <Text style={{ color: '#fff' }}>📅 {dateItems[dateIndex].label}</Text>
           </TouchableOpacity>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={date}
-              mode="date"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              minimumDate={new Date()}
-              onChange={(event, selectedDate) => {
-                setShowDatePicker(false);
-                if (selectedDate) setDate(selectedDate);
-              }}
-            />
-          )}
 
           <TouchableOpacity
             onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
             style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
           >
-            <Text style={{ color: '#fff' }}>
-              🕐 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-            </Text>
+            <Text style={{ color: '#fff' }}>🕐 {timeItems[timeIndex].label}</Text>
           </TouchableOpacity>
-
-          {showTimePicker && (
-            <DateTimePicker
-              value={time}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onChange={(event, selectedTime) => {
-                setShowTimePicker(false);
-                if (selectedTime) setTime(selectedTime);
-              }}
-            />
-          )}
 
           <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
             <Input
@@ -277,6 +282,23 @@ export default function PostJob() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <ScrollPicker
+        visible={showDatePicker}
+        title={es ? 'Seleccionar Fecha' : 'Select Date'}
+        items={dateItems.map((d) => d.label)}
+        selectedIndex={dateIndex}
+        onConfirm={(i) => setDateIndex(i)}
+        onClose={() => setShowDatePicker(false)}
+      />
+      <ScrollPicker
+        visible={showTimePicker}
+        title={es ? 'Seleccionar Hora' : 'Select Time'}
+        items={timeItems.map((t) => t.label)}
+        selectedIndex={timeIndex}
+        onConfirm={(i) => setTimeIndex(i)}
+        onClose={() => setShowTimePicker(false)}
+      />
     </View>
   );
 }

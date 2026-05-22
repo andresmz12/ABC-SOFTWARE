@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import ScrollPicker from '@/components/ui/ScrollPicker';
 import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
@@ -234,9 +234,34 @@ interface EditModalProps {
   onSaved: () => void;
 }
 
+// Build date list (today + 60 days) and time list (every 30 min)
+function buildDateItems() {
+  const items = [];
+  for (let i = 0; i <= 60; i++) {
+    const d = new Date();
+    d.setDate(d.getDate() + i);
+    d.setHours(0, 0, 0, 0);
+    items.push({ label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }), date: d });
+  }
+  return items;
+}
+function buildTimeItems() {
+  const items = [];
+  for (let h = 0; h < 24; h++) {
+    for (const m of [0, 30]) {
+      const suffix = h < 12 ? 'AM' : 'PM';
+      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+      items.push({ label: `${h12}:${m === 0 ? '00' : '30'} ${suffix}`, hours: h, minutes: m });
+    }
+  }
+  return items;
+}
+const DATE_ITEMS = buildDateItems();
+const TIME_ITEMS = buildTimeItems();
+
 function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModalProps) {
-  const [date, setDate] = useState(new Date());
-  const [time, setTime] = useState(new Date());
+  const [dateIndex, setDateIndex] = useState(0);
+  const [timeIndex, setTimeIndex] = useState(16); // 8:00 AM default
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState('');
@@ -249,15 +274,20 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
     setEstimatedHours(String(job.estimated_hours ?? ''));
     setBudget(String(job.budget_usd ?? job.budget_cop ?? ''));
     setDescription(job.description ?? '');
+    // Match existing date to picker index
     if (job.scheduled_date) {
-      const d = new Date(job.scheduled_date + 'T12:00:00');
-      if (!isNaN(d.getTime())) setDate(d);
+      const jobDate = new Date(job.scheduled_date + 'T12:00:00');
+      const idx = DATE_ITEMS.findIndex((d) =>
+        d.date.getFullYear() === jobDate.getFullYear() &&
+        d.date.getMonth() === jobDate.getMonth() &&
+        d.date.getDate() === jobDate.getDate(),
+      );
+      if (idx >= 0) setDateIndex(idx);
     }
     if (job.scheduled_time) {
-      const [h, m] = job.scheduled_time.split(':');
-      const t = new Date();
-      t.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
-      setTime(t);
+      const [h, m] = job.scheduled_time.split(':').map(Number);
+      const idx = TIME_ITEMS.findIndex((t) => t.hours === h && t.minutes === m);
+      if (idx >= 0) setTimeIndex(idx);
     }
   }, [job?.id, visible]);
 
@@ -273,9 +303,11 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
     setSaving(true);
     try {
       const budgetNum = parseFloat(budget.replace(/[^0-9.]/g, ''));
+      const d = DATE_ITEMS[dateIndex].date;
+      const tv = TIME_ITEMS[timeIndex];
       const updateData: Record<string, unknown> = {
-        scheduled_date: date.toISOString().split('T')[0],
-        scheduled_time: time.toTimeString().split(' ')[0],
+        scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        scheduled_time: `${String(tv.hours).padStart(2, '0')}:${String(tv.minutes).padStart(2, '0')}:00`,
         estimated_hours: parseFloat(estimatedHours),
         description: description || null,
       };
@@ -298,122 +330,111 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
-        <View style={{
-          backgroundColor: C.surface,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          paddingTop: 20,
-          paddingBottom: 40,
-          maxHeight: '90%',
-          borderTopWidth: 1,
-          borderTopColor: C.line,
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 20 }}>
-            <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
-              {es ? 'Editar Solicitud' : 'Edit Request'}
-            </Text>
-            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="x" size={18} color={C.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-
-            <TouchableOpacity
-              onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
-              style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
-            >
-              <Text style={{ color: '#fff' }}>
-                📅 {date.toLocaleDateString()}
+    <>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+          <View style={{
+            backgroundColor: C.surface,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingTop: 20,
+            paddingBottom: 40,
+            maxHeight: '90%',
+            borderTopWidth: 1,
+            borderTopColor: C.line,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 20 }}>
+              <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
+                {es ? 'Editar Solicitud' : 'Edit Request'}
               </Text>
-            </TouchableOpacity>
-
-            {showDatePicker && (
-              <DateTimePicker
-                value={date}
-                mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                minimumDate={new Date()}
-                onChange={(event, selectedDate) => {
-                  setShowDatePicker(false);
-                  if (selectedDate) setDate(selectedDate);
-                }}
-              />
-            )}
-
-            <TouchableOpacity
-              onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
-              style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
-            >
-              <Text style={{ color: '#fff' }}>
-                🕐 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </TouchableOpacity>
-
-            {showTimePicker && (
-              <DateTimePicker
-                value={time}
-                mode="time"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                onChange={(event, selectedTime) => {
-                  setShowTimePicker(false);
-                  if (selectedTime) setTime(selectedTime);
-                }}
-              />
-            )}
-
-            <Input
-              label={es ? 'Horas Estimadas' : 'Estimated Hours'}
-              value={estimatedHours}
-              onChangeText={setEstimatedHours}
-              keyboardType="decimal-pad"
-              iconName="clock"
-            />
-            <Input
-              label={isColombia ? `${es ? 'Presupuesto' : 'Budget'} (COP)` : `${es ? 'Presupuesto' : 'Budget'} (USD)`}
-              value={budget}
-              onChangeText={setBudget}
-              keyboardType="decimal-pad"
-              iconName="dollar-sign"
-            />
-            <Input
-              label={es ? 'Descripción' : 'Description'}
-              value={description}
-              onChangeText={setDescription}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-              <TouchableOpacity
-                onPress={onClose}
-                style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
-                  {es ? 'Cancelar' : 'Cancel'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={saving}
-                style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.6 : 1 }}
-                activeOpacity={0.85}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
-                    {es ? 'Guardar Cambios' : 'Save Changes'}
-                  </Text>
-                )}
+              <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="x" size={18} color={C.textSecondary} />
               </TouchableOpacity>
             </View>
-          </ScrollView>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
+              <TouchableOpacity
+                onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
+                style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
+              >
+                <Text style={{ color: '#fff' }}>📅 {DATE_ITEMS[dateIndex].label}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
+                style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
+              >
+                <Text style={{ color: '#fff' }}>🕐 {TIME_ITEMS[timeIndex].label}</Text>
+              </TouchableOpacity>
+
+              <Input
+                label={es ? 'Horas Estimadas' : 'Estimated Hours'}
+                value={estimatedHours}
+                onChangeText={setEstimatedHours}
+                keyboardType="decimal-pad"
+                iconName="clock"
+              />
+              <Input
+                label={isColombia ? `${es ? 'Presupuesto' : 'Budget'} (COP)` : `${es ? 'Presupuesto' : 'Budget'} (USD)`}
+                value={budget}
+                onChangeText={setBudget}
+                keyboardType="decimal-pad"
+                iconName="dollar-sign"
+              />
+              <Input
+                label={es ? 'Descripción' : 'Description'}
+                value={description}
+                onChangeText={setDescription}
+                multiline
+                numberOfLines={3}
+              />
+
+              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                <TouchableOpacity
+                  onPress={onClose}
+                  style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
+                    {es ? 'Cancelar' : 'Cancel'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleSave}
+                  disabled={saving}
+                  style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.6 : 1 }}
+                  activeOpacity={0.85}
+                >
+                  {saving ? (
+                    <ActivityIndicator color="#000" />
+                  ) : (
+                    <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                      {es ? 'Guardar Cambios' : 'Save Changes'}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
         </View>
-      </View>
-    </Modal>
+      </Modal>
+
+      <ScrollPicker
+        visible={showDatePicker}
+        title={es ? 'Seleccionar Fecha' : 'Select Date'}
+        items={DATE_ITEMS.map((d) => d.label)}
+        selectedIndex={dateIndex}
+        onConfirm={(i) => setDateIndex(i)}
+        onClose={() => setShowDatePicker(false)}
+      />
+      <ScrollPicker
+        visible={showTimePicker}
+        title={es ? 'Seleccionar Hora' : 'Select Time'}
+        items={TIME_ITEMS.map((t) => t.label)}
+        selectedIndex={timeIndex}
+        onConfirm={(i) => setTimeIndex(i)}
+        onClose={() => setShowTimePicker(false)}
+      />
+    </>
   );
 }
 
