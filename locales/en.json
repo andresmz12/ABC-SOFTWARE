@@ -119,6 +119,8 @@
     "sitioWeb": "Sitio web",
     "streetAddress": "Street Address",
     "stateDrop": "State",
+    "state_label": "State",
+    "dept_label": "Department",
     "zipCode": "ZIP Code",
     "county": "County",
     "tipoVia": "Tipo de vía",

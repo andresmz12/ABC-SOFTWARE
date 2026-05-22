@@ -119,6 +119,8 @@
     "sitioWeb": "Sitio web",
     "streetAddress": "Dirección",
     "stateDrop": "Estado",
+    "state_label": "Estado",
+    "dept_label": "Departamento",
     "zipCode": "Código ZIP",
     "county": "Condado",
     "tipoVia": "Tipo de vía",

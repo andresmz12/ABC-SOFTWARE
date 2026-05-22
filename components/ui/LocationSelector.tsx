@@ -95,8 +95,12 @@ export default function LocationSelector({
   const states = Object.keys(locations).sort();
   const cities = state ? (locations[state] ?? []) : [];
 
-  const stateLabel = es ? 'Departamento' : 'State';
-  const cityLabel = es ? 'Ciudad' : 'City';
+  const stateLabel = country === 'colombia'
+    ? (es ? 'Departamento' : 'Department')
+    : (es ? 'Estado' : 'State');
+  const cityLabel = country === 'colombia'
+    ? (es ? 'Ciudad/Municipio' : 'City/Municipality')
+    : (es ? 'Ciudad' : 'City');
 
   return (
     <View>

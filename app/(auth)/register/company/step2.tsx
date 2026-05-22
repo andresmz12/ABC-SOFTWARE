@@ -106,7 +106,7 @@ export default function CompanyStep2() {
         {selected.length > 0 && (
           <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 16, marginBottom: 24 }}>
             <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
-              {selected.length} {isColombia ? 'departamento' : 'area'}{selected.length > 1 ? 's' : ''} {isColombia ? 'seleccionado' : 'selected'}{selected.length > 1 && isColombia ? 's' : ''}
+              {selected.length} {isColombia ? (selected.length === 1 ? 'departamento' : 'departamentos') : (selected.length === 1 ? 'state' : 'states')} {isColombia ? 'seleccionado' : 'selected'}{isColombia && selected.length > 1 ? 's' : ''}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
               {selected.map((s) => (
