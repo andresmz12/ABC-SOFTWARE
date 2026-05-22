@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useLang } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
 
@@ -28,16 +29,21 @@ interface ProviderData {
   }>;
 }
 
-const STATUS_CONFIG: Record<ProviderStatus, { bg: string; border: string; color: string; label: string }> = {
-  pending:   { bg: '#2a1e0a', border: C.warning,  color: C.warning,  label: 'Pending Review' },
-  approved:  { bg: '#0d2d1a', border: C.success,  color: C.success,  label: 'Approved' },
-  rejected:  { bg: '#2d0d0d', border: C.danger,   color: C.danger,   label: 'Rejected' },
-  suspended: { bg: C.surface2, border: C.line,    color: C.textSecondary, label: 'Suspended' },
-};
+function buildStatusConfig(es: boolean): Record<ProviderStatus, { bg: string; border: string; color: string; label: string }> {
+  return {
+    pending:   { bg: '#2a1e0a',  border: C.warning,        color: C.warning,        label: es ? 'En Revisión'  : 'Pending Review' },
+    approved:  { bg: '#0d2d1a',  border: C.success,        color: C.success,        label: es ? 'Aprobado'     : 'Approved' },
+    rejected:  { bg: '#2d0d0d',  border: C.danger,         color: C.danger,         label: es ? 'Rechazado'    : 'Rejected' },
+    suspended: { bg: C.surface2, border: C.line,           color: C.textSecondary,  label: es ? 'Suspendido'   : 'Suspended' },
+  };
+}
 
 export default function ProviderDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { lang } = useLang();
+  const es = lang === 'es';
+  const STATUS_CONFIG = buildStatusConfig(es);
 
   const [provider, setProvider] = useState<ProviderData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,12 +103,17 @@ export default function ProviderDetail() {
 
       setProvider((prev) => prev ? { ...prev, status: newStatus as ProviderStatus } : null);
       setModalAction(null);
+      const name = provider.profile?.name ?? provider.email;
       Alert.alert(
-        isApprove ? 'Provider Approved' : 'Provider Rejected',
-        `${provider.profile?.name ?? provider.email} has been ${isApprove ? 'approved' : 'rejected'} and notified.`,
+        es
+          ? (isApprove ? 'Proveedor Aprobado' : 'Proveedor Rechazado')
+          : (isApprove ? 'Provider Approved' : 'Provider Rejected'),
+        es
+          ? `${name} ha sido ${isApprove ? 'aprobado' : 'rechazado'} y notificado.`
+          : `${name} has been ${isApprove ? 'approved' : 'rejected'} and notified.`,
       );
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Failed to update status.');
+      Alert.alert('Error', e.message ?? (es ? 'Falló la actualización.' : 'Failed to update status.'));
     } finally {
       setActionLoading(false);
     }
@@ -121,12 +132,12 @@ export default function ProviderDetail() {
       <View style={{ flex: 1, backgroundColor: C.background }}>
         <TouchableOpacity onPress={() => router.back()} style={{ padding: 20, flexDirection: 'row', alignItems: 'center' }}>
           <Feather name="arrow-left" size={20} color={C.textSecondary} />
-          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>Back</Text>
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>{es ? 'Atrás' : 'Back'}</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <Feather name="user-x" size={40} color={C.textMuted} />
           <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular', marginTop: 12 }}>
-            Provider not found
+            {es ? 'Proveedor no encontrado' : 'Provider not found'}
           </Text>
         </View>
       </View>
@@ -136,7 +147,7 @@ export default function ProviderDetail() {
   const sc = STATUS_CONFIG[provider.status] ?? STATUS_CONFIG.pending;
   const displayName = provider.profile?.name ?? provider.email;
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-  const joinedDate = new Date(provider.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const joinedDate = new Date(provider.created_at).toLocaleDateString(es ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -147,7 +158,7 @@ export default function ProviderDetail() {
         >
           <Feather name="arrow-left" size={20} color={C.textSecondary} />
           <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
-            Back to Providers
+            {es ? 'Volver a Proveedores' : 'Back to Providers'}
           </Text>
         </TouchableOpacity>
 
@@ -179,17 +190,21 @@ export default function ProviderDetail() {
 
           <View style={{ backgroundColor: sc.bg, borderRadius: 10, padding: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: sc.border }}>
             <Text style={{ color: sc.color, fontSize: 13, fontFamily: 'Inter_600SemiBold', flex: 1 }}>{sc.label}</Text>
-            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>Joined {joinedDate}</Text>
+            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+              {es ? 'Desde' : 'Joined'} {joinedDate}
+            </Text>
           </View>
         </View>
 
         {/* Contact info */}
         <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.line }}>
-          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>Contact</Text>
+          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
+            {es ? 'Contacto' : 'Contact'}
+          </Text>
           {[
-            ['Email', provider.email],
-            ['Phone', provider.profile?.phone ?? '—'],
-            ['City', [provider.profile?.city, provider.profile?.state].filter(Boolean).join(', ') || '—'],
+            [es ? 'Correo' : 'Email', provider.email],
+            [es ? 'Teléfono' : 'Phone', provider.profile?.phone ?? '—'],
+            [es ? 'Ciudad' : 'City', [provider.profile?.city, provider.profile?.state].filter(Boolean).join(', ') || '—'],
           ].map(([label, value], idx, arr) => (
             <View key={label} style={{
               flexDirection: 'row',
@@ -207,7 +222,7 @@ export default function ProviderDetail() {
         {(provider.documents?.length ?? 0) > 0 && (
           <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.line }}>
             <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
-              Documents ({provider.documents?.length})
+              {es ? 'Documentos' : 'Documents'} ({provider.documents?.length})
             </Text>
             {provider.documents?.map((doc, idx) => {
               const docColor = doc.status === 'approved' ? C.success : doc.status === 'rejected' ? C.danger : C.warning;
@@ -224,8 +239,10 @@ export default function ProviderDetail() {
                   <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
                     {doc.file_name ?? doc.doc_type}
                   </Text>
-                  <Text style={{ color: docColor, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'capitalize' }}>
-                    {doc.status}
+                  <Text style={{ color: docColor, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+                    {es
+                      ? (doc.status === 'approved' ? 'Aprobado' : doc.status === 'rejected' ? 'Rechazado' : 'Pendiente')
+                      : (doc.status === 'approved' ? 'Approved' : doc.status === 'rejected' ? 'Rejected' : 'Pending')}
                   </Text>
                 </View>
               );
@@ -241,14 +258,14 @@ export default function ProviderDetail() {
               style={{ flex: 1, backgroundColor: C.success, borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}
               activeOpacity={0.85}
             >
-              <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>Approve</Text>
+              <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Aprobar' : 'Approve'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setModalAction('reject')}
               style={{ flex: 1, backgroundColor: '#2d0d0d', borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: C.danger }}
               activeOpacity={0.85}
             >
-              <Text style={{ color: C.danger, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>Reject</Text>
+              <Text style={{ color: C.danger, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Rechazar' : 'Reject'}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -257,7 +274,9 @@ export default function ProviderDetail() {
           <View style={{ backgroundColor: '#0d2d1a', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.success }}>
             <Feather name="check-circle" size={18} color={C.success} style={{ marginRight: 10 }} />
             <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
-              This provider is approved and active on the platform.
+              {es
+                ? 'Este proveedor está aprobado y activo en la plataforma.'
+                : 'This provider is approved and active on the platform.'}
             </Text>
           </View>
         )}
@@ -266,7 +285,9 @@ export default function ProviderDetail() {
           <View style={{ backgroundColor: '#2d0d0d', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.danger }}>
             <Feather name="x-circle" size={18} color={C.danger} style={{ marginRight: 10 }} />
             <Text style={{ color: C.danger, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
-              This provider's application has been rejected.
+              {es
+                ? 'La solicitud de este proveedor ha sido rechazada.'
+                : "This provider's application has been rejected."}
             </Text>
           </View>
         )}
@@ -293,12 +314,18 @@ export default function ProviderDetail() {
                 />
               </View>
               <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8 }}>
-                {modalAction === 'approve' ? 'Approve Provider' : 'Reject Provider'}
+                {es
+                  ? (modalAction === 'approve' ? 'Aprobar Proveedor' : 'Rechazar Proveedor')
+                  : (modalAction === 'approve' ? 'Approve Provider' : 'Reject Provider')}
               </Text>
               <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20 }}>
-                {modalAction === 'approve'
-                  ? `${displayName} will be notified and can start accepting jobs.`
-                  : `${displayName} will be notified and can resubmit their application.`}
+                {es
+                  ? (modalAction === 'approve'
+                      ? `${displayName} será notificado y podrá comenzar a aceptar trabajos.`
+                      : `${displayName} será notificado y podrá volver a enviar su solicitud.`)
+                  : (modalAction === 'approve'
+                      ? `${displayName} will be notified and can start accepting jobs.`
+                      : `${displayName} will be notified and can resubmit their application.`)}
               </Text>
             </View>
 
@@ -308,7 +335,7 @@ export default function ProviderDetail() {
                 disabled={actionLoading}
                 style={{ flex: 1, backgroundColor: C.surface2, borderRadius: 12, paddingVertical: 14, alignItems: 'center', borderWidth: 1, borderColor: C.line }}
               >
-                <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>Cancel</Text>
+                <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Cancelar' : 'Cancel'}</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleConfirm}
@@ -327,7 +354,9 @@ export default function ProviderDetail() {
                   <ActivityIndicator color="#fff" size="small" />
                 ) : (
                   <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-                    {modalAction === 'approve' ? 'Approve' : 'Reject'}
+                    {es
+                      ? (modalAction === 'approve' ? 'Aprobar' : 'Rechazar')
+                      : (modalAction === 'approve' ? 'Approve' : 'Reject')}
                   </Text>
                 )}
               </TouchableOpacity>

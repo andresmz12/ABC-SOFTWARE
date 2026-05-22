@@ -162,8 +162,10 @@ export default function ProviderDocuments() {
                       borderWidth: 1,
                       borderColor: sc.color,
                     }}>
-                      <Text style={{ color: sc.color, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'capitalize' }}>
-                        {item.doc.status}
+                      <Text style={{ color: sc.color, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+                        {lang === 'es'
+                          ? (item.doc.status === 'approved' ? 'Aprobado' : item.doc.status === 'rejected' ? 'Rechazado' : 'Pendiente')
+                          : (item.doc.status === 'approved' ? 'Approved' : item.doc.status === 'rejected' ? 'Rejected' : 'Pending')}
                       </Text>
                     </View>
                   )}

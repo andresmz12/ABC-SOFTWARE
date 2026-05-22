@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
+import { useLang } from '@/context/LanguageContext';
 import Input from '@/components/ui/Input';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
@@ -23,13 +26,19 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-const STEP_TITLES = ['Personal Info', 'Location', 'Review'];
-
 export default function ClientRegister() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { lang } = useLang();
+  const es = lang === 'es';
+  const { initialize } = useAuthStore();
   const { country: initialCountry = 'usa' } = useLocalSearchParams<{ country?: string }>();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+
+  const STEP_TITLES = es
+    ? ['Información Personal', 'Ubicación', 'Revisar']
+    : ['Personal Info', 'Location', 'Review'];
 
   const { control, handleSubmit, watch, trigger, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -47,7 +56,7 @@ export default function ClientRegister() {
     });
     console.log('signUp result:', authData, authError);
     if (authError || !authData.user) {
-      Alert.alert('Error', authError?.message ?? 'Registration failed');
+      Alert.alert('Error', authError?.message ?? (es ? 'Registro falló' : 'Registration failed'));
       setLoading(false);
       return;
     }
@@ -59,44 +68,49 @@ export default function ClientRegister() {
       address: '', city: data.city, zip: data.zip, country: data.country,
     });
     console.log('insert result:', clientResult);
+    await initialize();
     setLoading(false);
     router.replace('/(client)/home');
   };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+      <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingTop: insets.top }}>
         <View style={{ paddingHorizontal: 24 }}>
           <TouchableOpacity
             onPress={() => step > 1 ? setStep(step - 1) : router.back()}
             style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}
           >
             <Feather name="chevron-left" size={20} color={C.textPrimary} />
-            <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>Back</Text>
+            <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>
+              {es ? 'Atrás' : 'Back'}
+            </Text>
           </TouchableOpacity>
 
           <View style={{ paddingTop: 8, paddingBottom: 24 }}>
             <StepProgressBar current={step} total={3} />
             <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>{STEP_TITLES[step - 1]}</Text>
-            <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6 }}>Create your ProVendor client account</Text>
+            <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6 }}>
+              {es ? 'Crea tu cuenta de cliente ProVendor' : 'Create your ProVendor client account'}
+            </Text>
           </View>
 
           {step === 1 && (
             <>
               <Controller control={control} name="fullName" render={({ field: { onChange, value } }) => (
-                <Input label="Full Name" value={value} onChangeText={onChange} iconName="user" placeholder="Maria Garcia" error={errors.fullName?.message} />
+                <Input label={es ? 'Nombre Completo' : 'Full Name'} value={value} onChangeText={onChange} iconName="user" placeholder={es ? 'Maria García' : 'Maria Garcia'} error={errors.fullName?.message} />
               )} />
               <Controller control={control} name="email" render={({ field: { onChange, value } }) => (
-                <Input label="Email" value={value} onChangeText={onChange} keyboardType="email-address" autoCapitalize="none" iconName="mail" placeholder="you@example.com" error={errors.email?.message} />
+                <Input label={es ? 'Correo' : 'Email'} value={value} onChangeText={onChange} keyboardType="email-address" autoCapitalize="none" iconName="mail" placeholder="you@example.com" error={errors.email?.message} />
               )} />
               <Controller control={control} name="password" render={({ field: { onChange, value } }) => (
-                <Input label="Password" value={value} onChangeText={onChange} secureTextEntry iconName="lock" placeholder="Min 8 characters" error={errors.password?.message} />
+                <Input label={es ? 'Contraseña' : 'Password'} value={value} onChangeText={onChange} secureTextEntry iconName="lock" placeholder={es ? 'Mínimo 8 caracteres' : 'Min 8 characters'} error={errors.password?.message} />
               )} />
               <Controller control={control} name="phone" render={({ field: { onChange, value } }) => (
-                <Input label="Phone" value={value} onChangeText={onChange} keyboardType="phone-pad" iconName="phone" placeholder="(305) 555-0000" error={errors.phone?.message} />
+                <Input label={es ? 'Teléfono' : 'Phone'} value={value} onChangeText={onChange} keyboardType="phone-pad" iconName="phone" placeholder="(305) 555-0000" error={errors.phone?.message} />
               )} />
               <View style={{ marginTop: 8, marginBottom: 16 }}>
-                <Button label="Continue" onPress={async () => {
+                <Button label={es ? 'Continuar' : 'Continue'} onPress={async () => {
                   const ok = await trigger(['fullName', 'email', 'password', 'phone']);
                   if (ok) setStep(2);
                 }} />
@@ -106,11 +120,13 @@ export default function ClientRegister() {
 
           {step === 2 && (
             <>
-              <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>Country</Text>
+              <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
+                {es ? 'País' : 'Country'}
+              </Text>
               <Controller control={control} name="country" render={({ field: { onChange, value } }) => (
                 <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
                   {([
-                    { key: 'usa' as const, flag: '🇺🇸', label: 'United States' },
+                    { key: 'usa' as const, flag: '🇺🇸', label: es ? 'Estados Unidos' : 'United States' },
                     { key: 'colombia' as const, flag: '🇨🇴', label: 'Colombia' },
                   ]).map((c) => {
                     const active = value === c.key;
@@ -129,13 +145,13 @@ export default function ClientRegister() {
                 </View>
               )} />
               <Controller control={control} name="city" render={({ field: { onChange, value } }) => (
-                <Input label="City" value={value} onChangeText={onChange} iconName="map-pin" placeholder="Miami" error={errors.city?.message} />
+                <Input label={es ? 'Ciudad' : 'City'} value={value} onChangeText={onChange} iconName="map-pin" placeholder={country === 'colombia' ? 'Bogotá' : 'Miami'} error={errors.city?.message} />
               )} />
               <Controller control={control} name="zip" render={({ field: { onChange, value } }) => (
-                <Input label="ZIP Code" value={value} onChangeText={onChange} keyboardType="number-pad" iconName="hash" placeholder="33101" error={errors.zip?.message} />
+                <Input label={country === 'colombia' ? (es ? 'Código Postal' : 'Postal Code') : (es ? 'Código ZIP' : 'ZIP Code')} value={value} onChangeText={onChange} keyboardType="number-pad" iconName="hash" placeholder={country === 'colombia' ? '110111' : '33101'} error={errors.zip?.message} />
               )} />
               <View style={{ marginTop: 8, marginBottom: 16 }}>
-                <Button label="Continue" onPress={async () => {
+                <Button label={es ? 'Continuar' : 'Continue'} onPress={async () => {
                   const ok = await trigger(['country', 'city', 'zip']);
                   if (ok) setStep(3);
                 }} />
@@ -147,11 +163,13 @@ export default function ClientRegister() {
             <>
               <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 20, marginBottom: 24 }}>
                 <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 22 }}>
-                  Your account will be created immediately and you can start posting cleaning jobs right away.
+                  {es
+                    ? 'Tu cuenta se creará inmediatamente y podrás empezar a publicar trabajos de limpieza.'
+                    : 'Your account will be created immediately and you can start posting cleaning jobs right away.'}
                 </Text>
               </View>
               <View style={{ marginBottom: 40 }}>
-                <Button label="Create Account" onPress={handleSubmit(onSubmit)} loading={loading} />
+                <Button label={es ? 'Crear Cuenta' : 'Create Account'} onPress={handleSubmit(onSubmit)} loading={loading} />
               </View>
             </>
           )}

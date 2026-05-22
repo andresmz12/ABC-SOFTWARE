@@ -6,7 +6,8 @@ import { useRegistrationStore } from '@/store/registrationStore';
 
 export default function RoleSelect() {
   const router = useRouter();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const es = lang === 'es';
   const { country, setRole } = useRegistrationStore();
 
   const roles = [
@@ -39,7 +40,7 @@ export default function RoleSelect() {
   };
 
   const countryFlag = country === 'colombia' ? '🇨🇴' : '🇺🇸';
-  const countryName = country === 'colombia' ? 'Colombia' : 'United States';
+  const countryName = country === 'colombia' ? 'Colombia' : (es ? 'Estados Unidos' : 'United States');
 
   return (
     <ScreenWrapper scroll className="px-6">

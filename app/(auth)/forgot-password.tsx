@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
+import { useLang } from '@/context/LanguageContext';
 import Input from '@/components/ui/Input';
 import { C } from '@/constants/theme';
 
@@ -14,6 +16,9 @@ type FormData = z.infer<typeof schema>;
 
 export default function ForgotPassword() {
   const router = useRouter();
+  const { t, lang } = useLang();
+  const es = lang === 'es';
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,22 +43,24 @@ export default function ForgotPassword() {
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: insets.top + 12 }} keyboardShouldPersistTaps="handled">
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 32 }}
         >
           <Feather name="arrow-left" size={20} color={C.textSecondary} />
           <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginLeft: 8 }}>
-            Back
+            {t('common.back')}
           </Text>
         </TouchableOpacity>
 
         <Text style={{ color: C.textPrimary, fontSize: 32, fontFamily: 'Inter_700Bold', marginBottom: 4 }}>
-          Reset Password
+          {es ? 'Restablecer Contraseña' : 'Reset Password'}
         </Text>
         <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular', marginBottom: 32 }}>
-          Enter your email and we'll send you a reset link.
+          {es
+            ? 'Ingresa tu correo y te enviaremos un enlace para restablecer.'
+            : "Enter your email and we'll send you a reset link."}
         </Text>
 
         {sent ? (
@@ -77,7 +84,7 @@ export default function ForgotPassword() {
               <Feather name="mail" size={32} color={C.success} />
             </View>
             <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', marginBottom: 8 }}>
-              Check your email
+              {es ? 'Revisa tu correo' : 'Check your email'}
             </Text>
             <Text style={{
               color: C.textSecondary,
@@ -87,11 +94,13 @@ export default function ForgotPassword() {
               lineHeight: 22,
               marginBottom: 28,
             }}>
-              We sent a password reset link to your email address.
+              {es
+                ? 'Te enviamos un enlace para restablecer la contraseña.'
+                : 'We sent a password reset link to your email address.'}
             </Text>
             <TouchableOpacity onPress={() => router.replace('/(auth)/login' as any)}>
               <Text style={{ color: C.accent, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
-                Back to Sign In
+                {es ? 'Volver a Iniciar Sesión' : 'Back to Sign In'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -115,7 +124,7 @@ export default function ForgotPassword() {
               name="email"
               render={({ field: { onChange, value } }) => (
                 <Input
-                  label="Email Address"
+                  label={t('auth.email')}
                   value={value}
                   onChangeText={onChange}
                   keyboardType="email-address"
@@ -144,7 +153,7 @@ export default function ForgotPassword() {
                 <ActivityIndicator color="#000" />
               ) : (
                 <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
-                  Send Reset Link
+                  {es ? 'Enviar Enlace' : 'Send Reset Link'}
                 </Text>
               )}
             </TouchableOpacity>

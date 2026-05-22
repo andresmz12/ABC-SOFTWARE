@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -21,6 +22,7 @@ type FormData = z.infer<typeof schema>;
 export default function Login() {
   const router = useRouter();
   const { t } = useLang();
+  const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { initialize } = useAuthStore();
@@ -53,7 +55,7 @@ export default function Login() {
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24 }} keyboardShouldPersistTaps="handled">
+        <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: insets.top + 12 }} keyboardShouldPersistTaps="handled">
           <TouchableOpacity
             onPress={() => router.back()}
             style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 32 }}
@@ -138,7 +140,7 @@ export default function Login() {
             activeOpacity={0.85}
           >
             <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
-              {loading ? '...' : t('auth.signIn')}
+              {loading ? t('common.loading') : t('auth.signIn')}
             </Text>
           </TouchableOpacity>
 

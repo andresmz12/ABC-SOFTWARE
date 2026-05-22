@@ -35,7 +35,8 @@ export default function CountrySelect() {
   const router = useRouter();
   const { setCountry } = useRegistrationStore();
   const { setCountry: setSettingsCountry } = useSettingsStore();
-  const { setLang } = useLang();
+  const { setLang, lang } = useLang();
+  const es = lang === 'es';
 
   const handleSelect = async (card: CountryCard) => {
     setCountry(card.country);
@@ -63,10 +64,10 @@ export default function CountrySelect() {
             ProVendor
           </Text>
           <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_600SemiBold', marginBottom: 6 }}>
-            Select your country
+            {es ? 'Selecciona tu país' : 'Select your country'}
           </Text>
           <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', textAlign: 'center' }}>
-            Everything adapts to your location
+            {es ? 'Todo se adapta a tu ubicación' : 'Everything adapts to your location'}
           </Text>
         </View>
 
