@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
@@ -24,6 +25,7 @@ const CO_DOCS = [
 
 export default function IndependentStep3() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { country = 'usa' } = useLocalSearchParams<{ country?: string }>();
   const isColombia = country === 'colombia';
   const DOCS = isColombia ? CO_DOCS : US_DOCS;
@@ -39,7 +41,7 @@ export default function IndependentStep3() {
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
       <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 120 }}>
-        <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: 20, paddingBottom: 8 }}>
+        <TouchableOpacity onPress={() => router.back()} style={{ flexDirection: 'row', alignItems: 'center', paddingTop: insets.top + 8, paddingBottom: 8 }}>
           <Feather name="chevron-left" size={20} color={C.textPrimary} />
           <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_400Regular', marginLeft: 4 }}>
             {isColombia ? 'Atrás' : 'Back'}

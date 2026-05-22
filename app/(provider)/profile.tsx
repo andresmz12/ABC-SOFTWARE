@@ -111,8 +111,14 @@ export default function ProviderProfile() {
                 <Text style={{ color: C.textPrimary, fontSize: 17, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
                   {displayName || (es ? 'Sin nombre' : 'No name')}
                 </Text>
-                <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2, textTransform: 'capitalize' }}>
-                  {user?.role} · {user?.country}
+                <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                  {user?.role === 'company'
+                    ? (es ? 'Empresa' : 'Company')
+                    : user?.role === 'independent'
+                      ? (es ? 'Independiente' : 'Independent')
+                      : (es ? 'Cliente' : 'Client')}
+                  {' · '}
+                  {user?.country === 'colombia' ? 'Colombia' : 'USA'}
                 </Text>
                 <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
                   {user?.email}

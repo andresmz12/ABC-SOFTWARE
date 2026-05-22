@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useRegistrationStore } from '@/store/registrationStore';
@@ -12,6 +13,7 @@ import { C } from '@/constants/theme';
 
 export default function IndependentStep4() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t } = useLang();
   const { country, formData, reset } = useRegistrationStore();
   const { initialize } = useAuthStore();
@@ -26,6 +28,13 @@ export default function IndependentStep4() {
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            role: 'independent',
+            country: country ?? 'usa',
+            preferred_language: country === 'colombia' ? 'es' : 'en',
+          },
+        },
       });
       if (signUpError) throw signUpError;
       const userId = authData.user?.id;
@@ -78,7 +87,7 @@ export default function IndependentStep4() {
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingTop: insets.top + 24, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         <TouchableOpacity
           onPress={() => router.back()}
           style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 24 }}

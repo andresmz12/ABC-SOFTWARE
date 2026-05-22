@@ -25,6 +25,7 @@ export default function ProviderLayout() {
       <Tabs.Screen name="documents"     options={{ title: 'Documents', tabBarIcon: ({ focused }) => <TabIcon name="file-text" focused={focused} /> }} />
       <Tabs.Screen name="profile"       options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"      focused={focused} /> }} />
       <Tabs.Screen name="notifications" options={{ title: 'Alerts',    tabBarIcon: ({ focused }) => <TabIcon name="bell"      focused={focused} /> }} />
+      <Tabs.Screen name="job-detail" options={{ href: null }} />
     </Tabs>
   );
 }

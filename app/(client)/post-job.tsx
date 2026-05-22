@@ -9,6 +9,7 @@ import { Feather } from '@expo/vector-icons';
 import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import Input from '@/components/ui/Input';
+import LocationSelector from '@/components/ui/LocationSelector';
 import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import { supabase } from '@/lib/supabase';
@@ -247,23 +248,16 @@ export default function PostJob() {
 
           {/* Location */}
           <SectionLabel text={t('jobs.location')} />
-          <Controller control={control} name="city" render={({ field: { onChange, value } }) => (
-            <Input
-              label={isColombia ? t('registration.ciudadMunicipio') : t('registration.city')}
-              value={value}
-              onChangeText={onChange}
-              iconName="map-pin"
-              error={errors.city?.message}
-            />
-          )} />
-          <Controller control={control} name="state" render={({ field: { onChange, value } }) => (
-            <Input
-              label={isColombia ? t('registration.departamento') : t('registration.state')}
-              value={value}
-              onChangeText={onChange}
-              error={errors.state?.message}
-            />
-          )} />
+          <LocationSelector
+            country={isColombia ? 'colombia' : 'usa'}
+            state={watch('state') ?? ''}
+            city={watch('city') ?? ''}
+            onStateChange={(s) => { setValue('state', s, { shouldValidate: true }); setValue('city', '', { shouldValidate: false }); }}
+            onCityChange={(c) => setValue('city', c, { shouldValidate: true })}
+            stateError={errors.state?.message}
+            cityError={errors.city?.message}
+            es={es}
+          />
           <Controller control={control} name="zip" render={({ field: { onChange, value } }) => (
             <Input
               label={isColombia ? t('registration.barrio') : t('registration.zip')}

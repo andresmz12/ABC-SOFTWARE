@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import LocationSelector from '@/components/ui/LocationSelector';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
@@ -35,12 +36,13 @@ export default function ClientRegister() {
   const { country: initialCountry = 'usa' } = useLocalSearchParams<{ country?: string }>();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [clientState, setClientState] = useState('');
 
   const STEP_TITLES = es
     ? ['Información Personal', 'Ubicación', 'Revisar']
     : ['Personal Info', 'Location', 'Review'];
 
-  const { control, handleSubmit, watch, trigger, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, watch, trigger, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { country: initialCountry as 'usa' | 'colombia' },
   });
@@ -53,6 +55,13 @@ export default function ClientRegister() {
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
+      options: {
+        data: {
+          role: 'client',
+          country: data.country,
+          preferred_language: data.country === 'colombia' ? 'es' : 'en',
+        },
+      },
     });
     console.log('signUp result:', authData, authError);
     if (authError || !authData.user) {
@@ -142,9 +151,15 @@ export default function ClientRegister() {
                   })}
                 </View>
               )} />
-              <Controller control={control} name="city" render={({ field: { onChange, value } }) => (
-                <Input label={es ? 'Ciudad' : 'City'} value={value} onChangeText={onChange} iconName="map-pin" placeholder={country === 'colombia' ? 'Bogotá' : 'Miami'} error={errors.city?.message} />
-              )} />
+              <LocationSelector
+                country={country as 'usa' | 'colombia'}
+                state={clientState}
+                city={watch('city') ?? ''}
+                onStateChange={(s) => { setClientState(s); setValue('city', '', { shouldValidate: false }); }}
+                onCityChange={(c) => setValue('city', c, { shouldValidate: true })}
+                cityError={errors.city?.message}
+                es={es}
+              />
               <Controller control={control} name="zip" render={({ field: { onChange, value } }) => (
                 <Input label={country === 'colombia' ? (es ? 'Código Postal' : 'Postal Code') : (es ? 'Código ZIP' : 'ZIP Code')} value={value} onChangeText={onChange} keyboardType="number-pad" iconName="hash" placeholder={country === 'colombia' ? '110111' : '33101'} error={errors.zip?.message} />
               )} />
