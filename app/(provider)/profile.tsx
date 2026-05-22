@@ -63,7 +63,17 @@ export default function ProviderProfile() {
       if (error) throw error;
     } catch (e: any) {
       setAvailable(!value);
-      Alert.alert('Error', e.message ?? 'Failed to update availability.');
+      const isColumnMissing =
+        typeof e?.message === 'string' &&
+        (e.message.includes('available') || e.message.includes('column'));
+      Alert.alert(
+        'Error',
+        isColumnMissing
+          ? (es
+              ? 'Columna faltante en la base de datos. Ejecuta la migración SQL 004 en Supabase primero.'
+              : 'Missing database column. Run SQL migration 004 in Supabase first.')
+          : (e.message ?? (es ? 'Error al actualizar disponibilidad.' : 'Failed to update availability.')),
+      );
     } finally {
       setTogglingAvailability(false);
     }
