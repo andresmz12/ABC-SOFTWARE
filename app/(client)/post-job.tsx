@@ -6,8 +6,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Feather } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import Input from '@/components/ui/Input';
 import LocationSelector from '@/components/ui/LocationSelector';
 import { useAuthStore } from '@/store/authStore';
@@ -20,8 +19,6 @@ const schema = z.object({
   city: z.string().min(2),
   zip: z.string().min(1),
   state: z.string().min(2),
-  scheduledDate: z.string().min(8),
-  scheduledTime: z.string().min(4),
   estimatedHours: z.string().min(1),
   budget: z.string().min(1),
   description: z.string().optional(),
@@ -38,10 +35,10 @@ export default function PostJob() {
   const isColombia = user?.country === 'colombia';
   const es = lang === 'es';
 
+  const [date, setDate] = useState(new Date());
+  const [time, setTime] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
-  const [pickerDate, setPickerDate] = useState(new Date());
-  const [pickerTime, setPickerTime] = useState(new Date());
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -49,32 +46,8 @@ export default function PostJob() {
   });
 
   const serviceType = watch('serviceType');
-  const scheduledDate = watch('scheduledDate');
-  const scheduledTime = watch('scheduledTime');
-
-  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-    setShowDatePicker(false);
-    if (date) {
-      setPickerDate(date);
-      setValue('scheduledDate', format(date, 'yyyy-MM-dd'), { shouldValidate: true });
-    }
-  };
-
-  const handleTimeChange = (event: DateTimePickerEvent, time?: Date) => {
-    setShowTimePicker(false);
-    if (time) {
-      setPickerTime(time);
-      setValue('scheduledTime', format(time, 'HH:mm'), { shouldValidate: true });
-    }
-  };
-
-  const dateDisplay = scheduledDate
-    ? (es ? format(new Date(scheduledDate + 'T12:00:00'), 'dd/MM/yyyy') : format(new Date(scheduledDate + 'T12:00:00'), 'MM/dd/yyyy'))
-    : t('jobs.selectDate');
-  const timeDisplay = scheduledTime || t('jobs.selectTime');
 
   const onSubmit = async (data: FormData) => {
-    console.log('Post Job submit:', data);
     if (!user) return;
     setSubmitting(true);
     try {
@@ -86,8 +59,8 @@ export default function PostJob() {
         state: data.state,
         zip: data.zip,
         country: user.country,
-        scheduled_date: data.scheduledDate,
-        scheduled_time: data.scheduledTime,
+        scheduled_date: date.toISOString().split('T')[0],
+        scheduled_time: time.toTimeString().split(' ')[0],
         estimated_hours: parseFloat(data.estimatedHours),
         description: data.description ?? null,
         status: 'open',
@@ -100,14 +73,12 @@ export default function PostJob() {
         insertData.budget_usd = budgetNum;
       }
 
-      console.log('Inserting job:', insertData);
       const { data: newJob, error } = await supabase
         .from('job_requests')
         .insert(insertData)
         .select()
         .single();
 
-      console.log('Insert result:', newJob, error);
       if (error) throw error;
 
       addJob(newJob);
@@ -119,7 +90,6 @@ export default function PostJob() {
         [{ text: 'OK', onPress: () => router.push('/(client)/my-requests' as any) }],
       );
     } catch (e: any) {
-      console.log('Post job error:', e);
       Alert.alert('Error', e.message ?? 'Failed to post job.');
     } finally {
       setSubmitting(false);
@@ -130,37 +100,6 @@ export default function PostJob() {
     <Text style={{ color: C.textSecondary, fontSize: 11, letterSpacing: 1, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', marginBottom: 10, marginTop: 4 }}>
       {text}
     </Text>
-  );
-
-  const PickerField = ({
-    label, value, onPress, iconName, hasValue, error,
-  }: { label: string; value: string; onPress: () => void; iconName: keyof typeof Feather.glyphMap; hasValue: boolean; error?: string }) => (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-        {label}
-      </Text>
-      <TouchableOpacity
-        onPress={onPress}
-        style={{
-          backgroundColor: C.surface,
-          borderWidth: 1,
-          borderColor: error ? C.danger : C.line,
-          borderRadius: 12,
-          height: 52,
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 14,
-        }}
-        activeOpacity={0.75}
-      >
-        <Feather name={iconName} size={16} color={C.textMuted} style={{ marginRight: 10 }} />
-        <Text style={{ flex: 1, color: hasValue ? C.textPrimary : C.textMuted, fontSize: 15, fontFamily: 'Inter_400Regular' }}>
-          {value}
-        </Text>
-        <Feather name="chevron-down" size={16} color={C.textMuted} />
-      </TouchableOpacity>
-      {error && <Text style={{ color: C.danger, fontSize: 12, marginTop: 4 }}>{error}</Text>}
-    </View>
   );
 
   return (
@@ -229,22 +168,50 @@ export default function PostJob() {
 
           {/* Schedule */}
           <SectionLabel text={es ? 'Fecha y Hora' : 'Schedule'} />
-          <PickerField
-            label={t('jobs.scheduledDate')}
-            value={dateDisplay}
-            hasValue={!!scheduledDate}
-            onPress={() => setShowDatePicker(true)}
-            iconName="calendar"
-            error={errors.scheduledDate?.message}
-          />
-          <PickerField
-            label={t('jobs.scheduledTime')}
-            value={timeDisplay}
-            hasValue={!!scheduledTime}
-            onPress={() => setShowTimePicker(true)}
-            iconName="clock"
-            error={errors.scheduledTime?.message}
-          />
+
+          <TouchableOpacity
+            onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
+            style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
+          >
+            <Text style={{ color: '#fff' }}>
+              📅 {date.toLocaleDateString()}
+            </Text>
+          </TouchableOpacity>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={date}
+              mode="date"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              minimumDate={new Date()}
+              onChange={(event, selectedDate) => {
+                setShowDatePicker(false);
+                if (selectedDate) setDate(selectedDate);
+              }}
+            />
+          )}
+
+          <TouchableOpacity
+            onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
+            style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
+          >
+            <Text style={{ color: '#fff' }}>
+              🕐 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </TouchableOpacity>
+
+          {showTimePicker && (
+            <DateTimePicker
+              value={time}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onChange={(event, selectedTime) => {
+                setShowTimePicker(false);
+                if (selectedTime) setTime(selectedTime);
+              }}
+            />
+          )}
+
           <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
             <Input
               label={t('jobs.estimatedHours')}
@@ -282,8 +249,7 @@ export default function PostJob() {
           )} />
 
           <TouchableOpacity
-            onPress={handleSubmit(onSubmit, (errs) => {
-              console.log('Validation errors:', errs);
+            onPress={handleSubmit(onSubmit, () => {
               Alert.alert(
                 es ? 'Campos requeridos' : 'Required fields',
                 es ? 'Por favor completa todos los campos obligatorios.' : 'Please complete all required fields.',
@@ -311,26 +277,6 @@ export default function PostJob() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={pickerDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          minimumDate={new Date()}
-          onChange={handleDateChange}
-          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
-        />
-      )}
-      {showTimePicker && (
-        <DateTimePicker
-          value={pickerTime}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleTimeChange}
-          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
-        />
-      )}
     </View>
   );
 }

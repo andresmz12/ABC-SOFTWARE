@@ -2,8 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/datetimepicker';
-import { format } from 'date-fns';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
@@ -236,61 +235,35 @@ interface EditModalProps {
 }
 
 function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModalProps) {
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
+  const [date, setDate] = useState(new Date());
+  const [time, setTime] = useState(new Date());
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
   const [estimatedHours, setEstimatedHours] = useState('');
   const [budget, setBudget] = useState('');
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [pickerDate, setPickerDate] = useState(new Date());
-  const [pickerTime, setPickerTime] = useState(new Date());
-
   useEffect(() => {
     if (!job || !visible) return;
-    setScheduledDate(job.scheduled_date ?? '');
-    setScheduledTime(job.scheduled_time ?? '');
     setEstimatedHours(String(job.estimated_hours ?? ''));
     setBudget(String(job.budget_usd ?? job.budget_cop ?? ''));
     setDescription(job.description ?? '');
     if (job.scheduled_date) {
       const d = new Date(job.scheduled_date + 'T12:00:00');
-      if (!isNaN(d.getTime())) setPickerDate(d);
+      if (!isNaN(d.getTime())) setDate(d);
     }
     if (job.scheduled_time) {
       const [h, m] = job.scheduled_time.split(':');
       const t = new Date();
-      t.setHours(parseInt(h, 10), parseInt(m, 10));
-      setPickerTime(t);
+      t.setHours(parseInt(h, 10), parseInt(m, 10), 0, 0);
+      setTime(t);
     }
   }, [job?.id, visible]);
 
-  const handleDateChange = (event: DateTimePickerEvent, date?: Date) => {
-    setShowDatePicker(false);
-    if (date) {
-      setPickerDate(date);
-      setScheduledDate(format(date, 'yyyy-MM-dd'));
-    }
-  };
-
-  const handleTimeChange = (event: DateTimePickerEvent, time?: Date) => {
-    setShowTimePicker(false);
-    if (time) {
-      setPickerTime(time);
-      setScheduledTime(format(time, 'HH:mm'));
-    }
-  };
-
-  const dateDisplay = scheduledDate
-    ? (es ? format(new Date(scheduledDate + 'T12:00:00'), 'dd/MM/yyyy') : format(new Date(scheduledDate + 'T12:00:00'), 'MM/dd/yyyy'))
-    : (es ? 'Seleccionar Fecha' : 'Select Date');
-  const timeDisplay = scheduledTime || (es ? 'Seleccionar Hora' : 'Select Time');
-
   const handleSave = async () => {
     if (!job) return;
-    if (!scheduledDate || !scheduledTime || !estimatedHours || !budget) {
+    if (!estimatedHours || !budget) {
       Alert.alert(
         es ? 'Campos requeridos' : 'Required fields',
         es ? 'Por favor completa todos los campos.' : 'Please fill in all fields.',
@@ -301,8 +274,8 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
     try {
       const budgetNum = parseFloat(budget.replace(/[^0-9.]/g, ''));
       const updateData: Record<string, unknown> = {
-        scheduled_date: scheduledDate,
-        scheduled_time: scheduledTime,
+        scheduled_date: date.toISOString().split('T')[0],
+        scheduled_time: time.toTimeString().split(' ')[0],
         estimated_hours: parseFloat(estimatedHours),
         description: description || null,
       };
@@ -323,36 +296,6 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
       setSaving(false);
     }
   };
-
-  const PickerRow = ({ label, value, hasValue, onPress, iconName }: {
-    label: string; value: string; hasValue: boolean; onPress: () => void; iconName: keyof typeof Feather.glyphMap;
-  }) => (
-    <View style={{ marginBottom: 16 }}>
-      <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-        {label}
-      </Text>
-      <TouchableOpacity
-        onPress={onPress}
-        style={{
-          backgroundColor: C.background,
-          borderWidth: 1,
-          borderColor: C.line,
-          borderRadius: 12,
-          height: 52,
-          flexDirection: 'row',
-          alignItems: 'center',
-          paddingHorizontal: 14,
-        }}
-        activeOpacity={0.75}
-      >
-        <Feather name={iconName} size={16} color={C.textMuted} style={{ marginRight: 10 }} />
-        <Text style={{ flex: 1, color: hasValue ? C.textPrimary : C.textMuted, fontSize: 15, fontFamily: 'Inter_400Regular' }}>
-          {value}
-        </Text>
-        <Feather name="chevron-down" size={16} color={C.textMuted} />
-      </TouchableOpacity>
-    </View>
-  );
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -377,20 +320,50 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-            <PickerRow
-              label={es ? 'Fecha Programada' : 'Scheduled Date'}
-              value={dateDisplay}
-              hasValue={!!scheduledDate}
-              onPress={() => setShowDatePicker(true)}
-              iconName="calendar"
-            />
-            <PickerRow
-              label={es ? 'Hora Programada' : 'Scheduled Time'}
-              value={timeDisplay}
-              hasValue={!!scheduledTime}
-              onPress={() => setShowTimePicker(true)}
-              iconName="clock"
-            />
+
+            <TouchableOpacity
+              onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
+              style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
+            >
+              <Text style={{ color: '#fff' }}>
+                📅 {date.toLocaleDateString()}
+              </Text>
+            </TouchableOpacity>
+
+            {showDatePicker && (
+              <DateTimePicker
+                value={date}
+                mode="date"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                minimumDate={new Date()}
+                onChange={(event, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) setDate(selectedDate);
+                }}
+              />
+            )}
+
+            <TouchableOpacity
+              onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
+              style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
+            >
+              <Text style={{ color: '#fff' }}>
+                🕐 {time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+              </Text>
+            </TouchableOpacity>
+
+            {showTimePicker && (
+              <DateTimePicker
+                value={time}
+                mode="time"
+                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                onChange={(event, selectedTime) => {
+                  setShowTimePicker(false);
+                  if (selectedTime) setTime(selectedTime);
+                }}
+              />
+            )}
+
             <Input
               label={es ? 'Horas Estimadas' : 'Estimated Hours'}
               value={estimatedHours}
@@ -416,15 +389,7 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
               <TouchableOpacity
                 onPress={onClose}
-                style={{
-                  flex: 1,
-                  height: 52,
-                  borderRadius: 12,
-                  borderWidth: 1,
-                  borderColor: C.line,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+                style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
               >
                 <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
                   {es ? 'Cancelar' : 'Cancel'}
@@ -433,15 +398,7 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
               <TouchableOpacity
                 onPress={handleSave}
                 disabled={saving}
-                style={{
-                  flex: 2,
-                  height: 52,
-                  borderRadius: 12,
-                  backgroundColor: C.accent,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  opacity: saving ? 0.6 : 1,
-                }}
+                style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.6 : 1 }}
                 activeOpacity={0.85}
               >
                 {saving ? (
@@ -456,26 +413,6 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
           </ScrollView>
         </View>
       </View>
-
-      {showDatePicker && (
-        <DateTimePicker
-          value={pickerDate}
-          mode="date"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          minimumDate={new Date()}
-          onChange={handleDateChange}
-          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
-        />
-      )}
-      {showTimePicker && (
-        <DateTimePicker
-          value={pickerTime}
-          mode="time"
-          display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-          onChange={handleTimeChange}
-          {...(Platform.OS === 'ios' ? { style: { height: 200 }, textColor: C.textPrimary } : {})}
-        />
-      )}
     </Modal>
   );
 }
