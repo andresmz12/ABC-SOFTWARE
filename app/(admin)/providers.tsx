@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
 import { Feather } from '@expo/vector-icons';
@@ -35,20 +36,24 @@ function buildStatusColors(es: boolean): Record<ProviderStatus, { bg: string; te
   };
 }
 
-function ProviderCard({ provider, es, onStatusChange }: { provider: ProviderRow; es: boolean; onStatusChange: (id: string, status: ProviderStatus) => void }) {
+function ProviderCard({ provider, es, onStatusChange, onPress }: { provider: ProviderRow; es: boolean; onStatusChange: (id: string, status: ProviderStatus) => void; onPress: () => void }) {
   const STATUS_COLORS = buildStatusColors(es);
   const statusMeta = STATUS_COLORS[provider.status];
   const isCompany = provider.role === 'company';
 
   return (
-    <View style={{
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 12,
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        backgroundColor: C.surface,
+        borderWidth: 1,
+        borderColor: C.line,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+      }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12 }}>
         <View style={{
           width: 44, height: 44,
@@ -68,10 +73,13 @@ function ProviderCard({ provider, es, onStatusChange }: { provider: ProviderRow;
             {isCompany ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')} · {provider.country === 'colombia' ? '🇨🇴' : '🇺🇸'} {provider.email}
           </Text>
         </View>
-        <View style={{ backgroundColor: statusMeta.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
-          <Text style={{ color: statusMeta.text, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
-            {statusMeta.label}
-          </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ backgroundColor: statusMeta.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+            <Text style={{ color: statusMeta.text, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
+              {statusMeta.label}
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={16} color={C.textMuted} />
         </View>
       </View>
 
@@ -115,13 +123,14 @@ function ProviderCard({ provider, es, onStatusChange }: { provider: ProviderRow;
           </TouchableOpacity>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function AdminProviders() {
   const { lang } = useLang();
   const es = lang === 'es';
+  const router = useRouter();
   const [filter, setFilter] = useState<Filter>('all');
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -238,7 +247,14 @@ export default function AdminProviders() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ProviderCard provider={item} es={es} onStatusChange={handleStatusChange} />}
+          renderItem={({ item }) => (
+            <ProviderCard
+              provider={item}
+              es={es}
+              onStatusChange={handleStatusChange}
+              onPress={() => router.push({ pathname: '/(admin)/provider-detail', params: { id: item.id } } as any)}
+            />
+          )}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         />
