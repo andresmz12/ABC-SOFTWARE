@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useRegistrationStore } from '@/store/registrationStore';
+import { useAuthStore } from '@/store/authStore';
 import { getIndependentDocs } from '@/lib/docRequirements';
 import { supabase } from '@/lib/supabase';
 import StepProgressBar from '@/components/ui/StepProgressBar';
@@ -13,6 +14,7 @@ export default function IndependentStep4() {
   const router = useRouter();
   const { t } = useLang();
   const { country, formData, reset } = useRegistrationStore();
+  const { initialize } = useAuthStore();
   const isUSA = country !== 'colombia';
   const [loading, setLoading] = useState(false);
 
@@ -72,7 +74,8 @@ export default function IndependentStep4() {
       }
 
       reset();
-      router.replace('/(auth)/welcome');
+      await initialize();
+      router.replace('/(provider)/home');
     } catch (e: any) {
       Alert.alert(
         isUSA ? 'Registration Error' : 'Error de Registro',

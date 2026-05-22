@@ -13,6 +13,7 @@ export default function ProviderProfile() {
   const router = useRouter();
   const { lang } = useLang();
   const es = lang === 'es';
+  const isPending = user?.status === 'pending';
 
   const [available, setAvailable] = useState(false);
   const [togglingAvailability, setTogglingAvailability] = useState(false);
@@ -121,6 +122,29 @@ export default function ProviderProfile() {
           )}
         </View>
 
+        {isPending && (
+          <View style={{
+            marginBottom: 16,
+            backgroundColor: '#2a1e0a',
+            borderRadius: 16,
+            padding: 16,
+            borderWidth: 1,
+            borderColor: C.warning,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+              <Feather name="clock" size={14} color={C.warning} style={{ marginRight: 6 }} />
+              <Text style={{ color: C.warning, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Pendiente de Aprobación' : 'Pending Approval'}
+              </Text>
+            </View>
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+              {es
+                ? 'Tu cuenta está siendo revisada. Recibirás una notificación cuando sea aprobada.'
+                : "Your account is under review. You'll be notified when approved."}
+            </Text>
+          </View>
+        )}
+
         {/* Availability toggle */}
         <View style={{
           backgroundColor: C.surface,
@@ -131,6 +155,7 @@ export default function ProviderProfile() {
           borderColor: C.line,
           flexDirection: 'row',
           alignItems: 'center',
+          opacity: isPending ? 0.5 : 1,
         }}>
           <View style={{ flex: 1, marginRight: 12 }}>
             <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
@@ -148,6 +173,7 @@ export default function ProviderProfile() {
             <Switch
               value={available}
               onValueChange={handleAvailabilityToggle}
+              disabled={isPending}
               trackColor={{ false: C.surface2, true: C.accent }}
               thumbColor={C.textPrimary}
             />
