@@ -115,7 +115,7 @@ export default function AdminProfile() {
               {user?.email}
             </Text>
             <Text style={{ color: C.accent2, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Administrator
+              {es ? 'Administrador' : 'Administrator'}
             </Text>
           </View>
         </View>
@@ -200,7 +200,7 @@ export default function AdminProfile() {
                     <Input
                       value={editing!.email}
                       onChangeText={(v) => setEditing(prev => prev ? { ...prev, email: v } : null)}
-                      placeholder="Email"
+                      placeholder={es ? 'Correo' : 'Email'}
                       autoCapitalize="none"
                       keyboardType="email-address"
                       iconName="mail"
@@ -208,7 +208,7 @@ export default function AdminProfile() {
                     <Input
                       value={editing!.password}
                       onChangeText={(v) => setEditing(prev => prev ? { ...prev, password: v } : null)}
-                      placeholder="Password"
+                      placeholder={es ? 'Contraseña' : 'Password'}
                       secureTextEntry
                       iconName="lock"
                     />

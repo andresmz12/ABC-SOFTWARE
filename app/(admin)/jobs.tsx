@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, ActivityIndicator } from 'react-native';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
+import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
@@ -19,14 +20,17 @@ interface AdminJob {
   client_email: string;
 }
 
-const STATUS_META: Record<JobStatus, { bg: string; text: string; label: string }> = {
-  open:        { bg: `${C.accent}20`,   text: C.accent,   label: 'OPEN' },
-  in_progress: { bg: '#3B82F620',       text: '#3B82F6',  label: 'ACTIVE' },
-  completed:   { bg: `${C.success}20`,  text: C.success,  label: 'DONE' },
-  cancelled:   { bg: `${C.danger}20`,   text: C.danger,   label: 'CANCELLED' },
-};
+function buildStatusMeta(es: boolean): Record<JobStatus, { bg: string; text: string; label: string }> {
+  return {
+    open:        { bg: `${C.accent}20`,   text: C.accent,   label: es ? 'ABIERTA'   : 'OPEN' },
+    in_progress: { bg: '#3B82F620',       text: '#3B82F6',  label: es ? 'ACTIVA'    : 'ACTIVE' },
+    completed:   { bg: `${C.success}20`,  text: C.success,  label: es ? 'LISTA'     : 'DONE' },
+    cancelled:   { bg: `${C.danger}20`,   text: C.danger,   label: es ? 'CANCELADA' : 'CANCELLED' },
+  };
+}
 
-function JobRow({ job }: { job: AdminJob }) {
+function JobRow({ job, es }: { job: AdminJob; es: boolean }) {
+  const STATUS_META = buildStatusMeta(es);
   const meta = STATUS_META[job.status] ?? STATUS_META.open;
   return (
     <View style={{
@@ -40,7 +44,7 @@ function JobRow({ job }: { job: AdminJob }) {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
-            {job.title ?? (job.service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning')}
+            {job.title ?? (job.service_type === 'commercial' ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning') : (es ? 'Limpieza Residencial' : 'Residential Cleaning'))}
           </Text>
           <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
             {job.client_email} · {job.city} · {job.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
@@ -58,6 +62,8 @@ function JobRow({ job }: { job: AdminJob }) {
 }
 
 export default function AdminJobs() {
+  const { lang } = useLang();
+  const es = lang === 'es';
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,9 +94,15 @@ export default function AdminJobs() {
   return (
     <ScreenWrapper>
       <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
-        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>All Jobs</Text>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
+          {es ? 'Todos los Trabajos' : 'All Jobs'}
+        </Text>
         <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
-          {loading ? 'Loading...' : `${jobs.length} job${jobs.length !== 1 ? 's' : ''} on the platform`}
+          {loading
+            ? (es ? 'Cargando...' : 'Loading...')
+            : es
+              ? `${jobs.length} trabajo${jobs.length !== 1 ? 's' : ''} en la plataforma`
+              : `${jobs.length} job${jobs.length !== 1 ? 's' : ''} on the platform`}
         </Text>
       </View>
 
@@ -98,15 +110,15 @@ export default function AdminJobs() {
         <ActivityIndicator style={{ marginTop: 48 }} color={C.accent} />
       ) : jobs.length === 0 ? (
         <EmptyState
-          title="No job requests yet"
-          subtitle="Job requests posted by clients will appear here."
+          title={es ? 'Aún no hay solicitudes' : 'No job requests yet'}
+          subtitle={es ? 'Las solicitudes publicadas por clientes aparecerán aquí.' : 'Job requests posted by clients will appear here.'}
           iconName="briefcase"
         />
       ) : (
         <FlatList
           data={jobs}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <JobRow job={item} />}
+          renderItem={({ item }) => <JobRow job={item} es={es} />}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         />

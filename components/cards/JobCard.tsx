@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { formatUSD, formatCOP } from '@/lib/countryData';
+import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 
@@ -9,23 +10,26 @@ interface Props {
   onPress: () => void;
 }
 
-function timeAgo(iso: string): string {
+function timeAgo(iso: string, es: boolean): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return 'Just now';
-  if (mins < 60) return `${mins}m ago`;
-  return `${Math.floor(mins / 60)}h ago`;
+  if (mins < 1) return es ? 'Ahora' : 'Just now';
+  if (mins < 60) return es ? `Hace ${mins}m` : `${mins}m ago`;
+  return es ? `Hace ${Math.floor(mins / 60)}h` : `${Math.floor(mins / 60)}h ago`;
 }
 
-function countdown(iso: string): { text: string; urgent: boolean } {
+function countdown(iso: string, es: boolean): { text: string; urgent: boolean } {
   const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return { text: 'Expired', urgent: true };
+  if (ms <= 0) return { text: es ? 'Expirado' : 'Expired', urgent: true };
   const totalMins = Math.floor(ms / 60000);
   const h = Math.floor(totalMins / 60);
   const m = totalMins % 60;
-  return { text: h > 0 ? `${h}h ${m}m left` : `${m}m left`, urgent: totalMins < 30 };
+  const left = es ? 'restantes' : 'left';
+  return { text: h > 0 ? `${h}h ${m}m ${left}` : `${m}m ${left}`, urgent: totalMins < 30 };
 }
 
 export default function JobCard({ job, onPress }: Props) {
+  const { lang } = useLang();
+  const es = lang === 'es';
   const isCommercial = job.service_type === 'commercial';
   const isColombia = job.country === 'colombia';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -40,11 +44,17 @@ export default function JobCard({ job, onPress }: Props) {
       : formatCOP(job.budget_cop)
     : null;
 
-  const timer = job.expires_at ? countdown(job.expires_at) : null;
+  const timer = job.expires_at ? countdown(job.expires_at, es) : null;
 
   const location = isColombia
     ? `${(job as any).county ? (job as any).county + ', ' : ''}${job.city}`
     : `${job.city}, ${job.state}`;
+
+  const defaultTitle = isCommercial
+    ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning')
+    : (es ? 'Limpieza Residencial' : 'Residential Cleaning');
+
+  const typeLabel = isCommercial ? (es ? 'Comercial' : 'Commercial') : (es ? 'Residencial' : 'Residential');
 
   return (
     <TouchableOpacity
@@ -62,13 +72,12 @@ export default function JobCard({ job, onPress }: Props) {
       }}
     >
       <View style={{ padding: 16 }}>
-        {/* Title + timer */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
           <Text
             style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1, marginRight: 8 }}
             numberOfLines={1}
           >
-            {(job as any).title ?? (isCommercial ? 'Commercial Cleaning' : 'Residential Cleaning')}
+            {(job as any).title ?? defaultTitle}
           </Text>
           {timer && (
             <View style={{
@@ -90,7 +99,6 @@ export default function JobCard({ job, onPress }: Props) {
           )}
         </View>
 
-        {/* Type + location */}
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <View style={{
             backgroundColor: isCommercial ? '#0d1a2d' : '#2d1a0d',
@@ -101,7 +109,7 @@ export default function JobCard({ job, onPress }: Props) {
             borderColor: accentColor,
           }}>
             <Text style={{ color: accentColor, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
-              {isCommercial ? 'Commercial' : 'Residential'}
+              {typeLabel}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -110,7 +118,6 @@ export default function JobCard({ job, onPress }: Props) {
           </View>
         </View>
 
-        {/* Budget + hours + time */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {budgetText && (
@@ -130,12 +137,11 @@ export default function JobCard({ job, onPress }: Props) {
             </Text>
           </View>
           <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
-            {timeAgo(job.created_at)}
+            {timeAgo(job.created_at, es)}
           </Text>
         </View>
       </View>
 
-      {/* Apply button strip */}
       <View style={{
         backgroundColor: accentColor,
         paddingHorizontal: 16,
@@ -151,7 +157,7 @@ export default function JobCard({ job, onPress }: Props) {
           letterSpacing: 0.3,
           marginRight: 6,
         }}>
-          {isColombia ? 'Aplicar Ahora' : 'Apply Now'}
+          {es ? 'Aplicar Ahora' : 'Apply Now'}
         </Text>
         <Feather name="arrow-right" size={14} color={isCommercial ? '#FFFFFF' : '#000000'} />
       </View>

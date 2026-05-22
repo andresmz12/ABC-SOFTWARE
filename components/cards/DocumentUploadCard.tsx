@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import StatusBadge from '@/components/ui/StatusBadge';
+import { useLang } from '@/context/LanguageContext';
 import type { Document } from '@/types';
 
 interface Props {
@@ -13,6 +14,13 @@ interface Props {
 }
 
 export default function DocumentUploadCard({ docType, label, info, document, onUpload, uploading, progress }: Props) {
+  const { lang } = useLang();
+  const es = lang === 'es';
+  const buttonLabel = uploading
+    ? (es ? 'Subiendo...' : 'Uploading...')
+    : document
+    ? (document.status === 'rejected' ? (es ? 'Volver a subir' : 'Re-upload') : (es ? 'Reemplazar' : 'Replace'))
+    : (es ? 'Subir' : 'Upload');
   return (
     <View className="bg-white rounded-xl border border-gray-200 p-4 mb-3">
       <View className="flex-row justify-between items-start mb-1">
@@ -41,7 +49,7 @@ export default function DocumentUploadCard({ docType, label, info, document, onU
         className={`border rounded-lg py-2 items-center mt-1 ${document?.status === 'approved' ? 'border-green-300' : 'border-primary'}`}
       >
         <Text className={`text-sm font-body-medium ${document?.status === 'approved' ? 'text-green-600' : 'text-primary'}`}>
-          {uploading ? 'Uploading...' : document ? (document.status === 'rejected' ? 'Re-upload' : 'Replace') : 'Upload'}
+          {buttonLabel}
         </Text>
       </TouchableOpacity>
     </View>

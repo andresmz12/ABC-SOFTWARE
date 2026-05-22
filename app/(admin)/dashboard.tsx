@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/store/authStore';
+import { useLang } from '@/context/LanguageContext';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
@@ -46,6 +47,8 @@ interface Stats {
 
 export default function AdminDashboard() {
   const { user } = useAuthStore();
+  const { lang } = useLang();
+  const es = lang === 'es';
   const router = useRouter();
   const [stats, setStats] = useState<Stats>({ pending: 0, approved: 0, jobs: 0, clients: 0 });
   const [loadingStats, setLoadingStats] = useState(true);
@@ -78,28 +81,32 @@ export default function AdminDashboard() {
   return (
     <ScreenWrapper scroll className="px-6">
       <View style={{ paddingTop: 40, paddingBottom: 8 }}>
-        <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1 }}>Admin Panel</Text>
-        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginTop: 4, letterSpacing: -0.5 }}>Dashboard</Text>
+        <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1 }}>
+          {es ? 'Panel Admin' : 'Admin Panel'}
+        </Text>
+        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginTop: 4, letterSpacing: -0.5 }}>
+          {es ? 'Dashboard' : 'Dashboard'}
+        </Text>
         <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 }}>{user?.email}</Text>
       </View>
 
       {/* Stats grid */}
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginTop: 24, marginBottom: 32 }}>
-        <StatCard icon="clock"     label="Pending Review" value={String(stats.pending)}  borderColor={C.warning} loading={loadingStats} />
-        <StatCard icon="check"     label="Approved"       value={String(stats.approved)} borderColor={C.success} loading={loadingStats} />
-        <StatCard icon="briefcase" label="Active Jobs"    value={String(stats.jobs)}     borderColor="#3B82F6"   loading={loadingStats} />
-        <StatCard icon="users"     label="Total Clients"  value={String(stats.clients)}  borderColor={C.accent}  loading={loadingStats} />
+        <StatCard icon="clock"     label={es ? 'Pendientes'    : 'Pending Review'} value={String(stats.pending)}  borderColor={C.warning} loading={loadingStats} />
+        <StatCard icon="check"     label={es ? 'Aprobados'     : 'Approved'}       value={String(stats.approved)} borderColor={C.success} loading={loadingStats} />
+        <StatCard icon="briefcase" label={es ? 'Trabajos Activos' : 'Active Jobs'} value={String(stats.jobs)}     borderColor="#3B82F6"   loading={loadingStats} />
+        <StatCard icon="users"     label={es ? 'Total Clientes' : 'Total Clients'} value={String(stats.clients)}  borderColor={C.accent}  loading={loadingStats} />
       </View>
 
       {/* Quick actions */}
       <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-        Quick Actions
+        {es ? 'Acciones Rápidas' : 'Quick Actions'}
       </Text>
       <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
         {[
-          { icon: 'file-text' as const, label: 'Review Documents', route: '/(admin)/documents' },
-          { icon: 'users' as const,     label: 'View Providers',   route: '/(admin)/providers' },
-          { icon: 'briefcase' as const, label: 'All Jobs',         route: '/(admin)/jobs' },
+          { icon: 'file-text' as const, label: es ? 'Documentos'  : 'Review Documents', route: '/(admin)/documents' },
+          { icon: 'users' as const,     label: es ? 'Proveedores' : 'View Providers',   route: '/(admin)/providers' },
+          { icon: 'briefcase' as const, label: es ? 'Trabajos'    : 'All Jobs',         route: '/(admin)/jobs' },
         ].map((a) => (
           <TouchableOpacity
             key={a.label}
@@ -125,12 +132,14 @@ export default function AdminDashboard() {
 
       {/* Recent activity placeholder */}
       <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-        Recent Activity
+        {es ? 'Actividad Reciente' : 'Recent Activity'}
       </Text>
       <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 40 }}>
         <Feather name="activity" size={28} color={C.textMuted} />
         <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 12, textAlign: 'center' }}>
-          Activity will appear here as providers register and jobs are posted.
+          {es
+            ? 'La actividad aparecerá aquí a medida que los proveedores se registren y se publiquen trabajos.'
+            : 'Activity will appear here as providers register and jobs are posted.'}
         </Text>
       </View>
     </ScreenWrapper>
