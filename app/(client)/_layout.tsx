@@ -25,6 +25,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="my-requests"      options={{ title: 'Requests', tabBarIcon: ({ focused }) => <TabIcon name="list"        focused={focused} /> }} />
       <Tabs.Screen name="browse-providers" options={{ title: 'Browse',   tabBarIcon: ({ focused }) => <TabIcon name="search"      focused={focused} /> }} />
       <Tabs.Screen name="profile"          options={{ title: 'Profile',  tabBarIcon: ({ focused }) => <TabIcon name="user"        focused={focused} /> }} />
+      <Tabs.Screen name="job-offers"       options={{ href: null }} />
     </Tabs>
   );
 }

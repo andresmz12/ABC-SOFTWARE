@@ -15,23 +15,27 @@ interface DashboardStats {
   bids: number;
 }
 
-function StatCard({ icon, value, label, color }: { icon: keyof typeof Feather.glyphMap; value: number; label: string; color: string }) {
+function StatCard({ icon, value, label, color, onPress }: { icon: keyof typeof Feather.glyphMap; value: number; label: string; color: string; onPress?: () => void }) {
   return (
-    <View style={{
-      flex: 1,
-      backgroundColor: C.surface,
-      borderRadius: 16,
-      padding: 16,
-      borderWidth: 1,
-      borderColor: C.line,
-      alignItems: 'center',
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.75 : 1}
+      style={{
+        flex: 1,
+        backgroundColor: C.surface,
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1,
+        borderColor: C.line,
+        alignItems: 'center',
+      }}
+    >
       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center', marginBottom: 8 }}>
         <Feather name={icon} size={16} color={color} />
       </View>
       <Text style={{ color: C.textPrimary, fontSize: 24, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>{value}</Text>
       <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2, textAlign: 'center' }}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -165,7 +169,7 @@ export default function ClientHome() {
             <View style={{ flexDirection: 'row', gap: 10, paddingHorizontal: 20, marginBottom: 24 }}>
               <StatCard icon="clipboard" value={stats.open}   label={es ? 'Solicitudes\nAbiertas' : 'Open\nRequests'}   color={C.accent} />
               <StatCard icon="zap"       value={stats.active} label={es ? 'Servicios\nActivos'    : 'Active\nServices'}   color="#3B82F6" />
-              <StatCard icon="tag"       value={stats.bids}   label={es ? 'Ofertas\nRecibidas'   : 'Bids\nReceived'}     color={C.success} />
+              <StatCard icon="tag"       value={stats.bids}   label={es ? 'Ofertas\nRecibidas'   : 'Bids\nReceived'}     color={C.success} onPress={() => router.push('/(client)/my-requests' as any)} />
             </View>
 
             <TouchableOpacity

@@ -6,12 +6,10 @@ import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
-import { fetchJobBids, acceptBid } from '@/lib/jobService';
 import { formatUSD, formatCOP } from '@/lib/countryData';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
-import type { BidWithProvider } from '@/lib/jobService';
 
 type Tab = 'open' | 'in_progress' | 'completed';
 
@@ -69,206 +67,6 @@ function isoTimeToDisplay(t: string): { time: string; ampm: 'AM' | 'PM' } {
   const period: 'AM' | 'PM' = h < 12 ? 'AM' : 'PM';
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return { time: `${String(h12).padStart(2, '0')}:${parts[1]}`, ampm: period };
-}
-
-// ─── Bids Modal ────────────────────────────────────────────────────────────────
-
-interface BidsModalProps {
-  job: JobRequest | null;
-  visible: boolean;
-  isColombia: boolean;
-  es: boolean;
-  onClose: () => void;
-  onAccepted: () => void;
-}
-
-function BidsModal({ job, visible, isColombia, es, onClose, onAccepted }: BidsModalProps) {
-  const [bids, setBids] = useState<BidWithProvider[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [accepting, setAccepting] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!job || !visible) return;
-    setLoading(true);
-    setBids([]);
-    fetchJobBids(job.id)
-      .then(setBids)
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, [job?.id, visible]);
-
-  const handleAccept = async (bid: BidWithProvider) => {
-    if (!job) return;
-    const amount = bid.bid_amount_usd ? formatUSD(bid.bid_amount_usd) : formatCOP(bid.bid_amount_cop ?? 0);
-    Alert.alert(
-      es ? '¿Aceptar oferta?' : 'Accept this bid?',
-      es
-        ? `¿Confirmas aceptar la oferta de ${bid.provider_name} por ${amount}?`
-        : `Confirm accepting ${bid.provider_name}'s bid for ${amount}?`,
-      [
-        { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-        {
-          text: es ? 'Aceptar' : 'Accept',
-          onPress: async () => {
-            setAccepting(bid.id);
-            try {
-              await acceptBid(bid.id, job.id);
-              onAccepted();
-              onClose();
-            } catch (e: any) {
-              Alert.alert('Error', e.message ?? 'Failed to accept bid.');
-            } finally {
-              setAccepting(null);
-            }
-          },
-        },
-      ],
-    );
-  };
-
-  const bidAmount = (bid: BidWithProvider) =>
-    bid.bid_amount_usd ? formatUSD(bid.bid_amount_usd) : bid.bid_amount_cop ? formatCOP(bid.bid_amount_cop) : '—';
-
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
-        <View style={{
-          backgroundColor: C.surface,
-          borderTopLeftRadius: 24,
-          borderTopRightRadius: 24,
-          paddingTop: 20,
-          paddingBottom: 48,
-          maxHeight: '80%',
-          borderTopWidth: 1,
-          borderTopColor: C.line,
-        }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginBottom: 16 }}>
-            <View>
-              <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
-                {es ? 'Ofertas Recibidas' : 'Bids Received'}
-              </Text>
-              {!loading && (
-                <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-                  {bids.length} {es ? (bids.length === 1 ? 'oferta' : 'ofertas') : (bids.length === 1 ? 'bid' : 'bids')}
-                </Text>
-              )}
-            </View>
-            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="x" size={18} color={C.textSecondary} />
-            </TouchableOpacity>
-          </View>
-
-          {loading ? (
-            <View style={{ paddingVertical: 48, alignItems: 'center' }}>
-              <ActivityIndicator color={C.accent} size="large" />
-            </View>
-          ) : bids.length === 0 ? (
-            <View style={{ paddingVertical: 48, alignItems: 'center', paddingHorizontal: 24 }}>
-              <Feather name="inbox" size={36} color={C.textMuted} />
-              <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_600SemiBold', marginTop: 14 }}>
-                {es ? 'Aún no hay ofertas' : 'No bids yet'}
-              </Text>
-              <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 6, textAlign: 'center' }}>
-                {es ? 'Los proveedores en tu área verán tu solicitud pronto.' : 'Providers in your area will see your request soon.'}
-              </Text>
-            </View>
-          ) : (
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 8 }}>
-              {bids.map((bid) => {
-                const isAccepted = bid.status === 'accepted';
-                const isRejected = bid.status === 'rejected';
-                const isLoading = accepting === bid.id;
-                const canAccept = bid.status === 'pending' && job?.status === 'open';
-
-                return (
-                  <View key={bid.id} style={{
-                    backgroundColor: C.background,
-                    borderRadius: 16,
-                    padding: 16,
-                    marginBottom: 12,
-                    borderWidth: 1,
-                    borderColor: isAccepted ? C.success : C.line,
-                    opacity: isRejected ? 0.5 : 1,
-                  }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 10 }}>
-                      <View style={{
-                        width: 40,
-                        height: 40,
-                        backgroundColor: bid.provider_type === 'company' ? `${C.accent2}20` : `${C.accent}20`,
-                        borderRadius: 20,
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginRight: 12,
-                      }}>
-                        <Feather
-                          name={bid.provider_type === 'company' ? 'briefcase' : 'user'}
-                          size={16}
-                          color={bid.provider_type === 'company' ? C.accent2 : C.accent}
-                        />
-                      </View>
-                      <View style={{ flex: 1 }}>
-                        <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>{bid.provider_name}</Text>
-                        <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 1 }}>
-                          {bid.provider_type === 'company' ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')}
-                          {' · '}{timeAgo(bid.applied_at, es)}
-                        </Text>
-                      </View>
-                      <View style={{ backgroundColor: C.surface2, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 6, borderWidth: 1, borderColor: C.accent }}>
-                        <Text style={{ color: C.accent, fontSize: 16, fontFamily: 'Inter_700Bold' }}>{bidAmount(bid)}</Text>
-                      </View>
-                    </View>
-
-                    {bid.message ? (
-                      <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 18, marginBottom: 12 }}>
-                        "{bid.message}"
-                      </Text>
-                    ) : null}
-
-                    {isAccepted && (
-                      <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: `${C.success}15`, borderRadius: 10, padding: 10 }}>
-                        <Feather name="check-circle" size={14} color={C.success} style={{ marginRight: 6 }} />
-                        <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
-                          {es ? 'Oferta aceptada' : 'Bid accepted'}
-                        </Text>
-                      </View>
-                    )}
-
-                    {canAccept && (
-                      <TouchableOpacity
-                        onPress={() => handleAccept(bid)}
-                        disabled={!!accepting}
-                        style={{
-                          backgroundColor: C.accent,
-                          borderRadius: 10,
-                          paddingVertical: 12,
-                          alignItems: 'center',
-                          flexDirection: 'row',
-                          justifyContent: 'center',
-                          opacity: accepting ? 0.6 : 1,
-                        }}
-                        activeOpacity={0.85}
-                      >
-                        {isLoading ? (
-                          <ActivityIndicator size="small" color="#000" />
-                        ) : (
-                          <>
-                            <Feather name="check" size={15} color="#000" style={{ marginRight: 6 }} />
-                            <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-                              {es ? 'Aceptar Oferta' : 'Accept Bid'}
-                            </Text>
-                          </>
-                        )}
-                      </TouchableOpacity>
-                    )}
-                  </View>
-                );
-              })}
-            </ScrollView>
-          )}
-        </View>
-      </View>
-    </Modal>
-  );
 }
 
 // ─── Edit Modal ────────────────────────────────────────────────────────────────
@@ -647,7 +445,6 @@ export default function MyRequests() {
     open: [], in_progress: [], completed: [],
   });
   const [loading, setLoading] = useState(false);
-  const [bidsJob, setBidsJob] = useState<JobRequest | null>(null);
   const [editJob, setEditJob] = useState<JobRequest | null>(null);
 
   const loadJobs = useCallback(async () => {
@@ -787,7 +584,7 @@ export default function MyRequests() {
               req={item}
               isColombia={isColombia}
               es={es}
-              onViewBids={() => setBidsJob(item)}
+              onViewBids={() => router.push({ pathname: '/(client)/job-offers', params: { jobId: item.id } } as any)}
               onEdit={() => setEditJob(item)}
               onCancel={() => handleCancel(item)}
             />
@@ -796,15 +593,6 @@ export default function MyRequests() {
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      <BidsModal
-        job={bidsJob}
-        visible={!!bidsJob}
-        isColombia={isColombia}
-        es={es}
-        onClose={() => setBidsJob(null)}
-        onAccepted={() => { loadJobs(); setActiveTab('in_progress'); }}
-      />
 
       <EditModal
         job={editJob}
