@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import ScrollPicker from '@/components/ui/ScrollPicker';
 import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
 import { useAuthStore } from '@/store/authStore';
@@ -21,6 +20,43 @@ function timeAgo(iso: string, es: boolean): string {
   if (days === 0) return es ? 'Hoy' : 'Today';
   if (days === 1) return es ? 'Ayer' : 'Yesterday';
   return es ? `Hace ${days}d` : `${days}d ago`;
+}
+
+function parseDateInput(value: string): string | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, mm, dd, yyyy] = match;
+  const d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+function parseTimeInput(value: string): string | null {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) return null;
+  if (period === 'AM') {
+    if (hours === 12) hours = 0;
+  } else {
+    if (hours !== 12) hours += 12;
+  }
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+}
+
+function isoDateToDisplay(iso: string): string {
+  const [yyyy, mm, dd] = iso.split('-');
+  return `${mm}/${dd}/${yyyy}`;
+}
+
+function isoTimeToDisplay(t: string): string {
+  const parts = t.split(':');
+  const h = parseInt(parts[0], 10);
+  const period = h < 12 ? 'AM' : 'PM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${String(h12).padStart(2, '0')}:${parts[1]} ${period}`;
 }
 
 // ─── Bids Modal ────────────────────────────────────────────────────────────────
@@ -230,40 +266,15 @@ interface EditModalProps {
   visible: boolean;
   es: boolean;
   isColombia: boolean;
-  dateIndex: number;
-  timeIndex: number;
-  onOpenDatePicker: () => void;
-  onOpenTimePicker: () => void;
   onClose: () => void;
   onSaved: () => void;
 }
 
-// Build date list (today + 60 days) and time list (every 30 min)
-function buildDateItems() {
-  const items = [];
-  for (let i = 0; i <= 60; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    d.setHours(0, 0, 0, 0);
-    items.push({ label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }), date: d });
-  }
-  return items;
-}
-function buildTimeItems() {
-  const items = [];
-  for (let h = 0; h < 24; h++) {
-    for (const m of [0, 30]) {
-      const suffix = h < 12 ? 'AM' : 'PM';
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      items.push({ label: `${h12}:${m === 0 ? '00' : '30'} ${suffix}`, hours: h, minutes: m });
-    }
-  }
-  return items;
-}
-const DATE_ITEMS = buildDateItems();
-const TIME_ITEMS = buildTimeItems();
-
-function EditModal({ job, visible, es, isColombia, dateIndex, timeIndex, onOpenDatePicker, onOpenTimePicker, onClose, onSaved }: EditModalProps) {
+function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModalProps) {
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [dateError, setDateError] = useState('');
+  const [timeError, setTimeError] = useState('');
   const [estimatedHours, setEstimatedHours] = useState('');
   const [budget, setBudget] = useState('');
   const [description, setDescription] = useState('');
@@ -274,6 +285,10 @@ function EditModal({ job, visible, es, isColombia, dateIndex, timeIndex, onOpenD
     setEstimatedHours(String(job.estimated_hours ?? ''));
     setBudget(String(job.budget_usd ?? job.budget_cop ?? ''));
     setDescription(job.description ?? '');
+    setScheduledDate(job.scheduled_date ? isoDateToDisplay(job.scheduled_date) : '');
+    setScheduledTime(job.scheduled_time ? isoTimeToDisplay(job.scheduled_time) : '');
+    setDateError('');
+    setTimeError('');
   }, [job?.id, visible]);
 
   const handleSave = async () => {
@@ -285,14 +300,31 @@ function EditModal({ job, visible, es, isColombia, dateIndex, timeIndex, onOpenD
       );
       return;
     }
+
+    const isoDate = parseDateInput(scheduledDate);
+    const isoTime = parseTimeInput(scheduledTime);
+
+    let hasError = false;
+    if (!isoDate) {
+      setDateError(es ? 'Formato inválido. Usa MM/DD/AAAA' : 'Invalid format. Use MM/DD/YYYY');
+      hasError = true;
+    } else {
+      setDateError('');
+    }
+    if (!isoTime) {
+      setTimeError(es ? 'Formato inválido. Usa HH:MM AM/PM' : 'Invalid format. Use HH:MM AM/PM');
+      hasError = true;
+    } else {
+      setTimeError('');
+    }
+    if (hasError) return;
+
     setSaving(true);
     try {
       const budgetNum = parseFloat(budget.replace(/[^0-9.]/g, ''));
-      const d = DATE_ITEMS[dateIndex].date;
-      const tv = TIME_ITEMS[timeIndex];
       const updateData: Record<string, unknown> = {
-        scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-        scheduled_time: `${String(tv.hours).padStart(2, '0')}:${String(tv.minutes).padStart(2, '0')}:00`,
+        scheduled_date: isoDate!,
+        scheduled_time: isoTime!,
         estimated_hours: parseFloat(estimatedHours),
         description: description || null,
       };
@@ -337,70 +369,75 @@ function EditModal({ job, visible, es, isColombia, dateIndex, timeIndex, onOpenD
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 8 }} keyboardShouldPersistTaps="handled">
-            <TouchableOpacity
-              onPress={onOpenDatePicker}
-              style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
-            >
-              <Text style={{ color: '#fff' }}>📅 {DATE_ITEMS[dateIndex].label}</Text>
-            </TouchableOpacity>
+            <Input
+              label={es ? 'Fecha (MM/DD/AAAA)' : 'Date (MM/DD/YYYY)'}
+              placeholder="MM/DD/YYYY"
+              value={scheduledDate}
+              onChangeText={(v) => { setScheduledDate(v); setDateError(''); }}
+              keyboardType="numeric"
+              maxLength={10}
+              iconName="calendar"
+              error={dateError || undefined}
+            />
+            <Input
+              label={es ? 'Hora (HH:MM AM/PM)' : 'Time (HH:MM AM/PM)'}
+              placeholder="HH:MM AM/PM"
+              value={scheduledTime}
+              onChangeText={(v) => { setScheduledTime(v); setTimeError(''); }}
+              maxLength={8}
+              iconName="clock"
+              error={timeError || undefined}
+            />
+            <Input
+              label={es ? 'Horas Estimadas' : 'Estimated Hours'}
+              value={estimatedHours}
+              onChangeText={setEstimatedHours}
+              keyboardType="decimal-pad"
+              iconName="clock"
+            />
+            <Input
+              label={isColombia ? `${es ? 'Presupuesto' : 'Budget'} (COP)` : `${es ? 'Presupuesto' : 'Budget'} (USD)`}
+              value={budget}
+              onChangeText={setBudget}
+              keyboardType="decimal-pad"
+              iconName="dollar-sign"
+            />
+            <Input
+              label={es ? 'Descripción' : 'Description'}
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={3}
+            />
 
-            <TouchableOpacity
-              onPress={onOpenTimePicker}
-              style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
-            >
-              <Text style={{ color: '#fff' }}>🕐 {TIME_ITEMS[timeIndex].label}</Text>
-            </TouchableOpacity>
-
-              <Input
-                label={es ? 'Horas Estimadas' : 'Estimated Hours'}
-                value={estimatedHours}
-                onChangeText={setEstimatedHours}
-                keyboardType="decimal-pad"
-                iconName="clock"
-              />
-              <Input
-                label={isColombia ? `${es ? 'Presupuesto' : 'Budget'} (COP)` : `${es ? 'Presupuesto' : 'Budget'} (USD)`}
-                value={budget}
-                onChangeText={setBudget}
-                keyboardType="decimal-pad"
-                iconName="dollar-sign"
-              />
-              <Input
-                label={es ? 'Descripción' : 'Description'}
-                value={description}
-                onChangeText={setDescription}
-                multiline
-                numberOfLines={3}
-              />
-
-              <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-                <TouchableOpacity
-                  onPress={onClose}
-                  style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
-                    {es ? 'Cancelar' : 'Cancel'}
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+              <TouchableOpacity
+                onPress={onClose}
+                style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
+                  {es ? 'Cancelar' : 'Cancel'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleSave}
+                disabled={saving}
+                style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.6 : 1 }}
+                activeOpacity={0.85}
+              >
+                {saving ? (
+                  <ActivityIndicator color="#000" />
+                ) : (
+                  <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Guardar Cambios' : 'Save Changes'}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSave}
-                  disabled={saving}
-                  style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.6 : 1 }}
-                  activeOpacity={0.85}
-                >
-                  {saving ? (
-                    <ActivityIndicator color="#000" />
-                  ) : (
-                    <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
-                      {es ? 'Guardar Cambios' : 'Save Changes'}
-                    </Text>
-                  )}
-                </TouchableOpacity>
-              </View>
-            </ScrollView>
-          </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </ScrollView>
         </View>
-      </Modal>
+      </View>
+    </Modal>
   );
 }
 
@@ -576,10 +613,6 @@ export default function MyRequests() {
   const [loading, setLoading] = useState(false);
   const [bidsJob, setBidsJob] = useState<JobRequest | null>(null);
   const [editJob, setEditJob] = useState<JobRequest | null>(null);
-  const [dateIndex, setDateIndex] = useState(0);
-  const [timeIndex, setTimeIndex] = useState(16);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
@@ -719,24 +752,7 @@ export default function MyRequests() {
               isColombia={isColombia}
               es={es}
               onViewBids={() => setBidsJob(item)}
-              onEdit={() => {
-                // Initialize date/time pickers to match the job's current values
-                if (item.scheduled_date) {
-                  const jobDate = new Date(item.scheduled_date + 'T12:00:00');
-                  const idx = DATE_ITEMS.findIndex((d) =>
-                    d.date.getFullYear() === jobDate.getFullYear() &&
-                    d.date.getMonth() === jobDate.getMonth() &&
-                    d.date.getDate() === jobDate.getDate(),
-                  );
-                  setDateIndex(idx >= 0 ? idx : 0);
-                }
-                if (item.scheduled_time) {
-                  const [h, m] = item.scheduled_time.split(':').map(Number);
-                  const idx = TIME_ITEMS.findIndex((t) => t.hours === h && t.minutes === m);
-                  setTimeIndex(idx >= 0 ? idx : 16);
-                }
-                setEditJob(item);
-              }}
+              onEdit={() => setEditJob(item)}
               onCancel={() => handleCancel(item)}
             />
           )}
@@ -759,29 +775,8 @@ export default function MyRequests() {
         visible={!!editJob}
         es={es}
         isColombia={isColombia}
-        dateIndex={dateIndex}
-        timeIndex={timeIndex}
-        onOpenDatePicker={() => setShowDatePicker(true)}
-        onOpenTimePicker={() => setShowTimePicker(true)}
         onClose={() => setEditJob(null)}
         onSaved={() => loadJobs()}
-      />
-
-      <ScrollPicker
-        visible={showDatePicker}
-        title={es ? 'Seleccionar Fecha' : 'Select Date'}
-        items={DATE_ITEMS.map((d) => d.label)}
-        selectedIndex={dateIndex}
-        onConfirm={(i) => setDateIndex(i)}
-        onClose={() => setShowDatePicker(false)}
-      />
-      <ScrollPicker
-        visible={showTimePicker}
-        title={es ? 'Seleccionar Hora' : 'Select Time'}
-        items={TIME_ITEMS.map((t) => t.label)}
-        selectedIndex={timeIndex}
-        onConfirm={(i) => setTimeIndex(i)}
-        onClose={() => setShowTimePicker(false)}
       />
     </View>
   );

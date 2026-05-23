@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
@@ -8,7 +8,6 @@ import { z } from 'zod';
 import { Feather } from '@expo/vector-icons';
 import Input from '@/components/ui/Input';
 import LocationSelector from '@/components/ui/LocationSelector';
-import ScrollPicker from '@/components/ui/ScrollPicker';
 import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import { supabase } from '@/lib/supabase';
@@ -26,29 +25,28 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-// Build lists of dates (today + 60 days) and times (every 30 min)
-function buildDateItems(): { label: string; date: Date }[] {
-  const items = [];
-  for (let i = 0; i <= 60; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    d.setHours(0, 0, 0, 0);
-    items.push({ label: d.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' }), date: d });
-  }
-  return items;
+function parseDateInput(value: string): string | null {
+  const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!match) return null;
+  const [, mm, dd, yyyy] = match;
+  const d = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
+  if (isNaN(d.getTime())) return null;
+  return `${yyyy}-${mm}-${dd}`;
 }
 
-function buildTimeItems(): { label: string; hours: number; minutes: number }[] {
-  const items = [];
-  for (let h = 0; h < 24; h++) {
-    for (const m of [0, 30]) {
-      const suffix = h < 12 ? 'AM' : 'PM';
-      const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-      const mm = m === 0 ? '00' : '30';
-      items.push({ label: `${h12}:${mm} ${suffix}`, hours: h, minutes: m });
-    }
+function parseTimeInput(value: string): string | null {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) return null;
+  if (period === 'AM') {
+    if (hours === 12) hours = 0;
+  } else {
+    if (hours !== 12) hours += 12;
   }
-  return items;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
 
 export default function PostJob() {
@@ -60,13 +58,10 @@ export default function PostJob() {
   const isColombia = user?.country === 'colombia';
   const es = lang === 'es';
 
-  const dateItems = useMemo(() => buildDateItems(), []);
-  const timeItems = useMemo(() => buildTimeItems(), []);
-
-  const [dateIndex, setDateIndex] = useState(0);
-  const [timeIndex, setTimeIndex] = useState(16); // default 8:00 AM
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [dateError, setDateError] = useState('');
+  const [timeError, setTimeError] = useState('');
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -75,17 +70,30 @@ export default function PostJob() {
 
   const serviceType = watch('serviceType');
 
-  const selectedDate = dateItems[dateIndex].date;
-  const selectedTime = timeItems[timeIndex];
-
   const onSubmit = async (data: FormData) => {
     if (!user) return;
+
+    const isoDate = parseDateInput(scheduledDate);
+    const isoTime = parseTimeInput(scheduledTime);
+
+    let hasError = false;
+    if (!isoDate) {
+      setDateError(es ? 'Formato inválido. Usa MM/DD/AAAA' : 'Invalid format. Use MM/DD/YYYY');
+      hasError = true;
+    } else {
+      setDateError('');
+    }
+    if (!isoTime) {
+      setTimeError(es ? 'Formato inválido. Usa HH:MM AM/PM' : 'Invalid format. Use HH:MM AM/PM');
+      hasError = true;
+    } else {
+      setTimeError('');
+    }
+    if (hasError) return;
+
     setSubmitting(true);
     try {
       const budgetNum = parseFloat(data.budget.replace(/[^0-9.]/g, ''));
-      const d = selectedDate;
-      const hh = String(selectedTime.hours).padStart(2, '0');
-      const mm = String(selectedTime.minutes).padStart(2, '0');
       const insertData: Record<string, unknown> = {
         client_id: user.id,
         service_type: data.serviceType,
@@ -93,8 +101,8 @@ export default function PostJob() {
         state: data.state,
         zip: data.zip,
         country: user.country,
-        scheduled_date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
-        scheduled_time: `${hh}:${mm}:00`,
+        scheduled_date: isoDate!,
+        scheduled_time: isoTime!,
         estimated_hours: parseFloat(data.estimatedHours),
         description: data.description ?? null,
         status: 'open',
@@ -202,20 +210,25 @@ export default function PostJob() {
 
           {/* Schedule */}
           <SectionLabel text={es ? 'Fecha y Hora' : 'Schedule'} />
-
-          <TouchableOpacity
-            onPress={() => { setShowTimePicker(false); setShowDatePicker(true); }}
-            style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
-          >
-            <Text style={{ color: '#fff' }}>📅 {dateItems[dateIndex].label}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            onPress={() => { setShowDatePicker(false); setShowTimePicker(true); }}
-            style={{ backgroundColor: '#1C1C1C', padding: 16, borderRadius: 12, marginBottom: 12 }}
-          >
-            <Text style={{ color: '#fff' }}>🕐 {timeItems[timeIndex].label}</Text>
-          </TouchableOpacity>
+          <Input
+            label={es ? 'Fecha (MM/DD/AAAA)' : 'Date (MM/DD/YYYY)'}
+            placeholder="MM/DD/YYYY"
+            value={scheduledDate}
+            onChangeText={(v) => { setScheduledDate(v); setDateError(''); }}
+            keyboardType="numeric"
+            maxLength={10}
+            iconName="calendar"
+            error={dateError || undefined}
+          />
+          <Input
+            label={es ? 'Hora (HH:MM AM/PM)' : 'Time (HH:MM AM/PM)'}
+            placeholder="HH:MM AM/PM"
+            value={scheduledTime}
+            onChangeText={(v) => { setScheduledTime(v); setTimeError(''); }}
+            maxLength={8}
+            iconName="clock"
+            error={timeError || undefined}
+          />
 
           <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
             <Input
@@ -282,23 +295,6 @@ export default function PostJob() {
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <ScrollPicker
-        visible={showDatePicker}
-        title={es ? 'Seleccionar Fecha' : 'Select Date'}
-        items={dateItems.map((d) => d.label)}
-        selectedIndex={dateIndex}
-        onConfirm={(i) => setDateIndex(i)}
-        onClose={() => setShowDatePicker(false)}
-      />
-      <ScrollPicker
-        visible={showTimePicker}
-        title={es ? 'Seleccionar Hora' : 'Select Time'}
-        items={timeItems.map((t) => t.label)}
-        selectedIndex={timeIndex}
-        onConfirm={(i) => setTimeIndex(i)}
-        onClose={() => setShowTimePicker(false)}
-      />
     </View>
   );
 }
