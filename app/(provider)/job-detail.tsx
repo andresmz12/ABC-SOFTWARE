@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
@@ -325,85 +325,89 @@ export default function JobDetail() {
       </View>
 
       {/* Apply modal */}
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' }}>
-          <View style={{
-            backgroundColor: C.surface,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingHorizontal: 24,
-            paddingTop: 24,
-            paddingBottom: 40,
-            borderTopWidth: 1,
-            borderTopColor: C.line,
-          }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-              <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
-                {es ? 'Enviar Oferta' : 'Submit Your Bid'}
-              </Text>
-              <TouchableOpacity onPress={() => setModalVisible(false)}>
-                <Feather name="x" size={22} color={C.textSecondary} />
-              </TouchableOpacity>
-            </View>
-
-            <Input
-              label={`${es ? 'Tu oferta' : 'Your bid'} (${isColombia ? 'COP' : 'USD'})`}
-              placeholder={isColombia ? 'Ej: 350000' : 'e.g. 150'}
-              value={bidAmount}
-              onChangeText={setBidAmount}
-              keyboardType="decimal-pad"
-              iconName="dollar-sign"
-            />
-
-            <Input
-              label={es ? 'Mensaje (opcional)' : 'Message (optional)'}
-              placeholder={es ? 'Cuéntale al cliente sobre tu servicio...' : 'Tell the client about your service...'}
-              value={message}
-              onChangeText={setMessage}
-              multiline
-              numberOfLines={3}
-            />
-
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
-              <TouchableOpacity
-                onPress={() => setModalVisible(false)}
-                style={{
-                  flex: 1,
-                  backgroundColor: C.surface2,
-                  borderRadius: 12,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  borderWidth: 1,
-                  borderColor: C.line,
-                }}
-              >
-                <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-                  {es ? 'Cancelar' : 'Cancel'}
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleApply}
-                disabled={submitting}
-                style={{
-                  flex: 2,
-                  backgroundColor: C.accent,
-                  borderRadius: 12,
-                  paddingVertical: 14,
-                  alignItems: 'center',
-                  opacity: submitting ? 0.6 : 1,
-                }}
-                activeOpacity={0.85}
-              >
-                {submitting ? (
-                  <ActivityIndicator color="#000" />
-                ) : (
-                  <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-                    {es ? 'Enviar' : 'Submit'}
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+            <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
+              <View style={{
+                backgroundColor: C.surface,
+                borderTopLeftRadius: 24,
+                borderTopRightRadius: 24,
+                paddingHorizontal: 24,
+                paddingTop: 24,
+                paddingBottom: 40,
+                borderTopWidth: 1,
+                borderTopColor: C.line,
+              }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                  <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
+                    {es ? 'Enviar Oferta' : 'Submit Your Bid'}
                   </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
+                  <TouchableOpacity onPress={() => setModalVisible(false)}>
+                    <Feather name="x" size={22} color={C.textSecondary} />
+                  </TouchableOpacity>
+                </View>
+
+                <Input
+                  label={`${es ? 'Tu oferta' : 'Your bid'} (${isColombia ? 'COP' : 'USD'})`}
+                  placeholder={isColombia ? 'Ej: 350000' : 'e.g. 150'}
+                  value={bidAmount}
+                  onChangeText={setBidAmount}
+                  keyboardType="decimal-pad"
+                  iconName="dollar-sign"
+                />
+
+                <Input
+                  label={es ? 'Mensaje (opcional)' : 'Message (optional)'}
+                  placeholder={es ? 'Cuéntale al cliente sobre tu servicio...' : 'Tell the client about your service...'}
+                  value={message}
+                  onChangeText={setMessage}
+                  multiline
+                  numberOfLines={3}
+                />
+
+                <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
+                  <TouchableOpacity
+                    onPress={() => setModalVisible(false)}
+                    style={{
+                      flex: 1,
+                      backgroundColor: C.surface2,
+                      borderRadius: 12,
+                      paddingVertical: 14,
+                      alignItems: 'center',
+                      borderWidth: 1,
+                      borderColor: C.line,
+                    }}
+                  >
+                    <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                      {es ? 'Cancelar' : 'Cancel'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleApply}
+                    disabled={submitting}
+                    style={{
+                      flex: 2,
+                      backgroundColor: C.accent,
+                      borderRadius: 12,
+                      paddingVertical: 14,
+                      alignItems: 'center',
+                      opacity: submitting ? 0.6 : 1,
+                    }}
+                    activeOpacity={0.85}
+                  >
+                    {submitting ? (
+                      <ActivityIndicator color="#000" />
+                    ) : (
+                      <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                        {es ? 'Enviar' : 'Submit'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </ScrollView>
+          </KeyboardAvoidingView>
         </View>
       </Modal>
     </View>
