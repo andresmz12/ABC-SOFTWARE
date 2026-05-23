@@ -20,6 +20,8 @@ export async function fetchOpenJobsForProvider(
 ): Promise<JobRequest[]> {
   const profileTable = providerRole === 'company' ? 'companies' : 'independents';
   const [areasRes, profileRes] = await Promise.all([
+    // Select the `state` column (= department in Colombia, state in USA).
+    // We deliberately do NOT filter by city — department-level matching only.
     supabase.from('service_areas').select('state').eq('provider_id', providerId),
     supabase.from(profileTable).select('service_type').eq('user_id', providerId).single(),
   ]);
@@ -27,10 +29,11 @@ export async function fetchOpenJobsForProvider(
   if (areasRes.error) console.warn('[fetchOpenJobsForProvider] service_areas error:', areasRes.error.message);
   if (profileRes.error) console.warn('[fetchOpenJobsForProvider] profile error:', profileRes.error.message);
 
-  const states = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string))];
+  // Deduplicated list of departments (Colombia) / states (USA) the provider covers.
+  const departments = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string).filter(Boolean))];
   const providerServiceType = (profileRes.data as any)?.service_type ?? 'both';
   console.log('[fetchOpenJobsForProvider] providerId:', providerId, '| role:', providerRole, '| country:', country);
-  console.log('[fetchOpenJobsForProvider] states:', states, '| serviceType:', providerServiceType);
+  console.log('[fetchOpenJobsForProvider] departments:', departments, '| serviceType:', providerServiceType);
 
   let query = supabase
     .from('job_requests')
@@ -46,10 +49,10 @@ export async function fetchOpenJobsForProvider(
     query = query.eq('service_type', providerServiceType);
   }
 
-  // When no service areas are configured, show all open jobs in the country
-  // (fallback so new providers aren't invisible to jobs).
-  if (states.length > 0) {
-    query = query.in('state', states);
+  // Filter by department (job_requests.state) when the provider has service areas.
+  // Falls back to all open jobs in the country when none are configured yet.
+  if (departments.length > 0) {
+    query = query.in('state', departments);
   }
 
   const { data, error } = await query;
