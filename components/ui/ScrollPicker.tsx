@@ -1,5 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Modal, ViewToken } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, Modal, NativeSyntheticEvent, NativeScrollEvent } from 'react-native';
 import { C } from '@/constants/theme';
 
 interface ScrollPickerProps {
@@ -19,23 +19,27 @@ export default function ScrollPicker({
 }: ScrollPickerProps) {
   const listRef = useRef<FlatList>(null);
   const [current, setCurrent] = useState(selectedIndex);
+  const currentRef = useRef(selectedIndex);
 
   useEffect(() => {
     if (!visible) return;
     setCurrent(selectedIndex);
+    currentRef.current = selectedIndex;
     setTimeout(() => {
-      listRef.current?.scrollToIndex({ index: selectedIndex, animated: false });
-    }, 50);
+      listRef.current?.scrollToOffset({ offset: selectedIndex * ITEM_HEIGHT, animated: false });
+    }, 100);
   }, [visible, selectedIndex]);
 
-  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
-    if (viewableItems.length > 0) {
-      const mid = viewableItems[Math.floor(viewableItems.length / 2)];
-      if (mid?.index != null) setCurrent(mid.index);
-    }
-  }).current;
+  const updateCurrent = (idx: number) => {
+    const clamped = Math.max(0, Math.min(idx, items.length - 1));
+    currentRef.current = clamped;
+    setCurrent(clamped);
+  };
 
-  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 80 }).current;
+  const handleScrollEnd = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    updateCurrent(idx);
+  };
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -47,19 +51,17 @@ export default function ScrollPicker({
               <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular' }}>Cancel</Text>
             </TouchableOpacity>
             <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{title}</Text>
-            <TouchableOpacity onPress={() => { onConfirm(current); onClose(); }}>
+            <TouchableOpacity onPress={() => { onConfirm(currentRef.current); onClose(); }}>
               <Text style={{ color: C.accent, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>Done</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Selection highlight */}
+          {/* Drum-wheel */}
           <View style={{ position: 'relative', height: ITEM_HEIGHT * VISIBLE_ITEMS }}>
-            {/* Center highlight bar */}
             <View pointerEvents="none" style={{
               position: 'absolute',
               top: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
-              left: 0, right: 0,
-              height: ITEM_HEIGHT,
+              left: 0, right: 0, height: ITEM_HEIGHT,
               backgroundColor: `${C.accent}18`,
               borderTopWidth: 1, borderBottomWidth: 1,
               borderColor: `${C.accent}40`,
@@ -72,8 +74,8 @@ export default function ScrollPicker({
               showsVerticalScrollIndicator={false}
               snapToInterval={ITEM_HEIGHT}
               decelerationRate="fast"
-              onViewableItemsChanged={onViewableItemsChanged}
-              viewabilityConfig={viewabilityConfig}
+              onMomentumScrollEnd={handleScrollEnd}
+              onScrollEndDrag={handleScrollEnd}
               getItemLayout={(_, index) => ({ length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index })}
               contentContainerStyle={{
                 paddingTop: ITEM_HEIGHT * Math.floor(VISIBLE_ITEMS / 2),
@@ -82,8 +84,8 @@ export default function ScrollPicker({
               renderItem={({ item, index }) => (
                 <TouchableOpacity
                   onPress={() => {
-                    setCurrent(index);
-                    listRef.current?.scrollToIndex({ index, animated: true });
+                    updateCurrent(index);
+                    listRef.current?.scrollToOffset({ offset: index * ITEM_HEIGHT, animated: true });
                   }}
                   style={{ height: ITEM_HEIGHT, alignItems: 'center', justifyContent: 'center' }}
                   activeOpacity={0.7}
