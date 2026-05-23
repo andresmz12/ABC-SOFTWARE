@@ -25,6 +25,19 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+function formatDateInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
+function formatTimeInput(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 4);
+  if (d.length <= 2) return d;
+  return `${d.slice(0, 2)}:${d.slice(2)}`;
+}
+
 function parseDateInput(value: string): string | null {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;
@@ -34,14 +47,13 @@ function parseDateInput(value: string): string | null {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-function parseTimeInput(value: string): string | null {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+function parseTimeInput(value: string, ampm: 'AM' | 'PM'): string | null {
+  const match = value.match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   let hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
   if (hours < 1 || hours > 12 || minutes < 0 || minutes > 59) return null;
-  if (period === 'AM') {
+  if (ampm === 'AM') {
     if (hours === 12) hours = 0;
   } else {
     if (hours !== 12) hours += 12;
@@ -60,6 +72,7 @@ export default function PostJob() {
 
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
+  const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
   const [dateError, setDateError] = useState('');
   const [timeError, setTimeError] = useState('');
 
@@ -74,7 +87,7 @@ export default function PostJob() {
     if (!user) return;
 
     const isoDate = parseDateInput(scheduledDate);
-    const isoTime = parseTimeInput(scheduledTime);
+    const isoTime = parseTimeInput(scheduledTime, ampm);
 
     let hasError = false;
     if (!isoDate) {
@@ -84,7 +97,7 @@ export default function PostJob() {
       setDateError('');
     }
     if (!isoTime) {
-      setTimeError(es ? 'Formato inválido. Usa HH:MM AM/PM' : 'Invalid format. Use HH:MM AM/PM');
+      setTimeError(es ? 'Formato inválido. Usa HH:MM' : 'Invalid format. Use HH:MM');
       hasError = true;
     } else {
       setTimeError('');
@@ -214,20 +227,36 @@ export default function PostJob() {
             label={es ? 'Fecha (MM/DD/AAAA)' : 'Date (MM/DD/YYYY)'}
             placeholder="MM/DD/YYYY"
             value={scheduledDate}
-            onChangeText={(v) => { setScheduledDate(v); setDateError(''); }}
+            onChangeText={(v) => { setScheduledDate(formatDateInput(v)); setDateError(''); }}
             keyboardType="numeric"
             maxLength={10}
             iconName="calendar"
             error={dateError || undefined}
           />
           <Input
-            label={es ? 'Hora (HH:MM AM/PM)' : 'Time (HH:MM AM/PM)'}
-            placeholder="HH:MM AM/PM"
+            label={es ? 'Hora' : 'Time'}
+            placeholder="HH:MM"
             value={scheduledTime}
-            onChangeText={(v) => { setScheduledTime(v); setTimeError(''); }}
-            maxLength={8}
+            onChangeText={(v) => { setScheduledTime(formatTimeInput(v)); setTimeError(''); }}
+            keyboardType="numeric"
+            maxLength={5}
             iconName="clock"
             error={timeError || undefined}
+            rightElement={
+              <View style={{ flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: C.line }}>
+                {(['AM', 'PM'] as const).map((period) => (
+                  <TouchableOpacity
+                    key={period}
+                    onPress={() => setAmpm(period)}
+                    style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: ampm === period ? C.accent : 'transparent' }}
+                  >
+                    <Text style={{ color: ampm === period ? '#000' : C.textSecondary, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                      {period}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            }
           />
 
           <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
