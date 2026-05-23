@@ -24,8 +24,13 @@ export async function fetchOpenJobsForProvider(
     supabase.from(profileTable).select('service_type').eq('user_id', providerId).single(),
   ]);
 
+  if (areasRes.error) console.warn('[fetchOpenJobsForProvider] service_areas error:', areasRes.error.message);
+  if (profileRes.error) console.warn('[fetchOpenJobsForProvider] profile error:', profileRes.error.message);
+
   const states = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string))];
   const providerServiceType = (profileRes.data as any)?.service_type ?? 'both';
+  console.log('[fetchOpenJobsForProvider] providerId:', providerId, '| role:', providerRole, '| country:', country);
+  console.log('[fetchOpenJobsForProvider] states:', states, '| serviceType:', providerServiceType);
 
   let query = supabase
     .from('job_requests')
@@ -41,12 +46,18 @@ export async function fetchOpenJobsForProvider(
     query = query.eq('service_type', providerServiceType);
   }
 
+  // When no service areas are configured, show all open jobs in the country
+  // (fallback so new providers aren't invisible to jobs).
   if (states.length > 0) {
     query = query.in('state', states);
   }
 
   const { data, error } = await query;
-  if (error) throw error;
+  console.log('[fetchOpenJobsForProvider] result count:', data?.length ?? 0, '| error:', error?.message ?? null);
+  if (error) {
+    console.error('[fetchOpenJobsForProvider] query failed:', error);
+    throw error;
+  }
   return data ?? [];
 }
 
