@@ -1,11 +1,13 @@
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLang } from '@/context/LanguageContext';
-import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import { useRegistrationStore } from '@/store/registrationStore';
+import { C } from '@/constants/theme';
 
 export default function RoleSelect() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { t, lang } = useLang();
   const es = lang === 'es';
   const { country, setRole } = useRegistrationStore();
@@ -43,32 +45,68 @@ export default function RoleSelect() {
   const countryName = country === 'colombia' ? 'Colombia' : (es ? 'Estados Unidos' : 'United States');
 
   return (
-    <ScreenWrapper scroll className="px-6">
-      <TouchableOpacity onPress={() => router.back()} className="pt-6 pb-2">
-        <Text className="text-primary font-body">← {t('common.back')}</Text>
-      </TouchableOpacity>
-
-      <View className="flex-row items-center bg-accent rounded-xl px-4 py-2 mb-6 self-start">
-        <Text className="text-lg mr-2">{countryFlag}</Text>
-        <Text className="text-primary font-body-medium text-sm">{countryName}</Text>
-      </View>
-
-      <Text className="text-primary text-3xl font-heading mb-2">{t('roles.selectRole')}</Text>
-      <Text className="text-text-muted font-body mb-8">{t('roles.selectRoleSubtitle')}</Text>
-
-      {roles.map((role) => (
+    <View style={{ flex: 1, backgroundColor: C.background }}>
+      <ScrollView
+        contentContainerStyle={{ paddingHorizontal: 24, paddingTop: insets.top + 8, paddingBottom: 48 }}
+        showsVerticalScrollIndicator={false}
+      >
         <TouchableOpacity
-          key={role.key}
-          onPress={() => handleSelect(role)}
-          className="bg-white border border-gray-200 rounded-2xl p-5 mb-3 shadow-sm active:bg-accent"
+          onPress={() => router.back()}
+          style={{ paddingTop: 16, paddingBottom: 8, flexDirection: 'row', alignItems: 'center' }}
         >
-          <View className="flex-row items-center mb-2">
-            <Text className="text-2xl mr-3">{role.icon}</Text>
-            <Text className="text-primary font-body-bold text-lg">{role.label}</Text>
-          </View>
-          <Text className="text-text-muted font-body text-sm leading-5">{role.desc}</Text>
+          <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_400Regular' }}>
+            ← {t('common.back')}
+          </Text>
         </TouchableOpacity>
-      ))}
-    </ScreenWrapper>
+
+        <View style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: `${C.accent}20`,
+          borderRadius: 12,
+          paddingHorizontal: 14,
+          paddingVertical: 8,
+          marginTop: 8,
+          marginBottom: 24,
+          alignSelf: 'flex-start',
+          borderWidth: 1,
+          borderColor: `${C.accent}40`,
+        }}>
+          <Text style={{ fontSize: 18, marginRight: 8 }}>{countryFlag}</Text>
+          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_500Medium' }}>{countryName}</Text>
+        </View>
+
+        <Text style={{ color: C.textPrimary, fontSize: 30, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginBottom: 8 }}>
+          {t('roles.selectRole')}
+        </Text>
+        <Text style={{ color: C.textMuted, fontSize: 15, fontFamily: 'Inter_400Regular', marginBottom: 32 }}>
+          {t('roles.selectRoleSubtitle')}
+        </Text>
+
+        {roles.map((role) => (
+          <TouchableOpacity
+            key={role.key}
+            onPress={() => handleSelect(role)}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: C.surface,
+              borderWidth: 1,
+              borderColor: C.line,
+              borderRadius: 20,
+              padding: 20,
+              marginBottom: 12,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+              <Text style={{ fontSize: 24, marginRight: 12 }}>{role.icon}</Text>
+              <Text style={{ color: C.textPrimary, fontSize: 17, fontFamily: 'Inter_600SemiBold' }}>{role.label}</Text>
+            </View>
+            <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', lineHeight: 20 }}>
+              {role.desc}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </ScrollView>
+    </View>
   );
 }

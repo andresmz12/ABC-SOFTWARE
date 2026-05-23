@@ -71,7 +71,7 @@ export default function ClientRegister() {
     }
     const clientResult = await supabase.from('clients').insert({
       user_id: authData.user.id, full_name: data.fullName, phone: data.phone,
-      address: '', city: data.city, zip: data.zip, country: data.country,
+      address: '', city: data.city, state: clientState, zip: data.zip, country: data.country,
     });
     console.log('insert result:', clientResult);
     await initialize();
@@ -165,6 +165,13 @@ export default function ClientRegister() {
               )} />
               <View style={{ marginTop: 8, marginBottom: 16 }}>
                 <Button label={es ? 'Continuar' : 'Continue'} onPress={async () => {
+                  if (!clientState) {
+                    Alert.alert(
+                      es ? 'Campo requerido' : 'Required field',
+                      es ? 'Por favor selecciona un estado/departamento.' : 'Please select a state/department.',
+                    );
+                    return;
+                  }
                   const ok = await trigger(['country', 'city', 'zip']);
                   if (ok) setStep(3);
                 }} />
