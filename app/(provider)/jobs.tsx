@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import JobCard from '@/components/cards/JobCard';
@@ -14,6 +14,7 @@ type Tab = 'applied' | 'active' | 'completed';
 
 export default function ProviderJobs() {
   const [activeTab, setActiveTab] = useState<Tab>('applied');
+  const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { user } = useAuthStore();
   const { lang } = useLang();
@@ -28,6 +29,12 @@ export default function ProviderJobs() {
   useEffect(() => {
     if (user?.id && !isPending) fetchMyJobs(user.id);
   }, [user?.id, isPending]);
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    if (user?.id) await fetchMyJobs(user.id);
+    setRefreshing(false);
+  };
 
   const tabData: Record<Tab, JobRequest[]> = {
     applied: appliedJobs,
@@ -149,6 +156,7 @@ export default function ProviderJobs() {
               )}
               contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
               showsVerticalScrollIndicator={false}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
             />
           )}
         </>

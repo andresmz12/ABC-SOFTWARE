@@ -94,7 +94,14 @@ export default function PostJob() {
       setDateError(es ? 'Formato inválido. Usa MM/DD/AAAA' : 'Invalid format. Use MM/DD/YYYY');
       hasError = true;
     } else {
-      setDateError('');
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      if (new Date(isoDate + 'T12:00:00') < today) {
+        setDateError(es ? 'La fecha no puede ser en el pasado.' : 'Date cannot be in the past.');
+        hasError = true;
+      } else {
+        setDateError('');
+      }
     }
     if (!isoTime) {
       setTimeError(es ? 'Formato inválido. Usa HH:MM' : 'Invalid format. Use HH:MM');

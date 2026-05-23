@@ -14,7 +14,10 @@ function timeAgo(iso: string, es: boolean): string {
   const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
   if (mins < 1) return es ? 'Ahora' : 'Just now';
   if (mins < 60) return es ? `Hace ${mins}m` : `${mins}m ago`;
-  return es ? `Hace ${Math.floor(mins / 60)}h` : `${Math.floor(mins / 60)}h ago`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return es ? `Hace ${h}h` : `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return es ? `Hace ${d}d` : `${d}d ago`;
 }
 
 function countdown(iso: string, es: boolean): { text: string; urgent: boolean } {
@@ -133,7 +136,7 @@ export default function JobCard({ job, onPress }: Props) {
               </View>
             )}
             <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-              {job.estimated_hours}h
+              {job.estimated_hours ?? '—'}h
             </Text>
           </View>
           <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
