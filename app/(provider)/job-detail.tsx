@@ -43,6 +43,15 @@ export default function JobDetail() {
       try {
         const { data } = await supabase.from('job_requests').select('*').eq('id', jobId).single();
         setJob(data ?? null);
+        if (data && user?.id) {
+          const { data: existing } = await supabase
+            .from('job_applications')
+            .select('id')
+            .eq('job_request_id', jobId)
+            .eq('provider_id', user.id)
+            .maybeSingle();
+          if (existing) setApplied(true);
+        }
       } finally {
         setLoadingJob(false);
       }
@@ -57,6 +66,14 @@ export default function JobDetail() {
       );
       return;
     }
+    const amount = parseFloat(bidAmount.replace(/[^0-9.]/g, ''));
+    if (isNaN(amount) || amount <= 0) {
+      Alert.alert(
+        es ? 'Monto inválido' : 'Invalid amount',
+        es ? 'Ingresa un número válido mayor a 0.' : 'Please enter a valid amount greater than 0.',
+      );
+      return;
+    }
     if (!job || !user) return;
 
     setSubmitting(true);
@@ -65,7 +82,7 @@ export default function JobDetail() {
         jobId: job.id,
         providerId: user.id,
         providerType: user.role as 'company' | 'independent',
-        bidAmount: parseFloat(bidAmount.replace(/[^0-9.]/g, '')),
+        bidAmount: amount,
         currency: isColombia ? 'cop' : 'usd',
         message,
       });

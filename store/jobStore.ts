@@ -54,6 +54,8 @@ export const useJobStore = create<JobState>((set) => ({
     try {
       const { applied, active, completed } = await fetchProviderJobs(providerId);
       set({ appliedJobs: applied, activeJobs: active, completedJobs: completed });
+    } catch (e: any) {
+      console.error('[jobStore] fetchMyJobs failed:', e?.message ?? e);
     } finally {
       set({ loading: false });
     }
