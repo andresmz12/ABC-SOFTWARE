@@ -75,7 +75,7 @@ export default function ForgotPassword() {
             <View style={{
               width: 72,
               height: 72,
-              backgroundColor: '#0d2d1a',
+              backgroundColor: '#D1FAE5',
               borderRadius: 36,
               alignItems: 'center',
               justifyContent: 'center',
@@ -108,7 +108,7 @@ export default function ForgotPassword() {
           <>
             {error && (
               <View style={{
-                backgroundColor: '#3a1a1a',
+                backgroundColor: '#FFE4E6',
                 borderRadius: 12,
                 padding: 12,
                 marginBottom: 16,
@@ -150,9 +150,9 @@ export default function ForgotPassword() {
               activeOpacity={0.85}
             >
               {loading ? (
-                <ActivityIndicator color="#000" />
+                <ActivityIndicator color="#FFFFFF" />
               ) : (
-                <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
                   {es ? 'Enviar Enlace' : 'Send Reset Link'}
                 </Text>
               )}

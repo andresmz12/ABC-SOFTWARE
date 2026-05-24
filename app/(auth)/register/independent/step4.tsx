@@ -138,7 +138,7 @@ export default function IndependentStep4() {
         </Text>
 
         <View style={{
-          backgroundColor: '#1a1a2e',
+          backgroundColor: '#EEF2F6',
           borderRadius: 16,
           padding: 20,
           marginBottom: 16,
@@ -227,9 +227,9 @@ export default function IndependentStep4() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
               {isUSA ? 'Submit for Review' : 'Enviar para Revisión'}
             </Text>
           )}

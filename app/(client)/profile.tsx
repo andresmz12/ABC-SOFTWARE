@@ -166,7 +166,7 @@ export default function ClientProfile() {
           ) : (
             <>
               <View style={{ width: 72, height: 72, backgroundColor: C.accent, borderRadius: 36, alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
-                <Text style={{ color: '#000', fontSize: 26, fontFamily: 'Inter_700Bold' }}>{initials}</Text>
+                <Text style={{ color: '#FFFFFF', fontSize: 26, fontFamily: 'Inter_700Bold' }}>{initials}</Text>
               </View>
               <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold' }}>
                 {clientData?.full_name || user?.email || '—'}
@@ -258,7 +258,7 @@ export default function ClientProfile() {
       {/* ── Edit Modal — conditionally mounted so the overlay never blocks touches when hidden */}
       {editVisible && (
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.7)', justifyContent: 'flex-end' }}>
           <View style={{
             backgroundColor: C.surface,
             borderTopLeftRadius: 24,
@@ -380,9 +380,9 @@ export default function ClientProfile() {
                   activeOpacity={0.85}
                 >
                   {saving ? (
-                    <ActivityIndicator color="#000" />
+                    <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
                       {es ? 'Guardar Cambios' : 'Save Changes'}
                     </Text>
                   )}

@@ -36,9 +36,9 @@ interface ProviderData {
 
 function buildStatusConfig(es: boolean): Record<ProviderStatus, { bg: string; border: string; color: string; label: string }> {
   return {
-    pending:   { bg: '#2a1e0a',  border: C.warning,       color: C.warning,       label: es ? 'En Revisión'  : 'Pending Review' },
-    approved:  { bg: '#0d2d1a',  border: C.success,       color: C.success,       label: es ? 'Aprobado'     : 'Approved' },
-    rejected:  { bg: '#2d0d0d',  border: C.danger,        color: C.danger,        label: es ? 'Rechazado'    : 'Rejected' },
+    pending:   { bg: '#FFF3CD',  border: C.warning,       color: '#856404',       label: es ? 'En Revisión'  : 'Pending Review' },
+    approved:  { bg: '#D1FAE5',  border: C.success,       color: '#065F46',       label: es ? 'Aprobado'     : 'Approved' },
+    rejected:  { bg: '#FFE4E6',  border: C.danger,        color: '#9B1C1C',       label: es ? 'Rechazado'    : 'Rejected' },
     suspended: { bg: C.surface2, border: C.line,          color: C.textSecondary, label: es ? 'Suspendido'   : 'Suspended' },
   };
 }
@@ -334,14 +334,14 @@ export default function ProviderDetail() {
               style={{ flex: 1, backgroundColor: C.success, borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}
               activeOpacity={0.85}
             >
-              <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Aprobar Proveedor' : 'Approve Provider'}</Text>
+              <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Aprobar Proveedor' : 'Approve Provider'}</Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setModalAction('reject')}
-              style={{ flex: 1, backgroundColor: '#2d0d0d', borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: C.danger }}
+              style={{ flex: 1, backgroundColor: '#FFE4E6', borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: C.danger }}
               activeOpacity={0.85}
             >
-              <Text style={{ color: C.danger, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Rechazar' : 'Reject'}</Text>
+              <Text style={{ color: '#9B1C1C', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Rechazar' : 'Reject'}</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -352,7 +352,7 @@ export default function ProviderDetail() {
             style={{ backgroundColor: C.success, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 12 }}
             activeOpacity={0.85}
           >
-            <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
               {es ? 'Todos los docs aprobados — Aprobar Proveedor' : 'All docs approved — Approve Provider'}
             </Text>
           </TouchableOpacity>
@@ -360,7 +360,7 @@ export default function ProviderDetail() {
 
         {provider.status === 'approved' && (
           <View>
-            <View style={{ backgroundColor: '#0d2d1a', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.success, marginBottom: 12 }}>
+            <View style={{ backgroundColor: '#D1FAE5', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.success, marginBottom: 12 }}>
               <Feather name="check-circle" size={18} color={C.success} style={{ marginRight: 10 }} />
               <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
                 {es ? 'Este proveedor está aprobado y activo en la plataforma.' : 'This provider is approved and active on the platform.'}
@@ -380,7 +380,7 @@ export default function ProviderDetail() {
         )}
 
         {provider.status === 'rejected' && (
-          <View style={{ backgroundColor: '#2d0d0d', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.danger }}>
+          <View style={{ backgroundColor: '#FFE4E6', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.danger }}>
             <Feather name="x-circle" size={18} color={C.danger} style={{ marginRight: 10 }} />
             <Text style={{ color: C.danger, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
               {es ? 'La solicitud de este proveedor ha sido rechazada.' : "This provider's application has been rejected."}
@@ -392,12 +392,12 @@ export default function ProviderDetail() {
       {/* Confirm modal — conditionally mounted so the transparent overlay never blocks touches when hidden */}
       {modalAction !== null && (
       <Modal visible={true} transparent animationType="fade">
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.7)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <View style={{ backgroundColor: C.surface, borderRadius: 24, padding: 24, width: '100%', borderWidth: 1, borderColor: C.line }}>
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
               <View style={{
                 width: 56, height: 56, borderRadius: 28,
-                backgroundColor: modalAction === 'approve' ? '#0d2d1a' : modalAction === 'suspend' ? '#2a1e0a' : '#2d0d0d',
+                backgroundColor: modalAction === 'approve' ? '#D1FAE5' : modalAction === 'suspend' ? '#FFF3CD' : '#FFE4E6',
                 alignItems: 'center', justifyContent: 'center', marginBottom: 12,
               }}>
                 <Feather

@@ -22,7 +22,7 @@ export default function Button({
   className = '',
 }: Props) {
   const styles: Record<Variant, { bg: string; text: string; border?: string }> = {
-    primary:   { bg: 'bg-accent',       text: 'text-black' },
+    primary:   { bg: 'bg-accent',       text: 'text-white' },
     secondary: { bg: 'bg-transparent',  text: 'text-accent',   border: 'border border-accent' },
     ghost:     { bg: 'bg-transparent',  text: 'text-primary' },
     danger:    { bg: 'bg-danger',       text: 'text-white' },
@@ -47,7 +47,7 @@ export default function Button({
       activeOpacity={0.85}
     >
       {loading ? (
-        <ActivityIndicator color={variant === 'primary' ? '#000' : '#C9A84C'} />
+        <ActivityIndicator color={variant === 'primary' ? '#FFFFFF' : '#00B4D8'} />
       ) : (
         <Text
           className={`${s.text} text-base`}

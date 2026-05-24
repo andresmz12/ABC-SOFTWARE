@@ -136,7 +136,7 @@ export default function ProviderHome() {
             {isPending && (
               <View style={{
                 marginBottom: 16,
-                backgroundColor: '#2a1e0a',
+                backgroundColor: '#FFF3CD',
                 borderRadius: 16,
                 padding: 16,
                 borderWidth: 1,

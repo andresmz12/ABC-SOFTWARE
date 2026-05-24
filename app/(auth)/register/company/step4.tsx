@@ -137,7 +137,7 @@ export default function CompanyStep4() {
         </Text>
 
         <View style={{
-          backgroundColor: '#0d2d1a',
+          backgroundColor: '#D1FAE5',
           borderRadius: 16,
           padding: 20,
           marginBottom: 16,
@@ -226,9 +226,9 @@ export default function CompanyStep4() {
           activeOpacity={0.85}
         >
           {loading ? (
-            <ActivityIndicator color="#000" />
+            <ActivityIndicator color="#FFFFFF" />
           ) : (
-            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
               {isUSA ? 'Submit for Review' : 'Enviar para Revisión'}
             </Text>
           )}

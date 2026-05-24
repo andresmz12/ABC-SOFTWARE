@@ -84,7 +84,7 @@ export default function Login() {
 
           {error && (
             <View style={{
-              backgroundColor: '#3a1a1a',
+              backgroundColor: '#FFE4E6',
               borderRadius: 12,
               padding: 12,
               marginBottom: 16,
@@ -148,7 +148,7 @@ export default function Login() {
             }}
             activeOpacity={0.85}
           >
-            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
               {loading ? t('common.loading') : t('auth.signIn')}
             </Text>
           </TouchableOpacity>

@@ -36,7 +36,7 @@ export default function Input({ label, error, iconName, rightElement, style, ...
         style={{
           flexDirection: 'row',
           alignItems: props.multiline ? 'flex-start' : 'center',
-          backgroundColor: C.surface2,
+          backgroundColor: C.surface,
           borderWidth: 1.5,
           borderColor,
           borderRadius: 12,

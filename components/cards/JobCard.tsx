@@ -85,7 +85,7 @@ const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
           </Text>
           {timer && (
             <View style={{
-              backgroundColor: timer.urgent ? '#2d0d0d' : C.surface2,
+              backgroundColor: timer.urgent ? '#FFE4E6' : C.surface2,
               paddingHorizontal: 8,
               paddingVertical: 3,
               borderRadius: 8,
@@ -105,7 +105,7 @@ const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
 
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 }}>
           <View style={{
-            backgroundColor: isCommercial ? '#0d1a2d' : '#2d1a0d',
+            backgroundColor: isCommercial ? '#E0F7FA' : '#E0F7FA',
             paddingHorizontal: 9,
             paddingVertical: 3,
             borderRadius: 20,
@@ -155,7 +155,7 @@ const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
         justifyContent: 'center',
       }}>
         <Text style={{
-          color: isCommercial ? '#FFFFFF' : '#000000',
+          color: '#FFFFFF',
           fontSize: 13,
           fontFamily: 'Inter_600SemiBold',
           letterSpacing: 0.3,
@@ -163,7 +163,7 @@ const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
         }}>
           {es ? 'Aplicar Ahora' : 'Apply Now'}
         </Text>
-        <Feather name="arrow-right" size={14} color={isCommercial ? '#FFFFFF' : '#000000'} />
+        <Feather name="arrow-right" size={14} color="#FFFFFF" />
       </View>
     </TouchableOpacity>
   );

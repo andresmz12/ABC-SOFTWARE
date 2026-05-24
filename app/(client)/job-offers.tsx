@@ -235,11 +235,11 @@ export default function JobOffers() {
                     activeOpacity={0.85}
                   >
                     {isLoadingBid ? (
-                      <ActivityIndicator size="small" color="#000" />
+                      <ActivityIndicator size="small" color="#FFFFFF" />
                     ) : (
                       <>
-                        <Feather name="check" size={16} color="#000" />
-                        <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                        <Feather name="check" size={16} color="#FFFFFF" />
+                        <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
                           {es ? 'Aceptar Oferta' : 'Accept Bid'}
                         </Text>
                       </>

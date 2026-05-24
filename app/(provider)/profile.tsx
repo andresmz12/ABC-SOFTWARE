@@ -302,7 +302,7 @@ export default function ProviderProfile() {
         {isPending && (
           <View style={{
             marginBottom: 16,
-            backgroundColor: '#2a1e0a',
+            backgroundColor: '#FFF3CD',
             borderRadius: 16,
             padding: 16,
             borderWidth: 1,
@@ -484,7 +484,7 @@ export default function ProviderProfile() {
             );
           }}
           style={{
-            backgroundColor: '#2d0d0d',
+            backgroundColor: '#FFE4E6',
             borderRadius: 12,
             padding: 16,
             alignItems: 'center',
@@ -505,7 +505,7 @@ export default function ProviderProfile() {
       {/* ── Area Picker Modal */}
       {showAreaPicker && (
         <Modal visible={true} animationType="slide" transparent onRequestClose={() => { setShowAreaPicker(false); setAreaSearch(''); }}>
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.6)', justifyContent: 'flex-end' }}>
             <View style={{ backgroundColor: C.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12 }}>
                 <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
@@ -559,7 +559,7 @@ export default function ProviderProfile() {
       {/* ── Edit Modal — conditionally mounted so the overlay never blocks touches when hidden */}
       {editVisible && (
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.7)', justifyContent: 'flex-end' }}>
           <View style={{
             backgroundColor: C.surface,
             borderTopLeftRadius: 24,
@@ -635,9 +635,9 @@ export default function ProviderProfile() {
                   activeOpacity={0.85}
                 >
                   {saving ? (
-                    <ActivityIndicator color="#000" />
+                    <ActivityIndicator color="#FFFFFF" />
                   ) : (
-                    <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                    <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
                       {es ? 'Guardar Cambios' : 'Save Changes'}
                     </Text>
                   )}

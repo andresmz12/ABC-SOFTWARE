@@ -190,7 +190,7 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.7)', justifyContent: 'flex-end' }}>
         <View style={{
           backgroundColor: C.surface,
           borderTopLeftRadius: 24,
@@ -292,9 +292,9 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
                 activeOpacity={0.85}
               >
                 {saving ? (
-                  <ActivityIndicator color="#000" />
+                  <ActivityIndicator color="#FFFFFF" />
                 ) : (
-                  <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                  <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
                     {es ? 'Guardar Cambios' : 'Save Changes'}
                   </Text>
                 )}
@@ -355,7 +355,7 @@ const RequestCard = React.memo(function RequestCard({
             {serviceLabel}
           </Text>
           <View style={{
-            backgroundColor: isCommercial ? '#0d1a2d' : '#2d1a0d',
+            backgroundColor: '#E0F7FA',
             paddingHorizontal: 8,
             paddingVertical: 3,
             borderRadius: 8,
@@ -592,7 +592,7 @@ export default function MyRequests() {
               <Text style={{
                 fontSize: 12,
                 fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular',
-                color: isActive ? '#000' : C.textSecondary,
+                color: isActive ? '#FFFFFF' : C.textSecondary,
               }}>
                 {TAB_LABELS[tab]}
               </Text>
@@ -602,11 +602,11 @@ export default function MyRequests() {
                   width: 16,
                   height: 16,
                   borderRadius: 8,
-                  backgroundColor: isActive ? 'rgba(0,0,0,0.2)' : C.surface2,
+                  backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : C.surface2,
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <Text style={{ fontSize: 9, color: isActive ? '#000' : C.textSecondary, fontFamily: 'Inter_600SemiBold' }}>{count}</Text>
+                  <Text style={{ fontSize: 9, color: isActive ? '#FFFFFF' : C.textSecondary, fontFamily: 'Inter_600SemiBold' }}>{count}</Text>
                 </View>
               )}
             </TouchableOpacity>

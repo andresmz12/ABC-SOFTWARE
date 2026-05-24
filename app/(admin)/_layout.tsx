@@ -10,7 +10,7 @@ export default function AdminLayout() {
         tabBarActiveTintColor: C.accent2,
         tabBarInactiveTintColor: C.textMuted,
         tabBarStyle: {
-          backgroundColor: '#0F0F0F',
+          backgroundColor: '#FFFFFF',
           borderTopColor: C.line,
           borderTopWidth: 1,
           height: 80,

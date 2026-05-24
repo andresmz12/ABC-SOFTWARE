@@ -150,7 +150,7 @@ export default function ProviderNotifications() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 marginRight: 12,
-                backgroundColor: n.read ? C.surface2 : '#1a2a0d',
+                backgroundColor: n.read ? C.surface2 : '#D1FAE5',
                 borderWidth: 1,
                 borderColor: n.read ? C.line : C.success,
               }}>

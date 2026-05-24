@@ -48,7 +48,7 @@ export default function EmptyState({ title, subtitle, iconName = 'inbox', ctaLab
           }}
           activeOpacity={0.85}
         >
-          <Text style={{ color: '#000', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>{ctaLabel}</Text>
+          <Text style={{ color: '#FFFFFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>{ctaLabel}</Text>
         </TouchableOpacity>
       )}
     </View>

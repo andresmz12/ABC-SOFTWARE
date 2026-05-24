@@ -197,18 +197,18 @@ export default function ClientHome() {
               activeOpacity={0.85}
             >
               <View style={{ flex: 1 }}>
-                <Text style={{ color: '#000', fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
                   {es ? 'Nueva Solicitud' : 'New Request'}
                 </Text>
-                <Text style={{ color: '#000', fontSize: 20, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 }}>
+                <Text style={{ color: '#FFFFFF', fontSize: 20, fontFamily: 'Inter_700Bold', letterSpacing: -0.3 }}>
                   {es ? 'Publicar Trabajo' : 'Post a Job'}
                 </Text>
-                <Text style={{ color: 'rgba(0,0,0,0.6)', fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
+                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
                   {es ? 'Recibe ofertas de proveedores verificados' : 'Get bids from verified professionals'}
                 </Text>
               </View>
-              <View style={{ width: 48, height: 48, backgroundColor: 'rgba(0,0,0,0.12)', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 16 }}>
-                <Feather name="plus" size={22} color="#000" />
+              <View style={{ width: 48, height: 48, backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 14, alignItems: 'center', justifyContent: 'center', marginLeft: 16 }}>
+                <Feather name="plus" size={22} color="#FFFFFF" />
               </View>
             </TouchableOpacity>
 

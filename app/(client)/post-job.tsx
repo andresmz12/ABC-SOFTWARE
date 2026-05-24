@@ -291,7 +291,7 @@ export default function PostJob() {
                     borderRadius: 12,
                     paddingVertical: 12,
                     alignItems: 'center',
-                    backgroundColor: isActive ? '#2d1a0d' : C.surface,
+                    backgroundColor: isActive ? '#E0F7FA' : C.surface,
                   }}
                   activeOpacity={0.75}
                 >
@@ -464,9 +464,9 @@ export default function PostJob() {
             activeOpacity={0.85}
           >
             {submitting ? (
-              <ActivityIndicator color="#000" />
+              <ActivityIndicator color="#FFFFFF" />
             ) : (
-              <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+              <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
                 {t('common.submit')}
               </Text>
             )}

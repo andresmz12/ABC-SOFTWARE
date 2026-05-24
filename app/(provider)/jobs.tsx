@@ -65,7 +65,7 @@ export default function ProviderJobs() {
         {isRejected && (
           <View style={{ marginTop: -6, marginBottom: 6, paddingHorizontal: 20, flexDirection: 'row' }}>
             <View style={{
-              backgroundColor: '#2d0808',
+              backgroundColor: '#FFE4E6',
               borderRadius: 6,
               paddingHorizontal: 8,
               paddingVertical: 3,
@@ -96,7 +96,7 @@ export default function ProviderJobs() {
       {isPending ? (
         <View style={{
           marginHorizontal: 20,
-          backgroundColor: '#2a1e0a',
+          backgroundColor: '#FFF3CD',
           borderRadius: 16,
           padding: 16,
           borderWidth: 1,
@@ -148,7 +148,7 @@ export default function ProviderJobs() {
                   <Text style={{
                     fontSize: 12,
                     fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular',
-                    color: isActive ? '#000' : C.textSecondary,
+                    color: isActive ? '#FFFFFF' : C.textSecondary,
                   }}>
                     {TAB_LABELS[tab]}
                   </Text>
@@ -158,11 +158,11 @@ export default function ProviderJobs() {
                       width: 16,
                       height: 16,
                       borderRadius: 8,
-                      backgroundColor: isActive ? 'rgba(0,0,0,0.2)' : C.surface2,
+                      backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : C.surface2,
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}>
-                      <Text style={{ fontSize: 9, color: isActive ? '#000' : C.textSecondary, fontFamily: 'Inter_600SemiBold' }}>
+                      <Text style={{ fontSize: 9, color: isActive ? '#FFFFFF' : C.textSecondary, fontFamily: 'Inter_600SemiBold' }}>
                         {count}
                       </Text>
                     </View>

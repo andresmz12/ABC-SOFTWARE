@@ -6,17 +6,17 @@ type Status =
   | 'cancelled' | 'accepted' | 'withdrawn';
 
 const META: Record<Status, { bg: string; border: string; text: string; label: string }> = {
-  pending:     { bg: '#F59E0B18', border: '#F59E0B60', text: '#F59E0B', label: 'PENDING' },
-  approved:    { bg: '#22C55E18', border: '#22C55E60', text: '#22C55E', label: 'APPROVED' },
-  rejected:    { bg: '#EF444418', border: '#EF444460', text: '#EF4444', label: 'REJECTED' },
-  expired:     { bg: '#52525218', border: '#52525260', text: '#525252', label: 'EXPIRED' },
-  suspended:   { bg: '#F59E0B18', border: '#F59E0B60', text: '#F59E0B', label: 'SUSPENDED' },
-  open:        { bg: '#C9A84C18', border: '#C9A84C60', text: '#C9A84C', label: 'OPEN' },
-  in_progress: { bg: '#3B82F618', border: '#3B82F660', text: '#3B82F6', label: 'IN PROGRESS' },
-  completed:   { bg: '#22C55E18', border: '#22C55E60', text: '#22C55E', label: 'COMPLETED' },
-  cancelled:   { bg: '#52525218', border: '#52525260', text: '#525252', label: 'CANCELLED' },
-  accepted:    { bg: '#22C55E18', border: '#22C55E60', text: '#22C55E', label: 'ACCEPTED' },
-  withdrawn:   { bg: '#52525218', border: '#52525260', text: '#525252', label: 'WITHDRAWN' },
+  pending:     { bg: '#FFF3CD', border: '#F59E0B60', text: '#856404', label: 'PENDING' },
+  approved:    { bg: '#D1FAE5', border: '#06D6A060', text: '#065F46', label: 'APPROVED' },
+  rejected:    { bg: '#FFE4E6', border: '#EF476F60', text: '#9B1C1C', label: 'REJECTED' },
+  expired:     { bg: '#F3F4F6', border: '#6B728060', text: '#6B7280', label: 'EXPIRED' },
+  suspended:   { bg: '#FFF3CD', border: '#F59E0B60', text: '#856404', label: 'SUSPENDED' },
+  open:        { bg: '#E0F7FA', border: '#007A9A60', text: '#007A9A', label: 'OPEN' },
+  in_progress: { bg: '#E0F7FA', border: '#0077B660', text: '#0077B6', label: 'IN PROGRESS' },
+  completed:   { bg: '#D1FAE5', border: '#06D6A060', text: '#065F46', label: 'COMPLETED' },
+  cancelled:   { bg: '#F3F4F6', border: '#6B728060', text: '#6B7280', label: 'CANCELLED' },
+  accepted:    { bg: '#D1FAE5', border: '#06D6A060', text: '#065F46', label: 'ACCEPTED' },
+  withdrawn:   { bg: '#F3F4F6', border: '#6B728060', text: '#6B7280', label: 'WITHDRAWN' },
 };
 
 export default function StatusBadge({ status }: { status: Status }) {

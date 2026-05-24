@@ -18,9 +18,9 @@ interface DocItem {
 type DocStatus = 'approved' | 'rejected' | 'pending';
 
 const STATUS_COLORS: Record<DocStatus, { color: string; bg: string }> = {
-  approved: { color: C.success,   bg: '#0d2d1a' },
-  rejected: { color: C.danger,    bg: '#2d0d0d' },
-  pending:  { color: C.warning,   bg: '#2d1e0a' },
+  approved: { color: '#065F46',   bg: '#D1FAE5' },
+  rejected: { color: '#9B1C1C',   bg: '#FFE4E6' },
+  pending:  { color: '#856404',   bg: '#FFF3CD' },
 };
 
 export default function ProviderDocuments() {
@@ -202,7 +202,7 @@ export default function ProviderDocuments() {
 
                 {item.doc?.admin_notes && item.doc.status === 'rejected' && (
                   <View style={{
-                    backgroundColor: '#2d0d0d',
+                    backgroundColor: '#FFE4E6',
                     borderRadius: 10,
                     padding: 10,
                     marginBottom: 10,

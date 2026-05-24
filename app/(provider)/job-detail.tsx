@@ -178,7 +178,7 @@ export default function JobDetail() {
               </Text>
               {timer && (
                 <View style={{
-                  backgroundColor: timer.urgent ? '#2d0d0d' : C.surface2,
+                  backgroundColor: timer.urgent ? '#FFE4E6' : C.surface2,
                   paddingHorizontal: 8,
                   paddingVertical: 4,
                   borderRadius: 8,
@@ -194,7 +194,7 @@ export default function JobDetail() {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
               <View style={{
-                backgroundColor: isCommercial ? '#0d1a2d' : '#2d1a0d',
+                backgroundColor: '#E0F7FA',
                 paddingHorizontal: 10,
                 paddingVertical: 4,
                 borderRadius: 20,
@@ -299,7 +299,7 @@ export default function JobDetail() {
       }}>
         {isNotEligible ? (
           <View style={{
-            backgroundColor: '#1a0d0d',
+            backgroundColor: '#FFE4E6',
             borderRadius: 12,
             paddingVertical: 16,
             alignItems: 'center',
@@ -315,7 +315,7 @@ export default function JobDetail() {
           </View>
         ) : applied ? (
           <View style={{
-            backgroundColor: '#0d2d1a',
+            backgroundColor: '#D1FAE5',
             borderRadius: 12,
             paddingVertical: 16,
             alignItems: 'center',
@@ -340,7 +340,7 @@ export default function JobDetail() {
             }}
             activeOpacity={0.85}
           >
-            <Text style={{ color: '#000', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
               {es ? 'Aplicar Ahora' : 'Apply Now'}
             </Text>
           </TouchableOpacity>
@@ -349,7 +349,7 @@ export default function JobDetail() {
 
       {/* Apply modal */}
       <Modal visible={modalVisible} transparent animationType="slide" onRequestClose={() => setModalVisible(false)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.8)', justifyContent: 'flex-end' }}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.7)', justifyContent: 'flex-end' }}>
           <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
             <ScrollView keyboardShouldPersistTaps="handled" bounces={false}>
               <View style={{
@@ -420,9 +420,9 @@ export default function JobDetail() {
                     activeOpacity={0.85}
                   >
                     {submitting ? (
-                      <ActivityIndicator color="#000" />
+                      <ActivityIndicator color="#FFFFFF" />
                     ) : (
-                      <Text style={{ color: '#000', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                      <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
                         {es ? 'Enviar' : 'Submit'}
                       </Text>
                     )}

@@ -103,7 +103,7 @@ export default function AdminProfile() {
           <View style={{
             width: 56,
             height: 56,
-            backgroundColor: '#1a1a2e',
+            backgroundColor: '#EEF2F6',
             borderRadius: 28,
             alignItems: 'center',
             justifyContent: 'center',
@@ -228,7 +228,7 @@ export default function AdminProfile() {
                         onPress={saveTestAccount}
                         style={{ flex: 2, paddingVertical: 10, borderRadius: 10, backgroundColor: C.accent, alignItems: 'center' }}
                       >
-                        <Text style={{ color: '#000', fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                        <Text style={{ color: '#FFFFFF', fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
                           {es ? 'Guardar' : 'Save'}
                         </Text>
                       </TouchableOpacity>
@@ -259,7 +259,7 @@ export default function AdminProfile() {
                         flex: 1,
                         height: 40,
                         borderRadius: 10,
-                        backgroundColor: '#0d1f0d',
+                        backgroundColor: '#D1FAE5',
                         borderWidth: 1,
                         borderColor: `${C.success}50`,
                         alignItems: 'center',

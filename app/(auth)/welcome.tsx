@@ -42,7 +42,7 @@ export default function Welcome() {
             justifyContent: 'center',
             marginBottom: 20,
           }}>
-            <Text style={{ color: '#000', fontSize: 28, fontFamily: 'Inter_700Bold' }}>P</Text>
+            <Text style={{ color: '#FFFFFF', fontSize: 28, fontFamily: 'Inter_700Bold' }}>P</Text>
           </View>
           <Text style={{ color: C.textPrimary, fontSize: 36, fontFamily: 'Inter_700Bold', letterSpacing: -0.5, marginBottom: 12 }}>
             ProVendor

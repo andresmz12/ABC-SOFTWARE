@@ -119,7 +119,7 @@ export default function RootLayout() {
 
   return (
     <LanguageProvider>
-      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#0A0A0A' }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
         <SafeAreaProvider>
           <TouchableWithoutFeedback onPress={() => resetTimerRef.current()} accessible={false}>
             <View style={{ flex: 1 }}>
