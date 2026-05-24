@@ -219,7 +219,13 @@ export default function ClientHome() {
                     job={job}
                     isColombia={isColombia}
                     es={es}
-                    onPress={() => router.push('/(client)/my-requests' as any)}
+                    onPress={() => {
+                      if (job.status === 'open') {
+                        router.push({ pathname: '/(client)/job-offers', params: { jobId: job.id } } as any);
+                      } else {
+                        router.push('/(client)/my-requests' as any);
+                      }
+                    }}
                   />
                 ))}
               </View>
@@ -247,7 +253,7 @@ export default function ClientHome() {
             )}
 
             <TouchableOpacity
-              onPress={() => router.push('/(client)/browse-providers' as any)}
+              onPress={() => router.navigate('/(client)/browse-providers' as any)}
               style={{
                 marginHorizontal: 20,
                 backgroundColor: C.surface,

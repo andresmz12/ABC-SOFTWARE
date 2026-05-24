@@ -99,9 +99,20 @@ async function handleNewJob(job: any): Promise<{ sent: number }> {
 
   if (aErr || !areas?.length) return { sent: 0 };
 
-  const providerIds = [...new Set(areas.map((a: any) => a.provider_id as string))];
+  const allProviderIds = [...new Set(areas.map((a: any) => a.provider_id as string))];
 
-  // 2. Get approved providers, filtered by service_type eligibility:
+  // 2. Filter to providers who are currently available
+  const [availCompanies, availIndep] = await Promise.all([
+    supabase.from('companies').select('user_id').in('user_id', allProviderIds).eq('available', true),
+    supabase.from('independents').select('user_id').in('user_id', allProviderIds).eq('available', true),
+  ]);
+  const providerIds = [
+    ...(availCompanies.data ?? []).map((c: any) => c.user_id as string),
+    ...(availIndep.data ?? []).map((i: any) => i.user_id as string),
+  ];
+  if (!providerIds.length) return { sent: 0 };
+
+  // 3. Get approved providers, filtered by service_type eligibility:
   //    commercial → company only; residential → company + independent
   let q = supabase
     .from('users')
@@ -163,13 +174,13 @@ async function handleNewJob(job: any): Promise<{ sent: number }> {
 // ─── Handler: new offer received → email the client ───────────────────────────
 
 async function handleNewOffer(application: any): Promise<void> {
-  // Get the job record
+  // Get the job record — only proceed if the job is still open
   const { data: job } = await supabase
     .from('job_requests')
-    .select('id, city, service_type, client_id')
+    .select('id, city, service_type, client_id, status')
     .eq('id', application.job_request_id)
     .single();
-  if (!job) return;
+  if (!job || job.status !== 'open') return;
 
   // Get the client's email and language
   const { data: clientUser } = await supabase

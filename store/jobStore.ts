@@ -8,6 +8,7 @@ interface JobState {
   appliedJobs: JobRequest[];
   activeJobs: JobRequest[];
   completedJobs: JobRequest[];
+  rejectedJobIds: string[];
   activeJob: JobRequest | null;
   loading: boolean;
   setOpenJobs: (jobs: JobRequest[]) => void;
@@ -25,6 +26,7 @@ export const useJobStore = create<JobState>((set) => ({
   appliedJobs: [],
   activeJobs: [],
   completedJobs: [],
+  rejectedJobIds: [],
   activeJob: null,
   loading: false,
   setOpenJobs: (jobs) => set({ openJobs: jobs }),
@@ -52,8 +54,8 @@ export const useJobStore = create<JobState>((set) => ({
   fetchMyJobs: async (providerId) => {
     set({ loading: true });
     try {
-      const { applied, active, completed } = await fetchProviderJobs(providerId);
-      set({ appliedJobs: applied, activeJobs: active, completedJobs: completed });
+      const { applied, active, completed, rejectedJobIds } = await fetchProviderJobs(providerId);
+      set({ appliedJobs: applied, activeJobs: active, completedJobs: completed, rejectedJobIds });
     } catch (e: any) {
       console.error('[jobStore] fetchMyJobs failed:', e?.message ?? e);
     } finally {

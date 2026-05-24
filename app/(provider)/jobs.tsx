@@ -20,7 +20,7 @@ export default function ProviderJobs() {
   const { lang } = useLang();
   const es = lang === 'es';
   const isPending = user?.status === 'pending';
-  const { appliedJobs, activeJobs, completedJobs, fetchMyJobs, loading } = useJobStore();
+  const { appliedJobs, activeJobs, completedJobs, fetchMyJobs, loading, rejectedJobIds } = useJobStore();
 
   const TAB_LABELS: Record<Tab, string> = es
     ? { applied: 'Aplicados', active: 'Activos', completed: 'Completados' }
@@ -148,12 +148,33 @@ export default function ProviderJobs() {
             <FlatList
               data={jobs}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <JobCard
-                  job={item}
-                  onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-                />
-              )}
+              renderItem={({ item }) => {
+                const isRejected = activeTab === 'applied' && rejectedJobIds.includes(item.id);
+                return (
+                  <View>
+                    <JobCard
+                      job={item}
+                      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+                    />
+                    {isRejected && (
+                      <View style={{ marginTop: -6, marginBottom: 6, paddingHorizontal: 20, flexDirection: 'row' }}>
+                        <View style={{
+                          backgroundColor: '#2d0808',
+                          borderRadius: 6,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderWidth: 1,
+                          borderColor: C.danger,
+                        }}>
+                          <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+                            {es ? 'Rechazado' : 'Rejected'}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              }}
               contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}

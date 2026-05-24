@@ -357,7 +357,7 @@ function RequestCard({
           </Text>
           <Feather name="calendar" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
           <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-            {req.scheduled_date}
+            {req.scheduled_date ? isoDateToDisplay(req.scheduled_date) : '—'}
           </Text>
         </View>
 

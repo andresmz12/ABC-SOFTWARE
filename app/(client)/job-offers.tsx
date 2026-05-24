@@ -49,9 +49,7 @@ export default function JobOffers() {
 
   const handleAccept = async (bid: BidWithProvider) => {
     if (!job) return;
-    const amount = bid.bid_amount_usd
-      ? formatUSD(bid.bid_amount_usd)
-      : formatCOP(bid.bid_amount_cop ?? 0);
+    const amount = bidAmount(bid);
     Alert.alert(
       es ? '¿Aceptar oferta?' : 'Accept this bid?',
       es

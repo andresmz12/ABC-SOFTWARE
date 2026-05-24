@@ -21,7 +21,8 @@ type FormData = z.infer<typeof schema>;
 
 export default function Login() {
   const router = useRouter();
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const es = lang === 'es';
   const insets = useSafeAreaInsets();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +50,15 @@ export default function Login() {
     if (loggedInUser?.role === 'client') router.replace('/(client)/home');
     else if (loggedInUser?.role === 'company' || loggedInUser?.role === 'independent') router.replace('/(provider)/home');
     else if (loggedInUser?.role === 'admin') router.replace('/(admin)/dashboard');
-    else router.replace('/(auth)/welcome');
+    else {
+      // Authenticated but no profile found — likely email not yet confirmed
+      await supabase.auth.signOut();
+      setError(
+        es
+          ? 'Por favor verifica tu correo electrónico antes de iniciar sesión.'
+          : 'Please verify your email address before signing in.',
+      );
+    }
   };
 
   return (

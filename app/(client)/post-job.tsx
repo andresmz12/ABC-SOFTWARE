@@ -111,6 +111,15 @@ export default function PostJob() {
     }
     if (hasError) return;
 
+    // If date is today, check that the combined datetime is still in the future
+    if (isoDate && isoTime) {
+      const scheduledDT = new Date(`${isoDate}T${isoTime}`);
+      if (scheduledDT <= new Date()) {
+        setTimeError(es ? 'La hora seleccionada ya pasó.' : 'The selected time has already passed.');
+        return;
+      }
+    }
+
     setSubmitting(true);
     try {
       const budgetNum = parseFloat(data.budget.replace(/[^0-9.]/g, ''));

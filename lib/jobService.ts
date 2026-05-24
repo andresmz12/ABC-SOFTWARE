@@ -144,13 +144,14 @@ export async function fetchProviderJobs(providerId: string): Promise<{
   applied: JobRequest[];
   active: JobRequest[];
   completed: JobRequest[];
+  rejectedJobIds: string[];
 }> {
   const { data: apps, error: appsErr } = await supabase
     .from('job_applications')
     .select('job_request_id, status')
     .eq('provider_id', providerId);
   if (appsErr) throw appsErr;
-  if (!apps?.length) return { applied: [], active: [], completed: [] };
+  if (!apps?.length) return { applied: [], active: [], completed: [], rejectedJobIds: [] };
 
   const jobIds = apps.map((a) => a.job_request_id);
   const { data: jobs, error: jobsErr } = await supabase
@@ -166,6 +167,10 @@ export async function fetchProviderJobs(providerId: string): Promise<{
     .map((a) => jobMap[a.job_request_id])
     .filter(Boolean) as JobRequest[];
 
+  const rejectedJobIds = apps
+    .filter((a) => a.status === 'rejected')
+    .map((a) => a.job_request_id as string);
+
   // Only show jobs where THIS provider's application was accepted (not just any in_progress job)
   const active = apps
     .filter((a) => a.status === 'accepted')
@@ -174,7 +179,7 @@ export async function fetchProviderJobs(providerId: string): Promise<{
 
   const completed = (jobs ?? []).filter((j) => j.status === 'completed');
 
-  return { applied, active, completed };
+  return { applied, active, completed, rejectedJobIds };
 }
 
 export async function applyToJob({

@@ -127,7 +127,7 @@ export default function JobDetail() {
   const isCommercial = job.service_type === 'commercial';
   const isNotEligible = job.service_type === 'commercial' && user?.role === 'independent';
   const accentColor = isCommercial ? C.accent2 : C.accent;
-  const timer = job.expires_at ? countdown(job.expires_at, isColombia) : null;
+  const timer = job.expires_at ? countdown(job.expires_at, es) : null;
   const location = isColombia
     ? `${(job as any).county ? (job as any).county + ', ' : ''}${job.city}`
     : `${job.city}, ${job.state}`;
@@ -207,8 +207,8 @@ export default function JobDetail() {
               </View>
             </View>
 
-            {budgetText && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {budgetText && (
                 <View style={{
                   backgroundColor: C.surface2,
                   paddingHorizontal: 14,
@@ -219,11 +219,13 @@ export default function JobDetail() {
                 }}>
                   <Text style={{ color: C.accent, fontSize: 15, fontFamily: 'Inter_700Bold' }}>{budgetText}</Text>
                 </View>
+              )}
+              {job.estimated_hours != null && (
                 <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
                   {job.estimated_hours}h
                 </Text>
-              </View>
-            )}
+              )}
+            </View>
           </View>
         </View>
 

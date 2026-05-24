@@ -169,7 +169,6 @@ export default function CompanyStep4() {
             {([
               [isUSA ? 'Company Name' : 'Razón Social', formData.companyName],
               [isUSA ? 'Tax ID' : 'NIT', formData.taxId],
-              [isUSA ? 'Business Type' : 'Tipo de Sociedad', formData.bizType],
               ['Email', formData.email],
             ] as [string, string][]).filter(([, v]) => v).map(([label, value], idx, arr) => (
               <View key={label} style={{
