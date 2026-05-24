@@ -1,11 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
 import { Feather } from '@expo/vector-icons';
 import { formatUSD, formatCOP } from '@/lib/countryData';
+import { SkeletonStatCard, SkeletonRow } from '@/components/ui/Skeleton';
 import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 
@@ -15,7 +17,7 @@ interface DashboardStats {
   bids: number;
 }
 
-function StatCard({ icon, value, label, color, onPress }: { icon: keyof typeof Feather.glyphMap; value: number; label: string; color: string; onPress?: () => void }) {
+const StatCard = React.memo(function StatCard({ icon, value, label, color, onPress }: { icon: keyof typeof Feather.glyphMap; value: number; label: string; color: string; onPress?: () => void }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -37,9 +39,9 @@ function StatCard({ icon, value, label, color, onPress }: { icon: keyof typeof F
       <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular', marginTop: 2, textAlign: 'center' }}>{label}</Text>
     </TouchableOpacity>
   );
-}
+});
 
-function MiniJobCard({ job, isColombia, es, onPress }: { job: JobRequest; isColombia: boolean; es: boolean; onPress: () => void }) {
+const MiniJobCard = React.memo(function MiniJobCard({ job, isColombia, es, onPress }: { job: JobRequest; isColombia: boolean; es: boolean; onPress: () => void }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
   const STATUS_COLORS: Record<string, string> = { open: C.accent, in_progress: '#3B82F6', completed: C.success };
@@ -89,10 +91,10 @@ function MiniJobCard({ job, isColombia, es, onPress }: { job: JobRequest; isColo
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 export default function ClientHome() {
-  const { user } = useAuthStore();
+  const { user } = useAuthStore(useShallow((s) => ({ user: s.user })));
   const router = useRouter();
   const { lang } = useLang();
   const es = lang === 'es';
@@ -161,8 +163,16 @@ export default function ClientHome() {
         </View>
 
         {loading ? (
-          <View style={{ alignItems: 'center', paddingVertical: 40 }}>
-            <ActivityIndicator color={C.accent} size="large" />
+          <View style={{ paddingHorizontal: 20 }}>
+            <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+              <SkeletonStatCard />
+              <SkeletonStatCard />
+              <SkeletonStatCard />
+            </View>
+            <View style={{ height: 100, backgroundColor: C.surface, borderRadius: 16, borderWidth: 1, borderColor: C.line, marginBottom: 24 }} />
+            <SkeletonRow />
+            <SkeletonRow />
+            <SkeletonRow />
           </View>
         ) : (
           <>

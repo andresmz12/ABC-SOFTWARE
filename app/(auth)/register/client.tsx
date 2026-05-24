@@ -51,7 +51,6 @@ export default function ClientRegister() {
   const country = watch('country');
 
   const onSubmit = async (data: FormData) => {
-    console.log('Create Account tapped');
     setLoading(true);
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
@@ -64,7 +63,6 @@ export default function ClientRegister() {
         },
       },
     });
-    console.log('signUp result:', authData, authError);
     if (authError || !authData.user) {
       Alert.alert('Error', authError?.message ?? (es ? 'Registro falló' : 'Registration failed'));
       setLoading(false);
@@ -74,7 +72,6 @@ export default function ClientRegister() {
       user_id: authData.user.id, full_name: data.fullName, phone: data.phone,
       address: data.address, city: data.city, state: clientState, zip: data.zip, country: data.country,
     });
-    console.log('insert result:', clientResult);
     if (clientResult.error) {
       Alert.alert('Error', clientResult.error.message ?? (es ? 'Error al guardar perfil.' : 'Failed to save profile.'));
       setLoading(false);

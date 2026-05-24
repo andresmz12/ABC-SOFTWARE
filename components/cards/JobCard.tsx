@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { formatUSD, formatCOP } from '@/lib/countryData';
@@ -30,7 +31,7 @@ function countdown(iso: string, es: boolean): { text: string; urgent: boolean } 
   return { text: h > 0 ? `${h}h ${m}m ${left}` : `${m}m ${left}`, urgent: totalMins < 30 };
 }
 
-export default function JobCard({ job, onPress }: Props) {
+const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
   const { lang } = useLang();
   const es = lang === 'es';
   const isCommercial = job.service_type === 'commercial';
@@ -166,4 +167,5 @@ export default function JobCard({ job, onPress }: Props) {
       </View>
     </TouchableOpacity>
   );
-}
+});
+export default JobCard;

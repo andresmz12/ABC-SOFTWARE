@@ -32,8 +32,6 @@ export async function fetchOpenJobsForProvider(
   // Deduplicated list of departments (Colombia) / states (USA) the provider covers.
   const departments = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string).filter(Boolean))];
   const providerServiceType = (profileRes.data as any)?.service_type ?? 'both';
-  console.log('[fetchOpenJobsForProvider] providerId:', providerId, '| role:', providerRole, '| country:', country);
-  console.log('[fetchOpenJobsForProvider] departments:', departments, '| serviceType:', providerServiceType);
 
   let query = supabase
     .from('job_requests')
@@ -56,7 +54,6 @@ export async function fetchOpenJobsForProvider(
   }
 
   const { data, error } = await query;
-  console.log('[fetchOpenJobsForProvider] result count:', data?.length ?? 0, '| error:', error?.message ?? null);
   if (error) {
     console.error('[fetchOpenJobsForProvider] query failed:', error);
     throw error;

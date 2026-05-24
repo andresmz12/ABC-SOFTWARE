@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import EmptyState from '@/components/ui/EmptyState';
@@ -308,7 +309,7 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
 
 // ─── Request Card ──────────────────────────────────────────────────────────────
 
-function RequestCard({
+const RequestCard = React.memo(function RequestCard({
   req,
   isColombia,
   es,
@@ -454,7 +455,7 @@ function RequestCard({
       </View>
     </View>
   );
-}
+});
 
 // ─── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -537,6 +538,17 @@ export default function MyRequests() {
 
   const current = jobs[activeTab];
 
+  const renderItem = useCallback(({ item }: { item: JobRequest }) => (
+    <RequestCard
+      req={item}
+      isColombia={isColombia}
+      es={es}
+      onViewBids={() => router.push({ pathname: '/(client)/job-offers', params: { jobId: item.id } } as any)}
+      onEdit={() => setEditJob(item)}
+      onCancel={() => handleCancel(item)}
+    />
+  ), [isColombia, es, router, handleCancel]);
+
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 20 }}>
@@ -603,8 +615,8 @@ export default function MyRequests() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={C.accent} size="large" />
+        <View style={{ paddingHorizontal: 20, paddingTop: 4 }}>
+          <SkeletonList count={4} />
         </View>
       ) : fetchError ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
@@ -634,16 +646,7 @@ export default function MyRequests() {
         <FlatList
           data={current}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <RequestCard
-              req={item}
-              isColombia={isColombia}
-              es={es}
-              onViewBids={() => router.push({ pathname: '/(client)/job-offers', params: { jobId: item.id } } as any)}
-              onEdit={() => setEditJob(item)}
-              onCancel={() => handleCancel(item)}
-            />
-          )}
+          renderItem={renderItem}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         />

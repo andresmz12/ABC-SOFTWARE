@@ -1,20 +1,31 @@
-import { useEffect, useState } from 'react';
-import { View, Text, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
+import { useEffect, useState, useCallback } from 'react';
+import { View, Text, FlatList, RefreshControl } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useShallow } from 'zustand/react/shallow';
 import JobCard from '@/components/cards/JobCard';
 import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import EmptyState from '@/components/ui/EmptyState';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import { C } from '@/constants/theme';
 
 export default function ProviderHome() {
   const { lang } = useLang();
   const es = lang === 'es';
   const router = useRouter();
-  const { user } = useAuthStore();
-  const { openJobs, loading, fetchOpenJobs, appliedJobs, activeJobs, fetchMyJobs } = useJobStore();
+  const { user } = useAuthStore(useShallow((s) => ({ user: s.user })));
+  const { openJobs, loading, fetchOpenJobs, appliedJobs, activeJobs, fetchMyJobs } = useJobStore(
+    useShallow((s) => ({
+      openJobs: s.openJobs,
+      loading: s.loading,
+      fetchOpenJobs: s.fetchOpenJobs,
+      appliedJobs: s.appliedJobs,
+      activeJobs: s.activeJobs,
+      fetchMyJobs: s.fetchMyJobs,
+    })),
+  );
   const isPending = user?.status === 'pending';
   const isColombia = user?.country === 'colombia';
   const [refreshing, setRefreshing] = useState(false);
@@ -47,6 +58,13 @@ export default function ProviderHome() {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   };
 
+  const renderItem = useCallback(({ item }: { item: (typeof openJobs)[0] }) => (
+    <JobCard
+      job={item}
+      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+    />
+  ), [router]);
+
   const stats = [
     { icon: 'briefcase' as const, value: openJobs.length,   label: es ? 'Disponibles' : 'Available',   color: C.accent },
     { icon: 'zap'       as const, value: activeJobs.length, label: es ? 'Activos'     : 'Active',       color: '#3B82F6' },
@@ -58,12 +76,7 @@ export default function ProviderHome() {
       <FlatList
         data={isPending ? [] : openJobs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <JobCard
-            job={item}
-            onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-          />
-        )}
+        renderItem={renderItem}
         contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
@@ -133,9 +146,7 @@ export default function ProviderHome() {
         }
         ListEmptyComponent={
           loading ? (
-            <View style={{ paddingTop: 48, alignItems: 'center' }}>
-              <ActivityIndicator color={C.accent} size="large" />
-            </View>
+            <SkeletonList count={5} />
           ) : isPending ? null : (
             <EmptyState
               title={es ? 'Sin alertas nuevas' : 'No job alerts'}

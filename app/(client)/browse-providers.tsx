@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
+import { SkeletonList } from '@/components/ui/Skeleton';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -25,7 +26,7 @@ interface Provider {
   reviewCount: number;
 }
 
-function StarRating({ rating, count, es }: { rating: number | null; count: number; es: boolean }) {
+const StarRating = React.memo(function StarRating({ rating, count, es }: { rating: number | null; count: number; es: boolean }) {
   if (rating === null || count === 0) {
     return (
       <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
@@ -50,9 +51,9 @@ function StarRating({ rating, count, es }: { rating: number | null; count: numbe
       </Text>
     </View>
   );
-}
+});
 
-function ProviderCard({ provider, es, onPress }: { provider: Provider; es: boolean; onPress: () => void }) {
+const ProviderCard = React.memo(function ProviderCard({ provider, es, onPress }: { provider: Provider; es: boolean; onPress: () => void }) {
   const isCompany = provider.role === 'company';
   const roleLabel = isCompany
     ? (es ? 'Empresa de Limpieza' : 'Cleaning Company')
@@ -123,7 +124,7 @@ function ProviderCard({ provider, es, onPress }: { provider: Provider; es: boole
       </View>
     </TouchableOpacity>
   );
-}
+});
 
 export default function BrowseProviders() {
   const { t, lang } = useLang();
@@ -236,6 +237,14 @@ export default function BrowseProviders() {
       )
     : providers;
 
+  const renderItem = useCallback(({ item }: { item: Provider }) => (
+    <ProviderCard
+      provider={item}
+      es={es}
+      onPress={() => router.push({ pathname: '/(client)/provider-detail', params: { id: item.id } } as any)}
+    />
+  ), [es, router]);
+
   return (
     <ScreenWrapper>
       <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
@@ -276,7 +285,9 @@ export default function BrowseProviders() {
       </View>
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 48 }} color={C.accent} />
+        <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
+          <SkeletonList count={5} />
+        </View>
       ) : filtered.length === 0 ? (
         <EmptyState
           title={query.length > 0 ? t('common.noResults') : t('client.noProvidersYet')}
@@ -289,13 +300,7 @@ export default function BrowseProviders() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <ProviderCard
-              provider={item}
-              es={es}
-              onPress={() => router.push({ pathname: '/(client)/provider-detail', params: { id: item.id } } as any)}
-            />
-          )}
+          renderItem={renderItem}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
           ListFooterComponent={

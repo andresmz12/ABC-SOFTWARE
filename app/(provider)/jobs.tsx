@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useShallow } from 'zustand/react/shallow';
 import JobCard from '@/components/cards/JobCard';
 import EmptyState from '@/components/ui/EmptyState';
 import { useAuthStore } from '@/store/authStore';
@@ -16,11 +17,20 @@ export default function ProviderJobs() {
   const [activeTab, setActiveTab] = useState<Tab>('applied');
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user } = useAuthStore(useShallow((s) => ({ user: s.user })));
   const { lang } = useLang();
   const es = lang === 'es';
   const isPending = user?.status === 'pending';
-  const { appliedJobs, activeJobs, completedJobs, fetchMyJobs, loading, rejectedJobIds } = useJobStore();
+  const { appliedJobs, activeJobs, completedJobs, fetchMyJobs, loading, rejectedJobIds } = useJobStore(
+    useShallow((s) => ({
+      appliedJobs: s.appliedJobs,
+      activeJobs: s.activeJobs,
+      completedJobs: s.completedJobs,
+      fetchMyJobs: s.fetchMyJobs,
+      loading: s.loading,
+      rejectedJobIds: s.rejectedJobIds,
+    })),
+  );
 
   const TAB_LABELS: Record<Tab, string> = es
     ? { applied: 'Aplicados', active: 'Activos', completed: 'Completados' }
@@ -43,6 +53,34 @@ export default function ProviderJobs() {
   };
 
   const jobs = tabData[activeTab];
+
+  const renderItem = useCallback(({ item }: { item: JobRequest }) => {
+    const isRejected = activeTab === 'applied' && rejectedJobIds.includes(item.id);
+    return (
+      <View>
+        <JobCard
+          job={item}
+          onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+        />
+        {isRejected && (
+          <View style={{ marginTop: -6, marginBottom: 6, paddingHorizontal: 20, flexDirection: 'row' }}>
+            <View style={{
+              backgroundColor: '#2d0808',
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderWidth: 1,
+              borderColor: C.danger,
+            }}>
+              <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Rechazado' : 'Rejected'}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }, [activeTab, rejectedJobIds, router, es]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -148,33 +186,7 @@ export default function ProviderJobs() {
             <FlatList
               data={jobs}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => {
-                const isRejected = activeTab === 'applied' && rejectedJobIds.includes(item.id);
-                return (
-                  <View>
-                    <JobCard
-                      job={item}
-                      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-                    />
-                    {isRejected && (
-                      <View style={{ marginTop: -6, marginBottom: 6, paddingHorizontal: 20, flexDirection: 'row' }}>
-                        <View style={{
-                          backgroundColor: '#2d0808',
-                          borderRadius: 6,
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderWidth: 1,
-                          borderColor: C.danger,
-                        }}>
-                          <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
-                            {es ? 'Rechazado' : 'Rejected'}
-                          </Text>
-                        </View>
-                      </View>
-                    )}
-                  </View>
-                );
-              }}
+              renderItem={renderItem}
               contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
               showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
