@@ -233,8 +233,38 @@ export default function AdminDocuments() {
     const { error } = await supabase.from('documents').update({ status }).eq('id', id);
     if (error) {
       Alert.alert('Error', error.message);
-    } else {
-      setDocs((prev) => prev.map((d) => d.id === id ? { ...d, status } : d));
+      return;
+    }
+
+    const updated = docs.map((d) => d.id === id ? { ...d, status } : d);
+    setDocs(updated);
+
+    // When approving a doc, check if ALL docs for this user are now approved.
+    // If so, promote the provider to 'approved' and send a notification.
+    if (status === 'approved') {
+      const targetDoc = docs.find((d) => d.id === id);
+      if (!targetDoc) return;
+      const userId = targetDoc.user_id;
+      const userDocs = updated.filter((d) => d.user_id === userId);
+      const allApproved = userDocs.length > 0 && userDocs.every((d) => d.status === 'approved');
+      if (allApproved) {
+        const { error: userErr } = await supabase
+          .from('users')
+          .update({ status: 'approved' })
+          .eq('id', userId)
+          .eq('status', 'pending'); // only promote if still pending
+        if (!userErr) {
+          await supabase.from('notifications').insert({
+            user_id: userId,
+            title_en: 'Account Approved',
+            title_es: 'Cuenta Aprobada',
+            body_en: 'All your documents have been approved. Your account is now active and you can start accepting jobs.',
+            body_es: 'Todos tus documentos han sido aprobados. Tu cuenta está activa y ya puedes comenzar a aceptar trabajos.',
+            type: 'account_update',
+            read: false,
+          });
+        }
+      }
     }
   };
 

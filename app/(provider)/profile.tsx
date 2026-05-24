@@ -148,6 +148,13 @@ export default function ProviderProfile() {
       );
       return;
     }
+    if (!editCity) {
+      Alert.alert(
+        es ? 'Campo requerido' : 'Required field',
+        es ? 'Por favor selecciona una ciudad.' : 'Please select a city.',
+      );
+      return;
+    }
     setSaving(true);
     try {
       const table = user!.role === 'company' ? 'companies' : 'independents';

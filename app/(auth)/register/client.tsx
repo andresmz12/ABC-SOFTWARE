@@ -21,6 +21,7 @@ const schema = z.object({
   password: z.string().min(8, 'Min 8 characters'),
   phone:    z.string().min(7, 'Required'),
   country:  z.enum(['usa', 'colombia']),
+  address:  z.string().min(5, 'Required'),
   city:     z.string().min(2, 'Required'),
   zip:      z.string().min(3, 'Required'),
 });
@@ -71,7 +72,7 @@ export default function ClientRegister() {
     }
     const clientResult = await supabase.from('clients').insert({
       user_id: authData.user.id, full_name: data.fullName, phone: data.phone,
-      address: '', city: data.city, state: clientState, zip: data.zip, country: data.country,
+      address: data.address, city: data.city, state: clientState, zip: data.zip, country: data.country,
     });
     console.log('insert result:', clientResult);
     if (clientResult.error) {
@@ -132,6 +133,10 @@ export default function ClientRegister() {
 
           {step === 2 && (
             <>
+              <Controller control={control} name="address" render={({ field: { onChange, value } }) => (
+                <Input label={es ? 'Dirección' : 'Street Address'} value={value} onChangeText={onChange} iconName="map-pin"
+                  placeholder={es ? 'Calle 50 #45-30' : '123 Main St'} error={errors.address?.message} />
+              )} />
               <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
                 {es ? 'País' : 'Country'}
               </Text>
@@ -177,7 +182,7 @@ export default function ClientRegister() {
                     );
                     return;
                   }
-                  const ok = await trigger(['country', 'city', 'zip']);
+                  const ok = await trigger(['address', 'country', 'city', 'zip']);
                   if (ok) setStep(3);
                 }} />
               </View>

@@ -40,6 +40,15 @@ export default function CompanyStep4() {
       const userId = authData.user?.id;
       if (!userId) throw new Error('No user ID returned from sign up');
 
+      // Poll until the trigger-created users row is available (up to 3 s)
+      let usersRow: { id: string } | null = null;
+      for (let attempt = 0; attempt < 6; attempt++) {
+        await new Promise((r) => setTimeout(r, 500));
+        const { data } = await supabase.from('users').select('id').eq('id', userId).single();
+        if (data) { usersRow = data; break; }
+      }
+      if (!usersRow) throw new Error(isUSA ? 'Account setup timed out. Please try again.' : 'El registro tardó demasiado. Inténtalo de nuevo.');
+
       const city   = formData.city ?? '';
       const state  = formData.stateOrDept ?? formData.state ?? '';
       const zip    = formData.zip ?? '';
@@ -64,7 +73,6 @@ export default function CompanyStep4() {
           provider_id: userId,
           provider_type: 'company' as const,
           state: areaCode,
-          city: '',
         }));
         const { error: areasError } = await supabase.from('service_areas').insert(areaRows);
         if (areasError) throw areasError;

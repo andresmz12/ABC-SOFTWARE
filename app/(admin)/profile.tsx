@@ -72,6 +72,9 @@ export default function AdminProfile() {
       await initialize();
       router.replace(ROLE_MAP[role].route as any);
     } catch (e: any) {
+      // Re-sync auth state to ensure admin is never left in a signed-out / broken state
+      // if the test-account login failed or the session was somehow disturbed.
+      await initialize().catch(() => {});
       Alert.alert(es ? 'Error de Login' : 'Login Failed', e.message ?? 'Check credentials and try again.');
     } finally {
       setLoggingInAs(null);

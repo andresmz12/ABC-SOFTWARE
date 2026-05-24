@@ -103,12 +103,13 @@ export async function fetchJobBids(jobRequestId: string): Promise<BidWithProvide
 }
 
 export async function acceptBid(applicationId: string, jobRequestId: string): Promise<void> {
-  const [acceptRes, , jobRes] = await Promise.all([
+  const [acceptRes, rejectRes, jobRes] = await Promise.all([
     supabase.from('job_applications').update({ status: 'accepted' }).eq('id', applicationId),
     supabase.from('job_applications').update({ status: 'rejected' }).eq('job_request_id', jobRequestId).neq('id', applicationId),
     supabase.from('job_requests').update({ status: 'in_progress' }).eq('id', jobRequestId),
   ]);
   if (acceptRes.error) throw acceptRes.error;
+  if (rejectRes.error) console.error('[acceptBid] bulk-reject failed:', rejectRes.error);
   if (jobRes.error) throw jobRes.error;
 }
 
@@ -164,7 +165,13 @@ export async function fetchProviderJobs(providerId: string): Promise<{
     .filter((a) => a.status === 'pending' || a.status === 'rejected')
     .map((a) => jobMap[a.job_request_id])
     .filter(Boolean) as JobRequest[];
-  const active    = (jobs ?? []).filter((j) => j.status === 'in_progress');
+
+  // Only show jobs where THIS provider's application was accepted (not just any in_progress job)
+  const active = apps
+    .filter((a) => a.status === 'accepted')
+    .map((a) => jobMap[a.job_request_id])
+    .filter(Boolean) as JobRequest[];
+
   const completed = (jobs ?? []).filter((j) => j.status === 'completed');
 
   return { applied, active, completed };

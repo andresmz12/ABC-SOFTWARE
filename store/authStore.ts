@@ -13,6 +13,9 @@ interface AuthState {
   initialize: () => Promise<void>;
 }
 
+// Guard so we only start one listener regardless of how many times initialize() is called.
+let authListenerStarted = false;
+
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
   session: null,
@@ -25,6 +28,20 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, session: null });
   },
   initialize: async () => {
+    // Subscribe to auth state changes once — keeps session in sync with token
+    // refreshes and handles remote sign-out automatically.
+    if (!authListenerStarted) {
+      authListenerStarted = true;
+      supabase.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'TOKEN_REFRESHED' && session) {
+          // Silently update the session reference so API calls keep working.
+          set({ session });
+        } else if (event === 'SIGNED_OUT') {
+          set({ user: null, session: null });
+        }
+      });
+    }
+
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       const { data: userData } = await supabase

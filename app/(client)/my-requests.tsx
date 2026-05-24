@@ -137,13 +137,29 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
     }
     if (hasError) return;
 
+    const hoursNum = parseFloat(estimatedHours);
+    if (isNaN(hoursNum) || hoursNum <= 0) {
+      Alert.alert(
+        es ? 'Horas inválidas' : 'Invalid hours',
+        es ? 'Ingresa un número válido de horas mayor a 0.' : 'Please enter a valid number of hours greater than 0.',
+      );
+      return;
+    }
+    const budgetNum = parseFloat(budget.replace(/[^0-9.]/g, ''));
+    if (isNaN(budgetNum) || budgetNum <= 0) {
+      Alert.alert(
+        es ? 'Presupuesto inválido' : 'Invalid budget',
+        es ? 'Ingresa un presupuesto válido mayor a 0.' : 'Please enter a valid budget greater than 0.',
+      );
+      return;
+    }
+
     setSaving(true);
     try {
-      const budgetNum = parseFloat(budget.replace(/[^0-9.]/g, ''));
       const updateData: Record<string, unknown> = {
         scheduled_date: isoDate!,
         scheduled_time: isoTime!,
-        estimated_hours: parseFloat(estimatedHours),
+        estimated_hours: hoursNum,
         description: description || null,
       };
       if (isColombia) {

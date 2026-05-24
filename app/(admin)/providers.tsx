@@ -184,9 +184,23 @@ export default function AdminProviders() {
             const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', id);
             if (error) {
               Alert.alert('Error', error.message);
-            } else {
-              setProviders((prev) => prev.map((p) => p.id === id ? { ...p, status: newStatus } : p));
+              return;
             }
+            setProviders((prev) => prev.map((p) => p.id === id ? { ...p, status: newStatus } : p));
+            // Notify the provider
+            await supabase.from('notifications').insert({
+              user_id: id,
+              title_en: isApprove ? 'Account Approved' : 'Application Not Approved',
+              title_es: isApprove ? 'Cuenta Aprobada' : 'Solicitud No Aprobada',
+              body_en: isApprove
+                ? 'Your account has been approved. You can now browse and apply to jobs.'
+                : 'Your application was not approved. Please review your documents and resubmit.',
+              body_es: isApprove
+                ? 'Tu cuenta ha sido aprobada. Ya puedes explorar y aplicar a trabajos.'
+                : 'Tu solicitud no fue aprobada. Por favor revisa tus documentos y vuelve a enviar.',
+              type: 'account_update',
+              read: false,
+            });
           },
         },
       ],
