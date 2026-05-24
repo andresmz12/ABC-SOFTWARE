@@ -74,6 +74,11 @@ export default function ClientRegister() {
       address: '', city: data.city, state: clientState, zip: data.zip, country: data.country,
     });
     console.log('insert result:', clientResult);
+    if (clientResult.error) {
+      Alert.alert('Error', clientResult.error.message ?? (es ? 'Error al guardar perfil.' : 'Failed to save profile.'));
+      setLoading(false);
+      return;
+    }
     await initialize();
     setLoading(false);
     router.replace('/(client)/home');
