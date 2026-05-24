@@ -58,7 +58,30 @@ export async function fetchOpenJobsForProvider(
     console.error('[fetchOpenJobsForProvider] query failed:', error);
     throw error;
   }
-  return data ?? [];
+
+  const jobs = data ?? [];
+  if (jobs.length === 0) return jobs;
+
+  // Feed visibility rule: show a job to a provider if either:
+  //   (a) the provider has already applied (they can see their "Applied" badge), OR
+  //   (b) no one has applied yet (so the job is still up for grabs)
+  // Once ANY other provider applies, the job disappears from other providers' feeds.
+  const jobIds = jobs.map((j) => j.id);
+  const { data: allApps } = await supabase
+    .from('job_applications')
+    .select('job_request_id, provider_id')
+    .in('job_request_id', jobIds);
+
+  const myAppliedJobIds = new Set<string>(
+    (allApps ?? []).filter((a) => a.provider_id === providerId).map((a) => a.job_request_id),
+  );
+  const jobsWithOtherApplicants = new Set<string>(
+    (allApps ?? []).filter((a) => a.provider_id !== providerId).map((a) => a.job_request_id),
+  );
+
+  return jobs.filter((job) =>
+    myAppliedJobIds.has(job.id) || !jobsWithOtherApplicants.has(job.id),
+  );
 }
 
 export interface BidWithProvider {
@@ -100,41 +123,81 @@ export async function fetchJobBids(jobRequestId: string): Promise<BidWithProvide
 }
 
 export async function acceptBid(applicationId: string, jobRequestId: string): Promise<void> {
-  // Fetch application + job details concurrently (needed for notification)
-  const [appRes, jobDetailsRes] = await Promise.all([
+  // Fetch application + job details + losing applicants concurrently
+  const [appRes, jobDetailsRes, losingAppsRes] = await Promise.all([
     supabase.from('job_applications').select('provider_id').eq('id', applicationId).single(),
-    supabase.from('job_requests').select('service_type, city').eq('id', jobRequestId).single(),
+    supabase.from('job_requests').select('service_type, city, client_id').eq('id', jobRequestId).single(),
+    supabase.from('job_applications').select('provider_id').eq('job_request_id', jobRequestId).neq('id', applicationId),
   ]);
 
   const [acceptRes, rejectRes, jobRes] = await Promise.all([
     supabase.from('job_applications').update({ status: 'accepted' }).eq('id', applicationId),
     supabase.from('job_applications').update({ status: 'rejected' }).eq('job_request_id', jobRequestId).neq('id', applicationId),
-    supabase.from('job_requests').update({ status: 'in_progress' }).eq('id', jobRequestId),
+    supabase.from('job_requests').update({ status: 'accepted' }).eq('id', jobRequestId),
   ]);
   if (acceptRes.error) throw acceptRes.error;
   if (rejectRes.error) console.error('[acceptBid] bulk-reject failed:', rejectRes.error);
   if (jobRes.error) throw jobRes.error;
 
-  // Notify the winning provider
-  if (appRes.data?.provider_id && jobDetailsRes.data) {
-    const { provider_id } = appRes.data;
-    const { service_type, city } = jobDetailsRes.data;
-    const cityEn = city ? ` in ${city}` : '';
-    const cityEs = city ? ` en ${city}` : '';
-    const serviceEn = service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning';
-    const serviceEs = service_type === 'commercial' ? 'Limpieza Comercial' : 'Limpieza Residencial';
+  if (!appRes.data?.provider_id || !jobDetailsRes.data) return;
 
-    const { error: notifErr } = await supabase.from('notifications').insert({
+  const { provider_id } = appRes.data;
+  const { service_type, city, client_id } = jobDetailsRes.data;
+  const cityEn = city ? ` in ${city}` : '';
+  const cityEs = city ? ` en ${city}` : '';
+  const serviceEn = service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning';
+  const serviceEs = service_type === 'commercial' ? 'Limpieza Comercial' : 'Limpieza Residencial';
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const notifPromises: PromiseLike<{ error: any }>[] = [
+    // Notify the winning provider
+    supabase.from('notifications').insert({
       user_id: provider_id,
       title_en: 'Bid Accepted!',
       title_es: '¡Oferta Aceptada!',
-      body_en: `Your bid for ${serviceEn}${cityEn} was accepted. The client is ready to start!`,
-      body_es: `Tu oferta para ${serviceEs}${cityEs} fue aceptada. ¡El cliente está listo para comenzar!`,
+      body_en: `Your bid for ${serviceEn}${cityEn} was accepted. Prepare for the service!`,
+      body_es: `Tu oferta para ${serviceEs}${cityEs} fue aceptada. ¡Prepárate para el servicio!`,
       type: 'bid_accepted',
       data: { job_id: jobRequestId },
-    });
-    if (notifErr) console.error('[acceptBid] notification insert failed:', notifErr);
+    }),
+  ];
+
+  // Notify the client confirming acceptance
+  if (client_id) {
+    notifPromises.push(
+      supabase.from('notifications').insert({
+        user_id: client_id,
+        title_en: 'Offer Accepted',
+        title_es: 'Oferta Aceptada',
+        body_en: `You have accepted a bid for ${serviceEn}${cityEn}. The provider will be in touch soon.`,
+        body_es: `Has aceptado una oferta para ${serviceEs}${cityEs}. El proveedor se pondrá en contacto pronto.`,
+        type: 'bid_accepted',
+        data: { job_id: jobRequestId },
+      }) as PromiseLike<{ error: any }>,
+    );
   }
+
+  // Notify all losing providers
+  const losingProviderIds = (losingAppsRes.data ?? [])
+    .map((a) => a.provider_id)
+    .filter((id) => id !== provider_id);
+  if (losingProviderIds.length > 0) {
+    const rejectedNotifs = losingProviderIds.map((pid) => ({
+      user_id: pid,
+      title_en: 'Bid Not Selected',
+      title_es: 'Oferta No Seleccionada',
+      body_en: `Your offer for ${serviceEn}${cityEn} was not selected this time. Keep looking for new opportunities!`,
+      body_es: `Tu oferta para ${serviceEs}${cityEs} no fue seleccionada esta vez. ¡Sigue buscando nuevas oportunidades!`,
+      type: 'bid_rejected',
+      data: { job_id: jobRequestId },
+    }));
+    notifPromises.push(supabase.from('notifications').insert(rejectedNotifs) as PromiseLike<{ error: any }>);
+  }
+
+  const results = await Promise.all(notifPromises);
+  results.forEach((r, i) => {
+    if (r.error) console.error(`[acceptBid] notification #${i} failed:`, r.error);
+  });
 }
 
 export async function fetchClientJobs(clientId: string): Promise<{

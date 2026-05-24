@@ -4,7 +4,7 @@ export type Country = 'usa' | 'colombia';
 export type Language = 'en' | 'es';
 export type ServiceType = 'commercial' | 'residential' | 'both';
 export type DocStatus = 'pending' | 'approved' | 'rejected';
-export type JobStatus = 'open' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
+export type JobStatus = 'open' | 'accepted' | 'in_progress' | 'completed' | 'cancelled' | 'expired';
 export type ApplicationStatus = 'pending' | 'accepted' | 'rejected' | 'withdrawn';
 export type PaymentStatus = 'held' | 'released' | 'refunded';
 export type Currency = 'usd' | 'cop';
@@ -111,6 +111,8 @@ export interface JobRequest {
   photos?: string[];
   status: JobStatus;
   expires_at?: string;
+  frequency?: string;
+  min_staff?: number;
   created_at: string;
 }
 

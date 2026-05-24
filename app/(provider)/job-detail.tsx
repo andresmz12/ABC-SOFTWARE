@@ -13,6 +13,16 @@ import Input from '@/components/ui/Input';
 import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 
+/** Format a bid amount as the user types, using the same thousand-separator
+ *  convention as the budget input (dots for Colombia, commas for USA). */
+function formatBidInput(val: string, isColombia: boolean): string {
+  const num = val.replace(/\D/g, '');
+  if (!num) return '';
+  return isColombia
+    ? num.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+    : num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 function countdown(iso: string, es: boolean): { text: string; urgent: boolean } {
   const ms = new Date(iso).getTime() - Date.now();
   if (ms <= 0) return { text: es ? 'Expirado' : 'Expired', urgent: true };
@@ -69,7 +79,7 @@ export default function JobDetail() {
       );
       return;
     }
-    const amount = parseFloat(bidAmount.replace(/[^0-9.]/g, ''));
+    const amount = parseInt(bidAmount.replace(/\D/g, ''), 10);
     if (isNaN(amount) || amount <= 0) {
       Alert.alert(
         es ? 'Monto inválido' : 'Invalid amount',
@@ -373,9 +383,9 @@ export default function JobDetail() {
 
                 <Input
                   label={`${es ? 'Tu oferta' : 'Your bid'} (${isColombia ? 'COP' : 'USD'})`}
-                  placeholder={isColombia ? 'Ej: 350000' : 'e.g. 150'}
+                  placeholder={isColombia ? 'Ej: 350.000' : 'e.g. 1,500'}
                   value={bidAmount}
-                  onChangeText={setBidAmount}
+                  onChangeText={(v) => setBidAmount(formatBidInput(v, isColombia))}
                   keyboardType="decimal-pad"
                   iconName="dollar-sign"
                 />

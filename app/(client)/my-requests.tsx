@@ -430,6 +430,24 @@ const RequestCard = React.memo(function RequestCard({
               </TouchableOpacity>
             </View>
           </>
+        ) : req.status === 'accepted' ? (
+          /* Provider selected — show "Provider Assigned" badge + View Bids link */
+          <>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="user-check" size={13} color={C.success} style={{ marginRight: 4 }} />
+                <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Proveedor Asignado' : 'Provider Assigned'}
+                </Text>
+              </View>
+              <TouchableOpacity onPress={onViewBids} style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="tag" size={13} color={C.accent} style={{ marginRight: 4 }} />
+                <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Ver' : 'View'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </>
         ) : (
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
@@ -495,7 +513,8 @@ export default function MyRequests() {
       const allJobs = (data ?? []) as JobRequest[];
       setJobs({
         open:        allJobs.filter((j) => j.status === 'open'),
-        in_progress: allJobs.filter((j) => j.status === 'in_progress'),
+        // 'accepted' = client chose a provider; 'in_progress' = work underway
+        in_progress: allJobs.filter((j) => j.status === 'accepted' || j.status === 'in_progress'),
         completed:   allJobs.filter((j) => j.status === 'completed' || j.status === 'cancelled'),
         expired:     allJobs.filter((j) => j.status === 'expired'),
       });

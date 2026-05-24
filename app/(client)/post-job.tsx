@@ -13,6 +13,10 @@ import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
+import { US_FREQUENCY_OPTIONS, CO_FREQUENCY_OPTIONS } from '@/lib/countryData';
+
+const DAYS_EN = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const;
+const DAYS_ES = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
 
 function formatBudget(val: string, isColombia: boolean): string {
   const num = val.replace(/\D/g, '');
@@ -119,6 +123,10 @@ export default function PostJob() {
   const [county, setCounty] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // Commercial-only fields
+  const [frequency, setFrequency] = useState<string>('one_time');
+  const [customDays, setCustomDays] = useState<string[]>([]);
+  const [minStaff, setMinStaff] = useState<string>('1');
 
   const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -221,6 +229,14 @@ export default function PostJob() {
         insertData.budget_usd = budgetNum;
       }
 
+      // Commercial-only fields
+      if (data.serviceType === 'commercial') {
+        const freqValue = frequency === 'custom' ? `custom:${customDays.join(',')}` : frequency;
+        insertData.frequency = freqValue;
+        const staffNum = parseInt(minStaff, 10);
+        if (!isNaN(staffNum) && staffNum > 0) insertData.min_staff = staffNum;
+      }
+
       const { data: newJob, error } = await supabase
         .from('job_requests')
         .insert(insertData)
@@ -231,10 +247,10 @@ export default function PostJob() {
 
       addJob(newJob);
       Alert.alert(
-        es ? '¡Publicado!' : 'Job Posted!',
+        es ? '¡Trabajo publicado!' : 'Job Posted!',
         es
-          ? 'Tu solicitud ha sido publicada. Los proveedores cercanos podrán aplicar.'
-          : 'Your job has been posted. Providers in your area can now apply.',
+          ? '¡Trabajo publicado! Los proveedores en tu área recibirán una notificación.'
+          : 'Job posted! Providers in your area will be notified.',
         [{
           text: 'OK',
           onPress: () => {
@@ -245,7 +261,10 @@ export default function PostJob() {
             setAmpm('AM');
             setPhotos([]);
             setCounty('');
-            router.replace('/(client)/home' as any);
+            setFrequency('one_time');
+            setCustomDays([]);
+            setMinStaff('1');
+            router.replace('/(client)/my-requests' as any);
           },
         }],
       );
@@ -303,6 +322,98 @@ export default function PostJob() {
               );
             })}
           </View>
+
+          {/* Commercial-only fields */}
+          {serviceType === 'commercial' && (
+            <>
+              <SectionLabel text={es ? 'Frecuencia del Servicio' : 'Service Frequency'} />
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {(isColombia ? CO_FREQUENCY_OPTIONS : US_FREQUENCY_OPTIONS).concat({ value: 'custom', label: es ? 'Días personalizados' : 'Custom days' }).map((opt) => {
+                  const isActive = frequency === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.value}
+                      onPress={() => { setFrequency(opt.value); if (opt.value !== 'custom') setCustomDays([]); }}
+                      style={{
+                        paddingHorizontal: 14,
+                        paddingVertical: 8,
+                        borderRadius: 20,
+                        borderWidth: 1.5,
+                        borderColor: isActive ? C.accent : C.line,
+                        backgroundColor: isActive ? '#E0F7FA' : C.surface,
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ fontSize: 13, fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular', color: isActive ? C.accent : C.textSecondary }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {frequency === 'custom' && (
+                <>
+                  <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
+                    {es ? 'Selecciona los días:' : 'Select days:'}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+                    {(es ? DAYS_ES : DAYS_EN).map((day, idx) => {
+                      const dayKey = DAYS_EN[idx];
+                      const isActive = customDays.includes(dayKey);
+                      return (
+                        <TouchableOpacity
+                          key={dayKey}
+                          onPress={() => setCustomDays((prev) => isActive ? prev.filter((d) => d !== dayKey) : [...prev, dayKey])}
+                          style={{
+                            flex: 1,
+                            paddingVertical: 8,
+                            borderRadius: 8,
+                            borderWidth: 1.5,
+                            borderColor: isActive ? C.accent : C.line,
+                            backgroundColor: isActive ? '#E0F7FA' : C.surface,
+                            alignItems: 'center',
+                          }}
+                          activeOpacity={0.75}
+                        >
+                          <Text style={{ fontSize: 11, fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular', color: isActive ? C.accent : C.textSecondary }}>
+                            {day}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              )}
+
+              <SectionLabel text={es ? 'Personal mínimo requerido' : 'Minimum staff required'} />
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {['1', '2', '3', '4', '5+'].map((n) => {
+                  const isActive = minStaff === n;
+                  return (
+                    <TouchableOpacity
+                      key={n}
+                      onPress={() => setMinStaff(n)}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: isActive ? C.accent : C.line,
+                        backgroundColor: isActive ? '#E0F7FA' : C.surface,
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ fontSize: 14, fontFamily: isActive ? 'Inter_700Bold' : 'Inter_400Regular', color: isActive ? C.accent : C.textSecondary }}>
+                        {n}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </>
+          )}
 
           {/* Location */}
           <SectionLabel text={t('jobs.location')} />

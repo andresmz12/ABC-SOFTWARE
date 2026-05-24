@@ -63,7 +63,23 @@ export default function JobOffers() {
             setAccepting(bid.id);
             try {
               await acceptBid(bid.id, job.id);
-              router.back();
+              // Update local state so the accepted bid shows its badge immediately
+              setBids((prev) =>
+                prev.map((b) =>
+                  b.id === bid.id
+                    ? { ...b, status: 'accepted' }
+                    : { ...b, status: b.status === 'pending' ? 'rejected' : b.status },
+                ),
+              );
+              // Update local job status
+              setJob((prev) => prev ? { ...prev, status: 'accepted' as any } : prev);
+              Alert.alert(
+                es ? '¡Oferta aceptada!' : 'Offer accepted!',
+                es
+                  ? '¡Trabajo en camino! El proveedor recibirá una notificación.'
+                  : 'Job confirmed! The provider will be notified.',
+                [{ text: 'OK', onPress: () => router.replace('/(client)/my-requests' as any) }],
+              );
             } catch (e: any) {
               Alert.alert('Error', e.message ?? 'Failed to accept bid.');
             } finally {

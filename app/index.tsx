@@ -46,20 +46,25 @@ export default function Index() {
   }, [loading]);
 
   // Redirect once auth state is resolved.
+  // A short delay lets Zustand state settle across all subscribers before
+  // navigation fires — prevents wrong-screen flashes on F5 reload.
   useEffect(() => {
     if (loading) return;
-    if (!user) {
-      router.replace('/(auth)/welcome');
-    } else if (user.role === 'client') {
-      router.replace('/(client)/home');
-    } else if (user.role === 'company' || user.role === 'independent') {
-      router.replace('/(provider)/home');
-    } else if (user.role === 'admin') {
-      router.replace('/(admin)/dashboard');
-    } else {
-      // Unknown role — fall back to welcome rather than staying on the spinner.
-      router.replace('/(auth)/welcome');
-    }
+    const tid = setTimeout(() => {
+      if (!user) {
+        router.replace('/(auth)/welcome');
+      } else if (user.role === 'client') {
+        router.replace('/(client)/home');
+      } else if (user.role === 'company' || user.role === 'independent') {
+        router.replace('/(provider)/home');
+      } else if (user.role === 'admin') {
+        router.replace('/(admin)/dashboard');
+      } else {
+        // Unknown role — fall back to welcome rather than staying on the spinner.
+        router.replace('/(auth)/welcome');
+      }
+    }, 100);
+    return () => clearTimeout(tid);
   }, [user, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
