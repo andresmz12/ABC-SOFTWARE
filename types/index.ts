@@ -17,7 +17,7 @@ export interface User {
   status: UserStatus;
   country: Country;
   preferred_language: Language;
-  push_token?: string;
+  push_token?: string | null;
   created_at: string;
 }
 
