@@ -402,7 +402,7 @@ const RequestCard = React.memo(function RequestCard({
                 </Text>
               </TouchableOpacity>
               <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-                {req.estimated_hours}h
+                {req.estimated_hours ?? '—'}h
               </Text>
             </View>
             {/* Edit / Cancel row */}
@@ -448,7 +448,7 @@ const RequestCard = React.memo(function RequestCard({
               </Text>
             </View>
             <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-              {req.estimated_hours}h
+              {req.estimated_hours ?? '—'}h
             </Text>
           </View>
         )}
