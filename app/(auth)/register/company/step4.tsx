@@ -104,8 +104,9 @@ export default function CompanyStep4() {
       }
 
       reset();
-      await initialize();
-      router.replace('/(provider)/home');
+      // Do NOT initialize() here — the email is not confirmed yet.
+      // Redirect to email confirmation screen.
+      router.replace({ pathname: '/(auth)/confirm-email', params: { email: formData.email } } as any);
     } catch (e: any) {
       Alert.alert(
         isUSA ? 'Registration Error' : 'Error de Registro',

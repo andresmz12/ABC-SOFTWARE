@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
+import RatingModal from '@/components/ui/RatingModal';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -316,6 +317,7 @@ const RequestCard = React.memo(function RequestCard({
   onViewBids,
   onEdit,
   onCancel,
+  onRate,
 }: {
   req: JobRequest;
   isColombia: boolean;
@@ -323,6 +325,7 @@ const RequestCard = React.memo(function RequestCard({
   onViewBids: () => void;
   onEdit: () => void;
   onCancel: () => void;
+  onRate?: () => void;
 }) {
   const isCommercial = req.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -465,9 +468,19 @@ const RequestCard = React.memo(function RequestCard({
                   : (es ? 'Completada' : 'Completed')}
               </Text>
             </View>
-            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-              {req.estimated_hours ?? '—'}h
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              {req.status === 'completed' && onRate && (
+                <TouchableOpacity onPress={onRate} style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  <Feather name="star" size={13} color="#F59E0B" />
+                  <Text style={{ color: '#F59E0B', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Calificar' : 'Rate'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                {req.estimated_hours ?? '—'}h
+              </Text>
+            </View>
           </View>
         )}
       </View>
@@ -498,6 +511,7 @@ export default function MyRequests() {
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [editJob, setEditJob] = useState<JobRequest | null>(null);
+  const [ratingJob, setRatingJob] = useState<{ jobId: string; providerId: string } | null>(null);
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
@@ -565,6 +579,18 @@ export default function MyRequests() {
       onViewBids={() => router.push({ pathname: '/(client)/job-offers', params: { jobId: item.id } } as any)}
       onEdit={() => setEditJob(item)}
       onCancel={() => handleCancel(item)}
+      onRate={item.status === 'completed' ? async () => {
+        // Look up the accepted provider for this job
+        const { data: app } = await supabase
+          .from('job_applications')
+          .select('provider_id')
+          .eq('job_request_id', item.id)
+          .eq('status', 'accepted')
+          .single();
+        if (app?.provider_id) {
+          setRatingJob({ jobId: item.id, providerId: app.provider_id });
+        }
+      } : undefined}
     />
   ), [isColombia, es, router, handleCancel]);
 
@@ -679,6 +705,21 @@ export default function MyRequests() {
         onClose={() => setEditJob(null)}
         onSaved={() => loadJobs()}
       />
+
+      {ratingJob && user?.id && (
+        <RatingModal
+          visible={!!ratingJob}
+          jobId={ratingJob.jobId}
+          clientId={user.id}
+          providerId={ratingJob.providerId}
+          es={es}
+          onClose={() => setRatingJob(null)}
+          onSubmitted={() => {
+            setRatingJob(null);
+            loadJobs();
+          }}
+        />
+      )}
     </View>
   );
 }

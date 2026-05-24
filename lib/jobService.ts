@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { sendPushNotification } from '@/lib/notifications';
 import type { JobRequest, JobApplication, Country } from '@/types';
 
 export async function fetchOpenJobs(country: Country): Promise<JobRequest[]> {
@@ -198,6 +199,66 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
   results.forEach((r, i) => {
     if (r.error) console.error(`[acceptBid] notification #${i} failed:`, r.error);
   });
+
+  // ── Push notifications ──────────────────────────────────────────────────────
+  // Fetch push tokens for winner, client, and losers
+  const allUserIds = [provider_id, ...(client_id ? [client_id] : []), ...losingProviderIds];
+  const { data: userTokens } = await supabase
+    .from('users')
+    .select('id, push_token, preferred_language')
+    .in('id', allUserIds);
+
+  const tokenMap: Record<string, { token: string | null; es: boolean }> = {};
+  (userTokens ?? []).forEach((u: any) => {
+    tokenMap[u.id] = { token: u.push_token, es: u.preferred_language === 'es' };
+  });
+
+  const pushPromises: Promise<void>[] = [];
+
+  // Winner
+  const winner = tokenMap[provider_id];
+  if (winner?.token) {
+    pushPromises.push(sendPushNotification(
+      winner.token,
+      winner.es ? '🎉 ¡Oferta Aceptada!' : '🎉 Bid Accepted!',
+      winner.es
+        ? `Tu oferta para ${serviceEs}${cityEs} fue aceptada.`
+        : `Your bid for ${serviceEn}${cityEn} was accepted.`,
+      { type: 'bid_accepted', jobId: jobRequestId },
+    ));
+  }
+
+  // Client
+  if (client_id) {
+    const cl = tokenMap[client_id];
+    if (cl?.token) {
+      pushPromises.push(sendPushNotification(
+        cl.token,
+        cl.es ? '✅ Proveedor Asignado' : '✅ Provider Assigned',
+        cl.es
+          ? `Has asignado un proveedor para ${serviceEs}${cityEs}.`
+          : `You've assigned a provider for ${serviceEn}${cityEn}.`,
+        { type: 'provider_assigned', jobId: jobRequestId },
+      ));
+    }
+  }
+
+  // Losers
+  for (const pid of losingProviderIds) {
+    const loser = tokenMap[pid];
+    if (loser?.token) {
+      pushPromises.push(sendPushNotification(
+        loser.token,
+        loser.es ? 'ℹ️ Oferta No Seleccionada' : 'ℹ️ Bid Not Selected',
+        loser.es
+          ? `El cliente seleccionó otro proveedor para el trabajo${cityEs}.`
+          : `The client selected another provider for the job${cityEn}.`,
+        { type: 'bid_rejected', jobId: jobRequestId },
+      ));
+    }
+  }
+
+  await Promise.allSettled(pushPromises);
 }
 
 export async function fetchClientJobs(clientId: string): Promise<{

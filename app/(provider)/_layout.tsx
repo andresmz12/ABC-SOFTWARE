@@ -20,12 +20,14 @@ export default function ProviderLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="home"          options={{ title: 'Home',      tabBarIcon: ({ focused }) => <TabIcon name="home"      focused={focused} /> }} />
-      <Tabs.Screen name="jobs"          options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase" focused={focused} /> }} />
-      <Tabs.Screen name="documents"     options={{ title: 'Documents', tabBarIcon: ({ focused }) => <TabIcon name="file-text" focused={focused} /> }} />
-      <Tabs.Screen name="profile"       options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"      focused={focused} /> }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Alerts',    tabBarIcon: ({ focused }) => <TabIcon name="bell"      focused={focused} /> }} />
-      <Tabs.Screen name="job-detail" options={{ href: null }} />
+      <Tabs.Screen name="home"          options={{ title: 'Home',      tabBarIcon: ({ focused }) => <TabIcon name="home"        focused={focused} /> }} />
+      <Tabs.Screen name="jobs"          options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase"  focused={focused} /> }} />
+      <Tabs.Screen name="my-jobs"       options={{ title: 'My Jobs',   tabBarIcon: ({ focused }) => <TabIcon name="list"       focused={focused} /> }} />
+      <Tabs.Screen name="documents"     options={{ title: 'Docs',      tabBarIcon: ({ focused }) => <TabIcon name="file-text"  focused={focused} /> }} />
+      <Tabs.Screen name="analytics"     options={{ title: 'Analytics', tabBarIcon: ({ focused }) => <TabIcon name="bar-chart-2" focused={focused} /> }} />
+      <Tabs.Screen name="profile"       options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"       focused={focused} /> }} />
+      <Tabs.Screen name="notifications" options={{ title: 'Alerts',    tabBarIcon: ({ focused }) => <TabIcon name="bell"       focused={focused} /> }} />
+      <Tabs.Screen name="job-detail"    options={{ href: null }} />
     </Tabs>
   );
 }

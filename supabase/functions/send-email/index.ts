@@ -366,6 +366,95 @@ async function handleWelcome(user: any): Promise<void> {
   await sendEmail(user.email, subject, html);
 }
 
+// ─── Handler: offer rejected → email the losing provider ─────────────────────
+
+async function handleOfferRejected(application: any): Promise<void> {
+  const { data: providerUser } = await supabase
+    .from('users')
+    .select('email, preferred_language')
+    .eq('id', application.provider_id)
+    .single();
+  if (!providerUser) return;
+
+  const { data: job } = await supabase
+    .from('job_requests')
+    .select('city, service_type')
+    .eq('id', application.job_request_id)
+    .single();
+
+  const es = providerUser.preferred_language === 'es';
+  const subject = es
+    ? 'Actualización sobre tu oferta en ProVendor'
+    : 'Update on your ProVendor bid';
+
+  const html = wrap(subject, `
+    <div class="badge">${es ? 'ℹ️ Oferta No Seleccionada' : 'ℹ️ Bid Not Selected'}</div>
+    <h1>${es ? 'El cliente seleccionó otro proveedor' : 'The client selected another provider'}</h1>
+    <p>${es
+      ? `Gracias por tu interés. El cliente eligió otro proveedor para el trabajo${job?.city ? ` en ${job.city}` : ''}.`
+      : `Thank you for your interest. The client chose another provider for the job${job?.city ? ` in ${job.city}` : ''}.`}</p>
+    <hr/>
+    <p>${es
+      ? '¡No te desanimes! Sigue aplicando a nuevos trabajos en tu área.'
+      : "Don't be discouraged! Keep applying to new jobs in your area."}</p>
+  `);
+
+  await sendEmail(providerUser.email, subject, html);
+}
+
+// ─── Handler: job completed → email both client and provider ─────────────────
+
+async function handleJobCompleted(job: any): Promise<void> {
+  // Email the client
+  const { data: client } = await supabase
+    .from('users')
+    .select('email, preferred_language')
+    .eq('id', job.client_id)
+    .single();
+
+  if (client) {
+    const es = client.preferred_language === 'es';
+    const subject = es ? `Trabajo completado en ${job.city}` : `Job completed in ${job.city}`;
+    const html = wrap(subject, `
+      <div class="badge">${es ? '✅ Trabajo Completado' : '✅ Job Completed'}</div>
+      <h1>${es ? '¡Tu servicio fue completado!' : 'Your service has been completed!'}</h1>
+      <p>${es
+        ? `El proveedor ha completado el trabajo de limpieza en <span class="hi">${job.city}</span>. Abre la app para dejar tu calificación.`
+        : `The provider has completed the cleaning job in <span class="hi">${job.city}</span>. Open the app to leave your review.`}</p>
+    `);
+    await sendEmail(client.email, subject, html);
+  }
+
+  // Email the provider
+  const { data: acceptedApp } = await supabase
+    .from('job_applications')
+    .select('provider_id')
+    .eq('job_request_id', job.id)
+    .eq('status', 'accepted')
+    .single();
+
+  if (acceptedApp) {
+    const { data: provider } = await supabase
+      .from('users')
+      .select('email, preferred_language')
+      .eq('id', acceptedApp.provider_id)
+      .single();
+
+    if (provider) {
+      const es = provider.preferred_language === 'es';
+      const subject = es ? `Trabajo completado — ¡Buen trabajo!` : `Job completed — Great work!`;
+      const html = wrap(subject, `
+        <div class="badge">${es ? '🎉 ¡Completado!' : '🎉 Completed!'}</div>
+        <h1>${es ? '¡Buen trabajo!' : 'Great work!'}</h1>
+        <p>${es
+          ? `El trabajo en <span class="hi">${job.city}</span> ha sido marcado como completado. El cliente recibirá una notificación para dejar su calificación.`
+          : `The job in <span class="hi">${job.city}</span> has been marked as completed. The client will receive a notification to leave their review.`}</p>
+      `);
+      await sendEmail(provider.email, subject, html);
+    }
+  }
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -404,6 +493,14 @@ serve(async (req) => {
       }
       case 'welcome': {
         await handleWelcome(data);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      case 'offer_rejected': {
+        await handleOfferRejected(data);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      case 'job_completed': {
+        await handleJobCompleted(data);
         return new Response(JSON.stringify({ ok: true }), { status: 200 });
       }
       default:

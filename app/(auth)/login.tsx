@@ -9,6 +9,7 @@ import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { registerAndSavePushToken } from '@/lib/notifications';
 import Input from '@/components/ui/Input';
 import { C } from '@/constants/theme';
 
@@ -47,6 +48,10 @@ export default function Login() {
     await initialize();
     setLoading(false);
     const { user: loggedInUser } = useAuthStore.getState();
+    if (loggedInUser?.id) {
+      // Register push notifications in background after login — never block the UI
+      registerAndSavePushToken(loggedInUser.id).catch(() => {});
+    }
     if (loggedInUser?.role === 'client') router.replace('/(client)/home');
     else if (loggedInUser?.role === 'company' || loggedInUser?.role === 'independent') router.replace('/(provider)/home');
     else if (loggedInUser?.role === 'admin') router.replace('/(admin)/dashboard');

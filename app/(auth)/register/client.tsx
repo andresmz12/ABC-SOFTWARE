@@ -144,9 +144,9 @@ export default function ClientRegister() {
       }
     }
 
-    await initialize();
+    // Do NOT initialize() here — email is not confirmed yet.
     setLoading(false);
-    router.replace('/(client)/home');
+    router.replace({ pathname: '/(auth)/confirm-email', params: { email: data.email } } as any);
   };
 
   return (

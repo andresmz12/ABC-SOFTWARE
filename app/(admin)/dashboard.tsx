@@ -102,11 +102,11 @@ export default function AdminDashboard() {
       <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
         {es ? 'Acciones Rápidas' : 'Quick Actions'}
       </Text>
-      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 32 }}>
+      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
         {[
-          { icon: 'file-text' as const, label: es ? 'Documentos'  : 'Review Documents', route: '/(admin)/documents' },
-          { icon: 'users' as const,     label: es ? 'Proveedores' : 'View Providers',   route: '/(admin)/providers' },
-          { icon: 'briefcase' as const, label: es ? 'Trabajos'    : 'All Jobs',         route: '/(admin)/jobs' },
+          { icon: 'file-text' as const,     label: es ? 'Documentos'  : 'Review Docs',     route: '/(admin)/documents' },
+          { icon: 'users' as const,          label: es ? 'Proveedores' : 'View Providers',  route: '/(admin)/providers' },
+          { icon: 'briefcase' as const,      label: es ? 'Trabajos'    : 'All Jobs',        route: '/(admin)/jobs' },
         ].map((a) => (
           <TouchableOpacity
             key={a.label}
@@ -130,18 +130,34 @@ export default function AdminDashboard() {
         ))}
       </View>
 
-      {/* Recent activity placeholder */}
-      <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-        {es ? 'Actividad Reciente' : 'Recent Activity'}
-      </Text>
-      <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 16, padding: 24, alignItems: 'center', marginBottom: 40 }}>
-        <Feather name="activity" size={28} color={C.textMuted} />
-        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 12, textAlign: 'center' }}>
-          {es
-            ? 'La actividad aparecerá aquí a medida que los proveedores se registren y se publiquen trabajos.'
-            : 'Activity will appear here as providers register and jobs are posted.'}
-        </Text>
-      </View>
+      {/* Chat quick access */}
+      <TouchableOpacity
+        onPress={() => router.push('/(admin)/chats' as any)}
+        style={{
+          backgroundColor: C.surface,
+          borderWidth: 1,
+          borderColor: C.line,
+          borderRadius: 16,
+          padding: 16,
+          flexDirection: 'row',
+          alignItems: 'center',
+          marginBottom: 32,
+        }}
+        activeOpacity={0.85}
+      >
+        <View style={{ width: 44, height: 44, backgroundColor: `${C.accent}15`, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+          <Feather name="message-square" size={18} color={C.accent} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+            {es ? 'Mensajes de Soporte' : 'Support Messages'}
+          </Text>
+          <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+            {es ? 'Ver todas las conversaciones activas' : 'View all active conversations'}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={18} color={C.textMuted} />
+      </TouchableOpacity>
     </ScreenWrapper>
   );
 }

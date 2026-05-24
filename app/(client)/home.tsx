@@ -292,6 +292,36 @@ export default function ClientHome() {
               <Feather name="chevron-right" size={18} color={C.textMuted} />
             </TouchableOpacity>
 
+            {/* Contact Support */}
+            <TouchableOpacity
+              onPress={() => router.push('/(shared)/chat' as any)}
+              style={{
+                marginHorizontal: 20,
+                backgroundColor: C.surface,
+                borderWidth: 1,
+                borderColor: C.line,
+                borderRadius: 16,
+                padding: 18,
+                flexDirection: 'row',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={{ width: 44, height: 44, backgroundColor: `${C.accent}15`, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
+                <Feather name="message-circle" size={20} color={C.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Contactar Soporte' : 'Contact Support'}
+                </Text>
+                <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                  {es ? '¿Necesitas ayuda? Chatea con nosotros.' : 'Need help? Chat with our team.'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={18} color={C.textMuted} />
+            </TouchableOpacity>
+
           </>
         )}
       </ScrollView>

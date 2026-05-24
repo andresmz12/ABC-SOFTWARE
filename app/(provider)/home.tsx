@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -178,6 +178,37 @@ export default function ProviderHome() {
               iconName="search"
             />
           )
+        }
+        ListFooterComponent={
+          <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+            <TouchableOpacity
+              onPress={() => router.push('/(shared)/chat' as any)}
+              style={{
+                backgroundColor: '#EFF6FF',
+                borderRadius: 14,
+                padding: 14,
+                flexDirection: 'row',
+                alignItems: 'center',
+                borderWidth: 1,
+                borderColor: `${C.accent}30`,
+                marginTop: 8,
+              }}
+              activeOpacity={0.85}
+            >
+              <View style={{ width: 38, height: 38, backgroundColor: `${C.accent}18`, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
+                <Feather name="message-circle" size={18} color={C.accent} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Contactar Soporte' : 'Contact Support'}
+                </Text>
+                <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 1 }}>
+                  {es ? 'Chatea con el equipo ProVendor' : 'Chat with the ProVendor team'}
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={16} color={C.textMuted} />
+            </TouchableOpacity>
+          </View>
         }
       />
     </View>

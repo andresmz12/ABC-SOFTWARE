@@ -179,3 +179,49 @@ export type ProviderBadge =
   | 'insured'
   | 'background_checked'
   | 'top_rated';
+
+// ─── Extended User with geolocation & push token ─────────────────────────────
+
+export interface UserWithGeo extends User {
+  latitude?: number | null;
+  longitude?: number | null;
+  push_token?: string | null;
+}
+
+// ─── Chat & Messages (FASE 2) ─────────────────────────────────────────────────
+
+export interface Chat {
+  id: string;
+  admin_id: string | null;
+  user_id: string;
+  created_at: string;
+}
+
+export interface Message {
+  id: string;
+  chat_id: string;
+  sender_id: string;
+  content: string;
+  read: boolean;
+  created_at: string;
+}
+
+// ─── Reviews (FASE 3) ─────────────────────────────────────────────────────────
+// Replaces the previous Review interface (which used reviewer_id/reviewee_id)
+
+export interface JobReview {
+  id: string;
+  job_id: string;
+  client_id: string;
+  provider_id: string;
+  rating: number;
+  comment?: string | null;
+  created_at: string;
+}
+
+// ─── Extended JobRequest with before/after photos ─────────────────────────────
+
+export interface JobRequestWithPhotos extends JobRequest {
+  photos_before?: string[] | null;
+  photos_after?: string[] | null;
+}

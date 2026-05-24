@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
@@ -9,6 +9,20 @@ import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/context/LanguageContext';
 import { useAuthStore } from '@/store/authStore';
+import * as Location from 'expo-location';
+
+// ─── Haversine distance (km) ──────────────────────────────────────────────────
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLon = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((lat1 * Math.PI) / 180) *
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 const PAGE_SIZE = 10;
 
@@ -24,6 +38,9 @@ interface Provider {
   state: string;
   avgRating: number | null;
   reviewCount: number;
+  latitude?: number | null;
+  longitude?: number | null;
+  distanceKm?: number | null;
 }
 
 const StarRating = React.memo(function StarRating({ rating, count, es }: { rating: number | null; count: number; es: boolean }) {
@@ -53,7 +70,9 @@ const StarRating = React.memo(function StarRating({ rating, count, es }: { ratin
   );
 });
 
-const ProviderCard = React.memo(function ProviderCard({ provider, es, onPress }: { provider: Provider; es: boolean; onPress: () => void }) {
+const ProviderCard = React.memo(function ProviderCard({ provider, es, onPress }: {
+  provider: Provider; es: boolean; onPress: () => void;
+}) {
   const isCompany = provider.role === 'company';
   const roleLabel = isCompany
     ? (es ? 'Empresa de Limpieza' : 'Cleaning Company')
@@ -108,6 +127,14 @@ const ProviderCard = React.memo(function ProviderCard({ provider, es, onPress }:
           </View>
         )}
         <StarRating rating={provider.avgRating} count={provider.reviewCount} es={es} />
+        {provider.distanceKm != null && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
+            <Feather name="navigation" size={10} color={C.accent} style={{ marginRight: 3 }} />
+            <Text style={{ color: C.accent, fontSize: 11, fontFamily: 'Inter_500Medium' }}>
+              ~{provider.distanceKm < 1 ? '<1' : Math.round(provider.distanceKm)} km
+            </Text>
+          </View>
+        )}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <View style={{
@@ -138,12 +165,38 @@ export default function BrowseProviders() {
   const [hasMore, setHasMore] = useState(false);
   const offsetRef = useRef(0);
 
+  // ── Geolocation ─────────────────────────────────────────────────────────────
+  const [userLocation, setUserLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number | null>(null); // null = no filter
+
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') return; // skip on web
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        setUserLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
+
+        // Save to DB for future matching
+        if (user?.id) {
+          await supabase.from('users').update({
+            latitude: loc.coords.latitude,
+            longitude: loc.coords.longitude,
+          }).eq('id', user.id);
+        }
+      } catch {
+        // Location unavailable — continue without it
+      }
+    })();
+  }, [user?.id]);
+
   const fetchPage = useCallback(async (startOffset: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
       let q = supabase
         .from('users')
-        .select('id, email, role, country, available, companies(company_name, service_type, city, state), independents(full_name, service_type, city, state)')
+        .select('id, email, role, country, available, latitude, longitude, companies(company_name, service_type, city, state), independents(full_name, service_type, city, state)')
         .eq('status', 'approved')
         .eq('available', true)
         .in('role', ['company', 'independent'])
@@ -154,27 +207,38 @@ export default function BrowseProviders() {
       const { data } = await q;
       if (!data) return;
 
-      const mapped: Provider[] = data.map((u: any) => ({
-        id: u.id,
-        email: u.email,
-        role: u.role,
-        country: u.country,
-        available: u.available ?? false,
-        name: u.role === 'company'
-          ? (u.companies?.[0]?.company_name ?? u.email.split('@')[0])
-          : (u.independents?.[0]?.full_name ?? u.email.split('@')[0]),
-        serviceType: u.role === 'company'
-          ? (u.companies?.[0]?.service_type ?? 'both')
-          : (u.independents?.[0]?.service_type ?? 'both'),
-        city: u.role === 'company'
-          ? (u.companies?.[0]?.city ?? '')
-          : (u.independents?.[0]?.city ?? ''),
-        state: u.role === 'company'
-          ? (u.companies?.[0]?.state ?? '')
-          : (u.independents?.[0]?.state ?? ''),
-        avgRating: null,
-        reviewCount: 0,
-      }));
+      const mapped: Provider[] = data.map((u: any) => {
+        const lat = u.latitude as number | null;
+        const lon = u.longitude as number | null;
+        const distanceKm = (userLocation && lat != null && lon != null)
+          ? haversineKm(userLocation.lat, userLocation.lon, lat, lon)
+          : null;
+
+        return {
+          id: u.id,
+          email: u.email,
+          role: u.role,
+          country: u.country,
+          available: u.available ?? false,
+          name: u.role === 'company'
+            ? (u.companies?.[0]?.company_name ?? u.email.split('@')[0])
+            : (u.independents?.[0]?.full_name ?? u.email.split('@')[0]),
+          serviceType: u.role === 'company'
+            ? (u.companies?.[0]?.service_type ?? 'both')
+            : (u.independents?.[0]?.service_type ?? 'both'),
+          city: u.role === 'company'
+            ? (u.companies?.[0]?.city ?? '')
+            : (u.independents?.[0]?.city ?? ''),
+          state: u.role === 'company'
+            ? (u.companies?.[0]?.state ?? '')
+            : (u.independents?.[0]?.state ?? ''),
+          latitude: lat,
+          longitude: lon,
+          distanceKm,
+          avgRating: null,
+          reviewCount: 0,
+        };
+      });
 
       // Fetch reviews for this page's providers
       if (mapped.length > 0) {
@@ -228,14 +292,34 @@ export default function BrowseProviders() {
 
   useEffect(() => { loadProviders(); }, [loadProviders]);
 
-  const filtered = query.length > 0
-    ? providers.filter((p) =>
+  // Apply radius filter + text search, then sort by distance
+  const filtered = (() => {
+    let list = providers;
+
+    if (query.length > 0) {
+      list = list.filter((p) =>
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.serviceType.toLowerCase().includes(query.toLowerCase()) ||
         p.city.toLowerCase().includes(query.toLowerCase()) ||
         p.state.toLowerCase().includes(query.toLowerCase())
-      )
-    : providers;
+      );
+    }
+
+    if (radiusKm != null) {
+      list = list.filter((p) => p.distanceKm != null && p.distanceKm <= radiusKm);
+    }
+
+    // Sort by distance ascending if location is available
+    if (userLocation) {
+      list = [...list].sort((a, b) => {
+        if (a.distanceKm == null) return 1;
+        if (b.distanceKm == null) return -1;
+        return a.distanceKm - b.distanceKm;
+      });
+    }
+
+    return list;
+  })();
 
   const renderItem = useCallback(({ item }: { item: Provider }) => (
     <ProviderCard
@@ -283,6 +367,40 @@ export default function BrowseProviders() {
           </TouchableOpacity>
         )}
       </View>
+
+      {/* Distance radius filter (only when location is available) */}
+      {userLocation && (
+        <View style={{ paddingHorizontal: 24, marginBottom: 12 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Feather name="navigation" size={13} color={C.accent} />
+            <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_500Medium', flex: 1 }}>
+              {es ? 'Radio de búsqueda:' : 'Search radius:'}
+            </Text>
+            {[null, 5, 10, 25].map((km) => (
+              <TouchableOpacity
+                key={km ?? 'all'}
+                onPress={() => setRadiusKm(km)}
+                style={{
+                  paddingHorizontal: 10,
+                  paddingVertical: 4,
+                  borderRadius: 8,
+                  backgroundColor: radiusKm === km ? C.accent : C.surface,
+                  borderWidth: 1,
+                  borderColor: radiusKm === km ? C.accent : C.line,
+                }}
+              >
+                <Text style={{
+                  color: radiusKm === km ? '#FFF' : C.textSecondary,
+                  fontSize: 11,
+                  fontFamily: 'Inter_500Medium',
+                }}>
+                  {km == null ? (es ? 'Todos' : 'All') : `${km}km`}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       {loading ? (
         <View style={{ paddingHorizontal: 24, paddingTop: 8 }}>
