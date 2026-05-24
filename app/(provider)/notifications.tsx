@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
@@ -31,6 +31,7 @@ export default function ProviderNotifications() {
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const loadNotifications = useCallback(async () => {
     if (!user?.id) return;
@@ -48,7 +49,33 @@ export default function ProviderNotifications() {
     }
   }, [user?.id]);
 
-  useEffect(() => { loadNotifications(); }, [loadNotifications]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadNotifications();
+    setRefreshing(false);
+  }, [loadNotifications]);
+
+  useEffect(() => {
+    loadNotifications();
+    if (!user?.id) return;
+
+    // Realtime: re-fetch when a new notification is inserted for this user
+    const channel = supabase
+      .channel(`notifications:${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => loadNotifications(),
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [loadNotifications, user?.id]);
 
   const markRead = async (id: string) => {
     setNotifications((prev) => prev.map((n) => n.id === id ? { ...n, read: true } : n));
@@ -103,6 +130,7 @@ export default function ProviderNotifications() {
           keyExtractor={(n) => n.id}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32, flexGrow: 1 }}
           showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
           renderItem={({ item: n, index }) => (
             <TouchableOpacity
               onPress={() => markRead(n.id)}

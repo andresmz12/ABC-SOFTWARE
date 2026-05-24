@@ -30,6 +30,7 @@ export default function ProviderDocuments() {
   const [docItems, setDocItems] = useState<DocItem[]>([]);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const loadDocuments = useCallback(async () => {
     if (!user?.id) return;
@@ -40,14 +41,17 @@ export default function ProviderDocuments() {
       : getCompanyDocs(country);
 
     setLoading(true);
+    setFetchError(null);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('documents')
         .select('*')
         .eq('user_id', user.id);
-
+      if (error) throw error;
       const docMap = Object.fromEntries((data ?? []).map((d: Document) => [d.doc_type, d]));
       setDocItems(required.map((r) => ({ key: r.key, label: r.label, doc: docMap[r.key] })));
+    } catch (e: any) {
+      setFetchError(e.message ?? (lang === 'es' ? 'Error al cargar documentos.' : 'Failed to load documents.'));
     } finally {
       setLoading(false);
     }
@@ -133,6 +137,22 @@ export default function ProviderDocuments() {
         {loading ? (
           <View style={{ alignItems: 'center', paddingVertical: 40 }}>
             <ActivityIndicator color={C.accent} size="large" />
+          </View>
+        ) : fetchError ? (
+          <View style={{ alignItems: 'center', paddingVertical: 48 }}>
+            <Feather name="alert-circle" size={36} color={C.danger} />
+            <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 12, textAlign: 'center', marginHorizontal: 24 }}>
+              {fetchError}
+            </Text>
+            <TouchableOpacity
+              onPress={loadDocuments}
+              style={{ marginTop: 16, backgroundColor: C.surface, borderWidth: 1, borderColor: C.accent, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: C.accent, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {lang === 'es' ? 'Reintentar' : 'Retry'}
+              </Text>
+            </TouchableOpacity>
           </View>
         ) : (
           docItems.map((item) => {

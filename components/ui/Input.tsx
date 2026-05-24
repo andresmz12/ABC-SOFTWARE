@@ -35,13 +35,15 @@ export default function Input({ label, error, iconName, rightElement, style, ...
       <View
         style={{
           flexDirection: 'row',
-          alignItems: 'center',
+          alignItems: props.multiline ? 'flex-start' : 'center',
           backgroundColor: C.surface2,
           borderWidth: 1.5,
           borderColor,
           borderRadius: 12,
-          height: 56,
+          height: props.multiline ? undefined : 56,
+          minHeight: 56,
           paddingHorizontal: 16,
+          paddingVertical: props.multiline ? 12 : 0,
         }}
       >
         {iconName && (

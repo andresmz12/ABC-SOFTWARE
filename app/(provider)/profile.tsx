@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView, Modal } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView, Modal, FlatList, TextInput } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +8,7 @@ import { useLang } from '@/context/LanguageContext';
 import LanguageToggle from '@/components/ui/LanguageToggle';
 import LocationSelector from '@/components/ui/LocationSelector';
 import Input from '@/components/ui/Input';
+import { getStateList } from '@/lib/locations';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
 
@@ -49,6 +50,9 @@ export default function ProviderProfile() {
   const [serviceAreas, setServiceAreas] = useState<string[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [editVisible, setEditVisible] = useState(false);
+  const [showAreaPicker, setShowAreaPicker] = useState(false);
+  const [areaSearch, setAreaSearch] = useState('');
+  const [savingArea, setSavingArea] = useState(false);
 
   // Edit form state
   const [editName, setEditName] = useState('');
@@ -75,7 +79,7 @@ export default function ProviderProfile() {
         setAvailable(availRes.data.available);
       }
       if (areasRes.data) {
-        setServiceAreas(areasRes.data.map((a: any) => a.city ? `${a.city}, ${a.state}` : a.state));
+        setServiceAreas(areasRes.data.map((a: any) => a.state as string).filter(Boolean));
       }
       if (profileRes.data) {
         const d = profileRes.data as any;
@@ -121,6 +125,39 @@ export default function ProviderProfile() {
       );
     } finally {
       setTogglingAvailability(false);
+    }
+  };
+
+  const removeArea = async (stateCode: string) => {
+    setServiceAreas((prev) => prev.filter((s) => s !== stateCode));
+    const { error } = await supabase
+      .from('service_areas')
+      .delete()
+      .eq('provider_id', user!.id)
+      .eq('state', stateCode);
+    if (error) {
+      Alert.alert('Error', error.message);
+      loadProfile();
+    }
+  };
+
+  const addArea = async (stateCode: string) => {
+    setShowAreaPicker(false);
+    setAreaSearch('');
+    if (serviceAreas.includes(stateCode)) return;
+    setSavingArea(true);
+    setServiceAreas((prev) => [...prev, stateCode]);
+    const { error } = await supabase
+      .from('service_areas')
+      .insert({
+        provider_id: user!.id,
+        provider_type: user!.role,
+        state: stateCode,
+      });
+    setSavingArea(false);
+    if (error) {
+      Alert.alert('Error', error.message);
+      loadProfile();
     }
   };
 
@@ -363,9 +400,30 @@ export default function ProviderProfile() {
           borderWidth: 1,
           borderColor: C.line,
         }}>
-          <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
-            {es ? 'Áreas de Servicio' : 'Service Areas'}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? 'Áreas de Servicio' : 'Service Areas'}
+            </Text>
+            {!isPending && (
+              <TouchableOpacity
+                onPress={() => setShowAreaPicker(true)}
+                disabled={savingArea}
+                style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: `${C.accent}15`, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8, borderWidth: 1, borderColor: C.accent }}
+                activeOpacity={0.75}
+              >
+                {savingArea ? (
+                  <ActivityIndicator size="small" color={C.accent} />
+                ) : (
+                  <>
+                    <Feather name="plus" size={13} color={C.accent} style={{ marginRight: 4 }} />
+                    <Text style={{ color: C.accent, fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+                      {es ? 'Agregar' : 'Add'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
           {loadingProfile ? (
             <ActivityIndicator color={C.accent} size="small" />
           ) : serviceAreas.length === 0 ? (
@@ -377,8 +435,8 @@ export default function ProviderProfile() {
               {serviceAreas.map((area) => (
                 <View key={area} style={{
                   backgroundColor: C.surface2,
-                  paddingHorizontal: 12,
-                  paddingVertical: 6,
+                  paddingHorizontal: 10,
+                  paddingVertical: 5,
                   borderRadius: 20,
                   borderWidth: 1,
                   borderColor: C.line,
@@ -386,7 +444,12 @@ export default function ProviderProfile() {
                   alignItems: 'center',
                 }}>
                   <Feather name="map-pin" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
-                  <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>{area}</Text>
+                  <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular', marginRight: 6 }}>{area}</Text>
+                  {!isPending && (
+                    <TouchableOpacity onPress={() => removeArea(area)} hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}>
+                      <Feather name="x" size={12} color={C.textMuted} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </View>
@@ -432,6 +495,60 @@ export default function ProviderProfile() {
           </Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* ── Area Picker Modal */}
+      {showAreaPicker && (
+        <Modal visible={true} animationType="slide" transparent onRequestClose={() => { setShowAreaPicker(false); setAreaSearch(''); }}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: C.background, borderTopLeftRadius: 24, borderTopRightRadius: 24, maxHeight: '80%' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, paddingBottom: 12 }}>
+                <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Agregar Área de Servicio' : 'Add Service Area'}
+                </Text>
+                <TouchableOpacity onPress={() => { setShowAreaPicker(false); setAreaSearch(''); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Feather name="x" size={20} color={C.textMuted} />
+                </TouchableOpacity>
+              </View>
+              <View style={{ paddingHorizontal: 20, paddingBottom: 8 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: C.surface2, borderRadius: 10, paddingHorizontal: 12, borderWidth: 1, borderColor: C.line }}>
+                  <Feather name="search" size={14} color={C.textMuted} style={{ marginRight: 8 }} />
+                  <TextInput
+                    value={areaSearch}
+                    onChangeText={setAreaSearch}
+                    placeholder={es ? 'Buscar estado/departamento...' : 'Search state/department...'}
+                    placeholderTextColor={C.textMuted}
+                    style={{ flex: 1, color: C.textPrimary, paddingVertical: 10, fontSize: 14, fontFamily: 'Inter_400Regular' }}
+                  />
+                </View>
+              </View>
+              <FlatList
+                data={getStateList(country).filter((s) =>
+                  s.toLowerCase().includes(areaSearch.toLowerCase()) && !serviceAreas.includes(s)
+                )}
+                keyExtractor={(item) => item}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={{ paddingBottom: 48 }}
+                ListEmptyComponent={
+                  <View style={{ alignItems: 'center', paddingVertical: 32 }}>
+                    <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular' }}>
+                      {es ? 'Sin resultados' : 'No results'}
+                    </Text>
+                  </View>
+                }
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    onPress={() => addArea(item)}
+                    style={{ paddingVertical: 14, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: C.line }}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_400Regular' }}>{item}</Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* ── Edit Modal — conditionally mounted so the overlay never blocks touches when hidden */}
       {editVisible && (

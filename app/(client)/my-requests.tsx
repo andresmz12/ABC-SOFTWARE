@@ -4,6 +4,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
+import LocationSelector from '@/components/ui/LocationSelector';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
 import { formatUSD, formatCOP } from '@/lib/countryData';
@@ -11,7 +12,7 @@ import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 
-type Tab = 'open' | 'in_progress' | 'completed';
+type Tab = 'open' | 'in_progress' | 'completed' | 'expired';
 
 function timeAgo(iso: string, es: boolean): string {
   const days = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -89,6 +90,8 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
   const [estimatedHours, setEstimatedHours] = useState('');
   const [budget, setBudget] = useState('');
   const [description, setDescription] = useState('');
+  const [editState, setEditState] = useState('');
+  const [editCity, setEditCity] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -96,6 +99,8 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
     setEstimatedHours(String(job.estimated_hours ?? ''));
     setBudget(String(job.budget_usd ?? job.budget_cop ?? ''));
     setDescription(job.description ?? '');
+    setEditState(job.state ?? '');
+    setEditCity(job.city ?? '');
     setScheduledDate(job.scheduled_date ? isoDateToDisplay(job.scheduled_date) : '');
     if (job.scheduled_time) {
       const parsed = isoTimeToDisplay(job.scheduled_time);
@@ -161,6 +166,8 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
         scheduled_time: isoTime!,
         estimated_hours: hoursNum,
         description: description || null,
+        state: editState || null,
+        city: editCity || null,
       };
       if (isColombia) {
         updateData.budget_cop = budgetNum;
@@ -258,6 +265,14 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
               onChangeText={setDescription}
               multiline
               numberOfLines={3}
+            />
+            <LocationSelector
+              country={isColombia ? 'colombia' : 'usa'}
+              state={editState}
+              city={editCity}
+              onStateChange={(s) => { setEditState(s); setEditCity(''); }}
+              onCityChange={(c) => setEditCity(c)}
+              es={es}
             />
 
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
@@ -455,33 +470,40 @@ export default function MyRequests() {
     open: es ? 'Abiertas' : 'Open',
     in_progress: es ? 'Activas' : 'Active',
     completed: es ? 'Listas' : 'Done',
+    expired: es ? 'Expiradas' : 'Expired',
   };
 
-  const [jobs, setJobs] = useState<{ open: JobRequest[]; in_progress: JobRequest[]; completed: JobRequest[] }>({
-    open: [], in_progress: [], completed: [],
+  const [jobs, setJobs] = useState<{ open: JobRequest[]; in_progress: JobRequest[]; completed: JobRequest[]; expired: JobRequest[] }>({
+    open: [], in_progress: [], completed: [], expired: [],
   });
   const [loading, setLoading] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [editJob, setEditJob] = useState<JobRequest | null>(null);
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
+    setFetchError(null);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('job_requests')
         .select('*')
         .eq('client_id', user.id)
         .order('created_at', { ascending: false });
+      if (error) throw error;
       const allJobs = (data ?? []) as JobRequest[];
       setJobs({
         open:        allJobs.filter((j) => j.status === 'open'),
         in_progress: allJobs.filter((j) => j.status === 'in_progress'),
         completed:   allJobs.filter((j) => j.status === 'completed' || j.status === 'cancelled'),
+        expired:     allJobs.filter((j) => j.status === 'expired'),
       });
+    } catch (e: any) {
+      setFetchError(e.message ?? (es ? 'Error al cargar solicitudes.' : 'Failed to load requests.'));
     } finally {
       setLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, es]);
 
   // Reload list every time this screen comes into focus (e.g. after returning from job-offers)
   useFocusEffect(useCallback(() => { loadJobs(); }, [loadJobs]));
@@ -584,13 +606,29 @@ export default function MyRequests() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={C.accent} size="large" />
         </View>
+      ) : fetchError ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+          <Feather name="alert-circle" size={36} color={C.danger} />
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 12, textAlign: 'center' }}>
+            {fetchError}
+          </Text>
+          <TouchableOpacity
+            onPress={() => loadJobs()}
+            style={{ marginTop: 16, backgroundColor: C.surface, borderWidth: 1, borderColor: C.accent, borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 }}
+            activeOpacity={0.8}
+          >
+            <Text style={{ color: C.accent, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? 'Reintentar' : 'Retry'}
+            </Text>
+          </TouchableOpacity>
+        </View>
       ) : current.length === 0 ? (
         <EmptyState
           title={es ? `Sin solicitudes ${TAB_LABELS[activeTab].toLowerCase()}` : `No ${TAB_LABELS[activeTab].toLowerCase()} requests`}
-          subtitle={es ? 'Publica un trabajo para comenzar' : 'Post a job to get started'}
-          iconName="clipboard"
-          ctaLabel={es ? 'Publicar Trabajo' : 'Post a Job'}
-          onCta={() => router.push('/(client)/post-job' as any)}
+          subtitle={activeTab === 'expired' ? (es ? 'Las solicitudes expiradas aparecerán aquí' : 'Expired requests will appear here') : (es ? 'Publica un trabajo para comenzar' : 'Post a job to get started')}
+          iconName={activeTab === 'expired' ? 'clock' : 'clipboard'}
+          ctaLabel={activeTab !== 'expired' ? (es ? 'Publicar Trabajo' : 'Post a Job') : undefined}
+          onCta={activeTab !== 'expired' ? () => router.push('/(client)/post-job' as any) : undefined}
         />
       ) : (
         <FlatList
