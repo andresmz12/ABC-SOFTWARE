@@ -134,30 +134,13 @@ export default function ClientRegister() {
                 <Input label={es ? 'Dirección' : 'Street Address'} value={value} onChangeText={onChange} iconName="map-pin"
                   placeholder={es ? 'Calle 50 #45-30' : '123 Main St'} error={errors.address?.message} />
               )} />
-              <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
-                {es ? 'País' : 'Country'}
-              </Text>
-              <Controller control={control} name="country" render={({ field: { onChange, value } }) => (
-                <View style={{ flexDirection: 'row', gap: 12, marginBottom: 24 }}>
-                  {([
-                    { key: 'usa' as const, flag: '🇺🇸', label: es ? 'Estados Unidos' : 'United States' },
-                    { key: 'colombia' as const, flag: '🇨🇴', label: 'Colombia' },
-                  ]).map((c) => {
-                    const active = value === c.key;
-                    return (
-                      <TouchableOpacity
-                        key={c.key}
-                        onPress={() => onChange(c.key)}
-                        style={{ flex: 1, backgroundColor: active ? `${C.accent}15` : C.surface, borderWidth: 1.5, borderColor: active ? C.accent : C.line, borderRadius: 14, padding: 16, alignItems: 'center' }}
-                        activeOpacity={0.85}
-                      >
-                        <Text style={{ fontSize: 26, marginBottom: 8 }}>{c.flag}</Text>
-                        <Text style={{ color: active ? C.textPrimary : C.textMuted, fontSize: 13, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>{c.label}</Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )} />
+              {/* Read-only country badge — already selected on the welcome screen */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: `${C.accent}15`, borderWidth: 1, borderColor: `${C.accent}40`, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 10, marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, marginRight: 10 }}>{country === 'colombia' ? '🇨🇴' : '🇺🇸'}</Text>
+                <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                  {country === 'colombia' ? 'Colombia' : (es ? 'Estados Unidos' : 'United States')}
+                </Text>
+              </View>
               <LocationSelector
                 country={country as 'usa' | 'colombia'}
                 state={clientState}

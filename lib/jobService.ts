@@ -100,6 +100,12 @@ export async function fetchJobBids(jobRequestId: string): Promise<BidWithProvide
 }
 
 export async function acceptBid(applicationId: string, jobRequestId: string): Promise<void> {
+  // Fetch application + job details concurrently (needed for notification)
+  const [appRes, jobDetailsRes] = await Promise.all([
+    supabase.from('job_applications').select('provider_id').eq('id', applicationId).single(),
+    supabase.from('job_requests').select('service_type, city').eq('id', jobRequestId).single(),
+  ]);
+
   const [acceptRes, rejectRes, jobRes] = await Promise.all([
     supabase.from('job_applications').update({ status: 'accepted' }).eq('id', applicationId),
     supabase.from('job_applications').update({ status: 'rejected' }).eq('job_request_id', jobRequestId).neq('id', applicationId),
@@ -108,6 +114,27 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
   if (acceptRes.error) throw acceptRes.error;
   if (rejectRes.error) console.error('[acceptBid] bulk-reject failed:', rejectRes.error);
   if (jobRes.error) throw jobRes.error;
+
+  // Notify the winning provider
+  if (appRes.data?.provider_id && jobDetailsRes.data) {
+    const { provider_id } = appRes.data;
+    const { service_type, city } = jobDetailsRes.data;
+    const cityEn = city ? ` in ${city}` : '';
+    const cityEs = city ? ` en ${city}` : '';
+    const serviceEn = service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning';
+    const serviceEs = service_type === 'commercial' ? 'Limpieza Comercial' : 'Limpieza Residencial';
+
+    const { error: notifErr } = await supabase.from('notifications').insert({
+      user_id: provider_id,
+      title_en: 'Bid Accepted!',
+      title_es: '¡Oferta Aceptada!',
+      body_en: `Your bid for ${serviceEn}${cityEn} was accepted. The client is ready to start!`,
+      body_es: `Tu oferta para ${serviceEs}${cityEs} fue aceptada. ¡El cliente está listo para comenzar!`,
+      type: 'bid_accepted',
+      data: { job_id: jobRequestId },
+    });
+    if (notifErr) console.error('[acceptBid] notification insert failed:', notifErr);
+  }
 }
 
 export async function fetchClientJobs(clientId: string): Promise<{
