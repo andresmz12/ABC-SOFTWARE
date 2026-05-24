@@ -14,6 +14,14 @@ import { useJobStore } from '@/store/jobStore';
 import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
 
+function formatBudget(val: string, isColombia: boolean): string {
+  const num = val.replace(/\D/g, '');
+  if (!num) return '';
+  return isColombia
+    ? num.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+    : num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+}
+
 const schema = z.object({
   serviceType: z.enum(['commercial', 'residential']),
   city: z.string().min(2),
@@ -86,6 +94,23 @@ export default function PostJob() {
   const isColombia = user?.country === 'colombia';
   const es = lang === 'es';
 
+  // Block if client is not yet approved
+  if (user?.status !== 'approved') {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <Feather name="clock" size={44} color={C.warning} />
+        <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', marginTop: 20, textAlign: 'center' }}>
+          {es ? 'Verificación Pendiente' : 'Verification Pending'}
+        </Text>
+        <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 10, textAlign: 'center', lineHeight: 22 }}>
+          {es
+            ? 'Tu cuenta está pendiente de verificación. Revisaremos tu documento y te notificaremos cuando sea aprobada.'
+            : 'Your account is pending verification. We will review your document and notify you when it is approved.'}
+        </Text>
+      </View>
+    );
+  }
+
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('');
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
@@ -95,7 +120,7 @@ export default function PostJob() {
   const [photos, setPhotos] = useState<string[]>([]);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
+  const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { serviceType: 'residential' },
   });
@@ -163,7 +188,16 @@ export default function PostJob() {
 
     setSubmitting(true);
     try {
-      const budgetNum = parseFloat(data.budget.replace(/[^0-9.]/g, ''));
+      // Strip all non-digits (Colombia uses dots, USA uses commas as separators)
+      const budgetNum = parseInt(data.budget.replace(/\D/g, ''), 10);
+      if (isNaN(budgetNum) || budgetNum <= 0) {
+        Alert.alert(
+          es ? 'Presupuesto inválido' : 'Invalid budget',
+          es ? 'Ingresa un monto válido mayor a 0.' : 'Please enter a valid amount greater than 0.',
+        );
+        setSubmitting(false);
+        return;
+      }
       const insertData: Record<string, unknown> = {
         client_id: user.id,
         service_type: data.serviceType,
@@ -201,7 +235,19 @@ export default function PostJob() {
         es
           ? 'Tu solicitud ha sido publicada. Los proveedores cercanos podrán aplicar.'
           : 'Your job has been posted. Providers in your area can now apply.',
-        [{ text: 'OK', onPress: () => router.push('/(client)/my-requests' as any) }],
+        [{
+          text: 'OK',
+          onPress: () => {
+            // Reset form so it's clean for the next post
+            reset();
+            setScheduledDate('');
+            setScheduledTime('');
+            setAmpm('AM');
+            setPhotos([]);
+            setCounty('');
+            router.replace('/(client)/home' as any);
+          },
+        }],
       );
     } catch (e: any) {
       Alert.alert('Error', e.message ?? 'Failed to post job.');
@@ -342,9 +388,9 @@ export default function PostJob() {
           <Controller control={control} name="budget" render={({ field: { onChange, value } }) => (
             <Input
               label={isColombia ? `${t('jobs.budget')} (COP)` : `${t('jobs.budget')} (USD)`}
-              placeholder={isColombia ? 'Ej: 350.000' : 'e.g. 150'}
+              placeholder={isColombia ? 'Ej: 350.000' : 'e.g. 1,500'}
               value={value}
-              onChangeText={onChange}
+              onChangeText={(v) => onChange(formatBudget(v, isColombia))}
               keyboardType="decimal-pad"
               iconName="dollar-sign"
               error={errors.budget?.message}

@@ -20,7 +20,7 @@ interface AdminDocument {
   uploaded_at: string;
   provider_name: string;
   provider_email: string;
-  provider_role: 'company' | 'independent';
+  provider_role: 'company' | 'independent' | 'client';
 }
 
 const FILTERS: { key: FilterStatus; labelEn: string; labelEs: string }[] = [
@@ -82,7 +82,13 @@ function DocumentRow({ doc, es, onUpdate }: { doc: AdminDocument; es: boolean; o
             {doc.file_name}
           </Text>
           <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
-            {doc.provider_name} · {doc.provider_role === 'company' ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')}
+            {doc.provider_name} · {
+              doc.provider_role === 'company'
+                ? (es ? 'Empresa' : 'Company')
+                : doc.provider_role === 'client'
+                ? (es ? 'Cliente' : 'Client')
+                : (es ? 'Independiente' : 'Independent')
+            }
           </Text>
         </View>
         <View style={{ backgroundColor: statusMeta.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
@@ -185,30 +191,25 @@ export default function AdminDocuments() {
       }
 
       const userIds = Array.from(new Set(rawDocs.map((d: any) => d.user_id)));
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, email, role')
-        .in('id', userIds);
+      const [usersRes, companiesRes, independentsRes, clientsRes] = await Promise.all([
+        supabase.from('users').select('id, email, role').in('id', userIds),
+        supabase.from('companies').select('user_id, company_name').in('user_id', userIds),
+        supabase.from('independents').select('user_id, full_name').in('user_id', userIds),
+        supabase.from('clients').select('user_id, full_name').in('user_id', userIds),
+      ]);
 
-      const { data: companies } = await supabase
-        .from('companies')
-        .select('user_id, company_name')
-        .in('user_id', userIds);
-
-      const { data: independents } = await supabase
-        .from('independents')
-        .select('user_id, full_name')
-        .in('user_id', userIds);
-
-      const userMap = new Map((users ?? []).map((u: any) => [u.id, u]));
-      const companyMap = new Map((companies ?? []).map((c: any) => [c.user_id, c.company_name]));
-      const independentMap = new Map((independents ?? []).map((i: any) => [i.user_id, i.full_name]));
+      const userMap = new Map((usersRes.data ?? []).map((u: any) => [u.id, u]));
+      const companyMap = new Map((companiesRes.data ?? []).map((c: any) => [c.user_id, c.company_name]));
+      const independentMap = new Map((independentsRes.data ?? []).map((i: any) => [i.user_id, i.full_name]));
+      const clientMap = new Map((clientsRes.data ?? []).map((c: any) => [c.user_id, c.full_name]));
 
       const enriched: AdminDocument[] = rawDocs.map((d: any) => {
         const u = userMap.get(d.user_id) as any;
         const role = u?.role ?? 'independent';
         const name = role === 'company'
           ? companyMap.get(d.user_id) ?? u?.email?.split('@')[0] ?? '?'
+          : role === 'client'
+          ? clientMap.get(d.user_id) ?? u?.email?.split('@')[0] ?? '?'
           : independentMap.get(d.user_id) ?? u?.email?.split('@')[0] ?? '?';
         return {
           ...d,
@@ -240,11 +241,12 @@ export default function AdminDocuments() {
     setDocs(updated);
 
     // When approving a doc, check if ALL docs for this user are now approved.
-    // If so, promote the provider to 'approved' and send a notification.
+    // If so, promote the user (provider or client) to 'approved' and notify them.
     if (status === 'approved') {
       const targetDoc = docs.find((d) => d.id === id);
       if (!targetDoc) return;
       const userId = targetDoc.user_id;
+      const isClient = targetDoc.provider_role === 'client';
       const userDocs = updated.filter((d) => d.user_id === userId);
       const allApproved = userDocs.length > 0 && userDocs.every((d) => d.status === 'approved');
       if (allApproved) {
@@ -258,8 +260,12 @@ export default function AdminDocuments() {
             user_id: userId,
             title_en: 'Account Approved',
             title_es: 'Cuenta Aprobada',
-            body_en: 'All your documents have been approved. Your account is now active and you can start accepting jobs.',
-            body_es: 'Todos tus documentos han sido aprobados. Tu cuenta está activa y ya puedes comenzar a aceptar trabajos.',
+            body_en: isClient
+              ? 'Your identity has been verified. Your account is now active and you can start posting jobs.'
+              : 'All your documents have been approved. Your account is now active and you can start accepting jobs.',
+            body_es: isClient
+              ? 'Tu identidad ha sido verificada. Tu cuenta está activa y ya puedes publicar trabajos.'
+              : 'Todos tus documentos han sido aprobados. Tu cuenta está activa y ya puedes comenzar a aceptar trabajos.',
             type: 'account_update',
             read: false,
           });

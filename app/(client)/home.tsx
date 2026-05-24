@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, RefreshControl } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
@@ -138,7 +138,8 @@ export default function ClientHome() {
     }
   }, [user?.id]);
 
-  useEffect(() => { loadDashboard(); }, [loadDashboard]);
+  // Reload whenever the screen comes into focus (e.g. after posting a job)
+  useFocusEffect(useCallback(() => { loadDashboard(); }, [loadDashboard]));
 
   const onRefresh = () => { setRefreshing(true); loadDashboard(); };
 

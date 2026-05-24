@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Modal, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useShallow } from 'zustand/react/shallow';
 import { useAuthStore } from '@/store/authStore';
+import { useJobStore } from '@/store/jobStore';
 import { useLang } from '@/context/LanguageContext';
 import { applyToJob } from '@/lib/jobService';
 import { formatUSD, formatCOP } from '@/lib/countryData';
@@ -25,6 +27,7 @@ export default function JobDetail() {
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
   const router = useRouter();
   const { user } = useAuthStore();
+  const { fetchMyJobs } = useJobStore(useShallow((s) => ({ fetchMyJobs: s.fetchMyJobs })));
   const { lang } = useLang();
   const es = lang === 'es';
   const isColombia = user?.country === 'colombia';
@@ -88,6 +91,7 @@ export default function JobDetail() {
       });
       setApplied(true);
       setModalVisible(false);
+      if (user?.id) fetchMyJobs(user.id); // refresh store so home feed shows Applied badge
       Alert.alert(
         es ? '¡Aplicación enviada!' : 'Application Sent!',
         es ? 'El cliente recibirá tu oferta pronto.' : 'The client will review your bid.',

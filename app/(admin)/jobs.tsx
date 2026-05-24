@@ -10,7 +10,6 @@ type JobStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
 
 interface AdminJob {
   id: string;
-  title: string | null;
   service_type: string;
   city: string;
   country: string;
@@ -18,6 +17,8 @@ interface AdminJob {
   scheduled_date: string;
   created_at: string;
   client_email: string;
+  budget_usd: number | null;
+  budget_cop: number | null;
 }
 
 function buildStatusMeta(es: boolean): Record<JobStatus, { bg: string; text: string; label: string }> {
@@ -44,7 +45,8 @@ function JobRow({ job, es }: { job: AdminJob; es: boolean }) {
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
-            {job.title ?? (job.service_type === 'commercial' ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning') : (es ? 'Limpieza Residencial' : 'Residential Cleaning'))}
+            {job.service_type === 'commercial' ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning') : (es ? 'Limpieza Residencial' : 'Residential Cleaning')}
+            {job.budget_usd ? `  ·  $${job.budget_usd.toLocaleString('en-US')}` : job.budget_cop ? `  ·  $${job.budget_cop.toLocaleString('es-CO')} COP` : ''}
           </Text>
           <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
             {job.client_email} · {job.city} · {job.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
@@ -70,20 +72,21 @@ export default function AdminJobs() {
   const loadJobs = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('job_requests')
-        .select('id, title, service_type, city, country, status, scheduled_date, created_at, users!client_id(email)')
+        .select('id, service_type, city, country, status, scheduled_date, created_at, budget_usd, budget_cop, users!client_id(email)')
         .order('created_at', { ascending: false })
         .limit(100);
 
+      if (error) console.error('[AdminJobs] query failed:', error.message);
       if (data) {
         setJobs(data.map((j: any) => ({
           ...j,
           client_email: j.users?.email ?? 'Unknown',
         })));
       }
-    } catch {
-      // keep empty
+    } catch (e: any) {
+      console.error('[AdminJobs] unexpected error:', e?.message ?? e);
     } finally {
       setLoading(false);
     }

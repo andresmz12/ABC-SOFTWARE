@@ -58,12 +58,34 @@ export default function ProviderHome() {
     return h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
   };
 
-  const renderItem = useCallback(({ item }: { item: (typeof openJobs)[0] }) => (
-    <JobCard
-      job={item}
-      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-    />
-  ), [router]);
+  const renderItem = useCallback(({ item }: { item: (typeof openJobs)[0] }) => {
+    const isApplied = appliedJobs.some((aj) => aj.id === item.id);
+    return (
+      <View>
+        <JobCard
+          job={item}
+          onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+        />
+        {isApplied && (
+          <View style={{ marginTop: -6, marginBottom: 6, paddingHorizontal: 20 }}>
+            <View style={{
+              backgroundColor: `${C.success}20`,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              borderWidth: 1,
+              borderColor: C.success,
+              alignSelf: 'flex-start',
+            }}>
+              <Text style={{ color: C.success, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Aplicado' : 'Applied'}
+              </Text>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }, [appliedJobs, router, es]);
 
   const stats = [
     { icon: 'briefcase' as const, value: openJobs.length,   label: es ? 'Disponibles' : 'Available',   color: C.accent },
