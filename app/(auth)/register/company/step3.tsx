@@ -1,27 +1,31 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import { C } from '@/constants/theme';
+import { useRegistrationStore } from '@/store/registrationStore';
 
 const US_DOCS = [
-  { key: 'w9',               label: 'W-9 Tax Form',              desc: 'Required for US tax reporting' },
-  { key: 'insurance',        label: 'Certificate of Insurance',  desc: 'Liability coverage documentation' },
-  { key: 'business_license', label: 'Business License',          desc: 'State or local business registration' },
-  { key: 'ein_letter',       label: 'EIN Confirmation Letter',   desc: 'IRS employer identification number' },
-  { key: 'service_agreement',label: 'Signed Service Agreement',  desc: 'Platform terms and conditions' },
+  { key: 'w9',                label: 'W-9 Tax Form',             desc: 'Required for US tax reporting' },
+  { key: 'insurance',         label: 'Certificate of Insurance', desc: 'Liability coverage documentation' },
+  { key: 'business_license',  label: 'Business License',         desc: 'State or local business registration' },
+  { key: 'ein_letter',        label: 'EIN Confirmation Letter',  desc: 'IRS employer identification number' },
+  { key: 'service_agreement', label: 'Signed Service Agreement', desc: 'Platform terms and conditions' },
 ];
 
 const CO_DOCS = [
-  { key: 'rut',              label: 'RUT',                         desc: 'Registro Único Tributario' },
-  { key: 'insurance',        label: 'Póliza de Responsabilidad',   desc: 'Cobertura de responsabilidad civil' },
-  { key: 'camara',           label: 'Cámara de Comercio',          desc: 'Registro mercantil de la empresa' },
-  { key: 'nit_cert',         label: 'Certificado NIT',             desc: 'Número de identificación tributaria' },
-  { key: 'service_agreement',label: 'Acuerdo de Servicio',         desc: 'Términos y condiciones de la plataforma' },
+  { key: 'rut',               label: 'RUT',                       desc: 'Registro Único Tributario' },
+  { key: 'insurance',         label: 'Póliza de Responsabilidad', desc: 'Cobertura de responsabilidad civil' },
+  { key: 'camara',            label: 'Cámara de Comercio',        desc: 'Registro mercantil de la empresa' },
+  { key: 'nit_cert',          label: 'Certificado NIT',           desc: 'Número de identificación tributaria' },
+  { key: 'service_agreement', label: 'Acuerdo de Servicio',       desc: 'Términos y condiciones de la plataforma' },
 ];
+
+type DocFile = { name: string; uri: string; mimeType: string; size?: number };
 
 export default function CompanyStep3() {
   const router = useRouter();
@@ -30,14 +34,47 @@ export default function CompanyStep3() {
   const country = params.country ?? 'usa';
   const isColombia = country === 'colombia';
   const DOCS = isColombia ? CO_DOCS : US_DOCS;
-  const [uploaded, setUploaded] = useState<Record<string, string>>({});
+  const { mergeFormData } = useRegistrationStore();
 
-  const handleUpload = (key: string) => {
-    // Real implementation would open document picker
-    setUploaded((p) => ({ ...p, [key]: `${key}_document.pdf` }));
+  const [uploaded, setUploaded] = useState<Record<string, DocFile>>({});
+  const [uploading, setUploading] = useState<string | null>(null);
+
+  const handleUpload = async (key: string) => {
+    try {
+      setUploading(key);
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/*'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      setUploaded((prev) => ({
+        ...prev,
+        [key]: {
+          name: asset.name,
+          uri: asset.uri,
+          mimeType: asset.mimeType ?? 'application/octet-stream',
+          size: asset.size,
+        },
+      }));
+    } catch (e: any) {
+      Alert.alert(
+        isColombia ? 'Error' : 'Error',
+        e.message ?? (isColombia ? 'No se pudo seleccionar el archivo.' : 'Could not select file.'),
+      );
+    } finally {
+      setUploading(null);
+    }
   };
 
   const uploadedCount = Object.keys(uploaded).length;
+
+  const handleContinue = () => {
+    // Save file refs — actual upload to Supabase Storage happens in step4
+    // after the auth account and userId are created
+    mergeFormData({ docFiles: uploaded });
+    router.push({ pathname: '/(auth)/register/company/step4', params: { country } } as any);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -56,30 +93,44 @@ export default function CompanyStep3() {
             {isColombia ? 'Documentos' : 'Documents'}
           </Text>
           <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 6, marginBottom: 20 }}>
-            {isColombia ? 'Sube los documentos requeridos para verificación' : 'Upload required documents for platform verification'}
+            {isColombia
+              ? 'Sube los documentos requeridos para verificación'
+              : 'Upload required documents for platform verification'}
           </Text>
 
-          {/* Progress */}
+          {/* Progress bar */}
           <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 16, marginBottom: 20 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>Upload progress</Text>
-              <Text style={{ color: C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>{uploadedCount}/{DOCS.length}</Text>
+              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+                {isColombia ? 'Progreso de carga' : 'Upload progress'}
+              </Text>
+              <Text style={{ color: uploadedCount === DOCS.length ? C.success : C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                {uploadedCount}/{DOCS.length}
+              </Text>
             </View>
             <View style={{ height: 4, backgroundColor: C.line, borderRadius: 9999 }}>
-              <View style={{ height: '100%', backgroundColor: C.accent, borderRadius: 9999, width: `${(uploadedCount / DOCS.length) * 100}%` }} />
+              <View style={{
+                height: '100%',
+                backgroundColor: uploadedCount === DOCS.length ? C.success : C.accent,
+                borderRadius: 9999,
+                width: `${(uploadedCount / DOCS.length) * 100}%`,
+              }} />
             </View>
           </View>
         </View>
 
         {DOCS.map((doc) => {
-          const isUploaded = !!uploaded[doc.key];
+          const docFile = uploaded[doc.key];
+          const isUploaded = !!docFile;
+          const isThisUploading = uploading === doc.key;
+
           return (
             <View
               key={doc.key}
               style={{
                 backgroundColor: C.surface,
                 borderWidth: 1,
-                borderColor: isUploaded ? `${C.success}40` : C.line,
+                borderColor: isUploaded ? `${C.success}50` : C.line,
                 borderRadius: 16,
                 padding: 18,
                 marginBottom: 12,
@@ -93,20 +144,30 @@ export default function CompanyStep3() {
                   alignItems: 'center', justifyContent: 'center',
                   marginRight: 14,
                 }}>
-                  <Feather name={isUploaded ? 'check-circle' : 'file-text'} size={18} color={isUploaded ? C.success : C.accent} />
+                  <Feather
+                    name={isUploaded ? 'check-circle' : 'file-text'}
+                    size={18}
+                    color={isUploaded ? C.success : C.accent}
+                  />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>{doc.label}</Text>
-                  <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>{doc.desc}</Text>
+                  <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
+                    {doc.label}
+                  </Text>
+                  <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                    {doc.desc}
+                  </Text>
                   {isUploaded && (
-                    <Text style={{ color: C.success, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 6 }}>
-                      {uploaded[doc.key]}
+                    <Text style={{ color: C.success, fontSize: 12, fontFamily: 'Inter_500Medium', marginTop: 6 }} numberOfLines={1}>
+                      ✓ {docFile.name}
                     </Text>
                   )}
                 </View>
               </View>
+
               <TouchableOpacity
                 onPress={() => handleUpload(doc.key)}
+                disabled={isThisUploading}
                 style={{
                   marginTop: 14,
                   height: 40,
@@ -116,23 +177,53 @@ export default function CompanyStep3() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexDirection: 'row',
+                  opacity: isThisUploading ? 0.6 : 1,
                 }}
                 activeOpacity={0.85}
               >
-                <Feather name={isUploaded ? 'refresh-cw' : 'upload'} size={14} color={isUploaded ? C.success : C.accent} style={{ marginRight: 6 }} />
-                <Text style={{ color: isUploaded ? C.success : C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
-                  {isUploaded ? (isColombia ? 'Reemplazar' : 'Replace') : (isColombia ? 'Subir' : 'Upload')}
-                </Text>
+                {isThisUploading ? (
+                  <ActivityIndicator size="small" color={C.accent} />
+                ) : (
+                  <>
+                    <Feather
+                      name={isUploaded ? 'refresh-cw' : 'upload'}
+                      size={14}
+                      color={isUploaded ? C.success : C.accent}
+                      style={{ marginRight: 6 }}
+                    />
+                    <Text style={{ color: isUploaded ? C.success : C.accent, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                      {isUploaded
+                        ? (isColombia ? 'Reemplazar' : 'Replace')
+                        : (isColombia ? 'Seleccionar Archivo' : 'Select File')}
+                    </Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           );
         })}
 
-        <View style={{ marginTop: 8, marginBottom: 40 }}>
+        {/* Info note */}
+        <View style={{ backgroundColor: C.surface2, borderRadius: 12, padding: 14, marginBottom: 16, flexDirection: 'row' }}>
+          <Feather name="info" size={14} color={C.textMuted} style={{ marginRight: 8, marginTop: 1 }} />
+          <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 18 }}>
+            {isColombia
+              ? 'Los documentos se subirán de forma segura al crear tu cuenta. Formatos aceptados: PDF e imágenes.'
+              : 'Documents are uploaded securely when your account is created. Accepted formats: PDF and images.'}
+          </Text>
+        </View>
+
+        <View style={{ marginTop: 4, marginBottom: 40 }}>
           <Button
             label={isColombia ? 'Continuar' : 'Continue'}
-            onPress={() => router.push({ pathname: '/(auth)/register/company/step4', params: { country } } as any)}
+            onPress={handleContinue}
+            disabled={uploadedCount === 0}
           />
+          {uploadedCount === 0 && (
+            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 8 }}>
+              {isColombia ? 'Sube al menos un documento para continuar' : 'Upload at least one document to continue'}
+            </Text>
+          )}
         </View>
       </ScrollView>
       </KeyboardAvoidingView>

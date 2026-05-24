@@ -370,8 +370,9 @@ export default function ProviderDetail() {
         )}
       </ScrollView>
 
-      {/* Confirm modal */}
-      <Modal visible={modalAction !== null} transparent animationType="fade">
+      {/* Confirm modal — conditionally mounted so the transparent overlay never blocks touches when hidden */}
+      {modalAction !== null && (
+      <Modal visible={true} transparent animationType="fade">
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <View style={{ backgroundColor: C.surface, borderRadius: 24, padding: 24, width: '100%', borderWidth: 1, borderColor: C.line }}>
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
@@ -444,6 +445,7 @@ export default function ProviderDetail() {
           </View>
         </View>
       </Modal>
+      )}
     </View>
   );
 }

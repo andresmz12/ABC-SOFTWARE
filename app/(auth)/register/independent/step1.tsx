@@ -15,7 +15,7 @@ import type { Country } from '@/types';
 
 const schema = z.object({
   fullName:    z.string().min(2, 'Required'),
-  dateOfBirth: z.string().min(8, 'Enter date of birth'),
+  dateOfBirth: z.string().length(10, 'Enter full date'),
   phone:       z.string().min(7, 'Required'),
   email:       z.string().email('Enter a valid email'),
   password:    z.string().min(8, 'Min 8 characters'),
@@ -27,6 +27,33 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
+/** Auto-format raw digits into MM/DD/YYYY (or DD/MM/YYYY for Colombia) */
+function formatDob(raw: string): string {
+  const d = raw.replace(/\D/g, '').slice(0, 8);
+  if (d.length <= 2) return d;
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`;
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+}
+
+/**
+ * Parse display string (MM/DD/YYYY or DD/MM/YYYY) to ISO YYYY-MM-DD.
+ * Returns null if the date is invalid or in the future (can't be born after today).
+ */
+function parseDob(display: string, isColombia: boolean): string | null {
+  const parts = display.split('/');
+  if (parts.length !== 3) return null;
+  const [a, b, yyyy] = parts;
+  if (yyyy.length < 4) return null;
+  // Colombia: DD/MM/YYYY → YYYY-MM-DD (a=DD, b=MM)
+  // USA:      MM/DD/YYYY → YYYY-MM-DD (a=MM, b=DD)
+  const iso = isColombia ? `${yyyy}-${b}-${a}` : `${yyyy}-${a}-${b}`;
+  const date = new Date(`${iso}T12:00:00`);
+  if (isNaN(date.getTime())) return null;
+  // Must be in the past
+  if (date >= new Date()) return null;
+  return iso;
+}
+
 export default function IndependentStep1() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -34,14 +61,25 @@ export default function IndependentStep1() {
   const isColombia = country === 'colombia';
   const { setCountry, mergeFormData } = useRegistrationStore();
 
-  const { control, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { control, handleSubmit, setValue, watch, setError, formState: { errors } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  });
 
   const selectedState = watch('state') ?? '';
   const selectedCity  = watch('city') ?? '';
 
   const onNext = (data: FormData) => {
+    const isoDob = parseDob(data.dateOfBirth, isColombia);
+    if (!isoDob) {
+      setError('dateOfBirth', {
+        message: isColombia
+          ? 'Fecha inválida. Usa DD/MM/AAAA y debe ser pasada.'
+          : 'Invalid date. Use MM/DD/YYYY and must be in the past.',
+      });
+      return;
+    }
     setCountry(country as Country);
-    mergeFormData(data);
+    mergeFormData({ ...data, dateOfBirth: isoDob });
     router.push({ pathname: '/(auth)/register/independent/step2', params: { country } } as any);
   };
 
@@ -78,10 +116,20 @@ export default function IndependentStep1() {
             <Input label={isColombia ? 'Nombre Completo' : 'Full Name'} value={value} onChangeText={onChange} iconName="user"
               placeholder={isColombia ? 'Juan García' : 'John Smith'} error={errors.fullName?.message} />
           )} />
+
           <Controller control={control} name="dateOfBirth" render={({ field: { onChange, value } }) => (
-            <Input label={isColombia ? 'Fecha de Nacimiento' : 'Date of Birth'} value={value} onChangeText={onChange} iconName="calendar"
-              placeholder={isColombia ? 'DD/MM/AAAA' : 'MM/DD/YYYY'} error={errors.dateOfBirth?.message} />
+            <Input
+              label={isColombia ? 'Fecha de Nacimiento' : 'Date of Birth'}
+              value={value}
+              onChangeText={(text) => onChange(formatDob(text))}
+              iconName="calendar"
+              keyboardType="numeric"
+              maxLength={10}
+              placeholder={isColombia ? 'DD/MM/AAAA' : 'MM/DD/YYYY'}
+              error={errors.dateOfBirth?.message}
+            />
           )} />
+
           <Controller control={control} name="phone" render={({ field: { onChange, value } }) => (
             <Input label={isColombia ? 'Teléfono' : 'Phone'} value={value} onChangeText={onChange} iconName="phone" keyboardType="phone-pad"
               placeholder={isColombia ? '(601) 555-0000' : '(305) 555-0000'} error={errors.phone?.message} />

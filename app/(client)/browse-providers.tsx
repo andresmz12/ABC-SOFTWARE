@@ -1,22 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/context/LanguageContext';
+import { useAuthStore } from '@/store/authStore';
 
 interface Provider {
   id: string;
   email: string;
   role: 'company' | 'independent';
   country: string;
+  available: boolean;
   name: string;
   serviceType: string;
 }
 
-function ProviderCard({ provider, es }: { provider: Provider; es: boolean }) {
+function ProviderCard({ provider, es, onPress }: { provider: Provider; es: boolean; onPress: () => void }) {
   const isCompany = provider.role === 'company';
   const roleLabel = isCompany
     ? (es ? 'Empresa de Limpieza' : 'Cleaning Company')
@@ -28,16 +31,20 @@ function ProviderCard({ provider, es }: { provider: Provider; es: boolean }) {
     : (es ? 'Ambos' : 'Both');
 
   return (
-    <View style={{
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        backgroundColor: C.surface,
+        borderWidth: 1,
+        borderColor: C.line,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+        flexDirection: 'row',
+        alignItems: 'center',
+      }}
+    >
       <View style={{
         width: 48, height: 48,
         backgroundColor: `${C.accent}20`,
@@ -58,23 +65,28 @@ function ProviderCard({ provider, es }: { provider: Provider; es: boolean }) {
           {roleLabel} · {serviceLabel}
         </Text>
       </View>
-      <View style={{
-        backgroundColor: `${C.success}15`,
-        borderRadius: 8,
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-      }}>
-        <Text style={{ color: C.success, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
-          {es ? 'VERIFICADO' : 'VERIFIED'}
-        </Text>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <View style={{
+          backgroundColor: `${C.success}15`,
+          borderRadius: 8,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+        }}>
+          <Text style={{ color: C.success, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
+            {es ? 'DISPONIBLE' : 'AVAILABLE'}
+          </Text>
+        </View>
+        <Feather name="chevron-right" size={16} color={C.textMuted} />
       </View>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function BrowseProviders() {
   const { t, lang } = useLang();
   const es = lang === 'es';
+  const { user } = useAuthStore();
+  const router = useRouter();
   const [query, setQuery] = useState('');
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,11 +94,19 @@ export default function BrowseProviders() {
   const loadProviders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
+      let q = supabase
         .from('users')
-        .select('id, email, role, country, companies(company_name, service_type), independents(full_name, service_type)')
+        .select('id, email, role, country, available, companies(company_name, service_type), independents(full_name, service_type)')
         .eq('status', 'approved')
+        .eq('available', true)
         .in('role', ['company', 'independent']);
+
+      // Filter by the client's country so they only see local providers
+      if (user?.country) {
+        q = q.eq('country', user.country);
+      }
+
+      const { data } = await q;
 
       if (data) {
         const mapped: Provider[] = data.map((u: any) => ({
@@ -94,6 +114,7 @@ export default function BrowseProviders() {
           email: u.email,
           role: u.role,
           country: u.country,
+          available: u.available ?? false,
           name: u.role === 'company'
             ? (u.companies?.[0]?.company_name ?? u.email.split('@')[0])
             : (u.independents?.[0]?.full_name ?? u.email.split('@')[0]),
@@ -108,7 +129,7 @@ export default function BrowseProviders() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.country]);
 
   useEffect(() => { loadProviders(); }, [loadProviders]);
 
@@ -172,7 +193,13 @@ export default function BrowseProviders() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ProviderCard provider={item} es={es} />}
+          renderItem={({ item }) => (
+            <ProviderCard
+              provider={item}
+              es={es}
+              onPress={() => router.push({ pathname: '/(client)/provider-detail', params: { id: item.id } } as any)}
+            />
+          )}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         />

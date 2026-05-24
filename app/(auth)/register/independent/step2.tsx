@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { useState, useMemo } from 'react';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -7,15 +7,13 @@ import Button from '@/components/ui/Button';
 import StepProgressBar from '@/components/ui/StepProgressBar';
 import { C } from '@/constants/theme';
 import { useRegistrationStore } from '@/store/registrationStore';
+import { getStateList } from '@/lib/locations';
 
 const SERVICE_TYPES = [
   { key: 'commercial',  label: 'Commercial', labelEs: 'Comercial',   icon: 'briefcase' as const },
   { key: 'residential', label: 'Residential',labelEs: 'Residencial', icon: 'home' as const },
   { key: 'both',        label: 'Both',       labelEs: 'Ambos',       icon: 'layers' as const },
 ];
-
-const US_STATES = ['Florida','Georgia','Texas','California','New York','Illinois','Arizona','Colorado','Virginia','Washington'];
-const CO_DEPTS  = ['Antioquia','Cundinamarca','Valle del Cauca','Atlántico','Bolívar','Santander','Nariño','Córdoba','Tolima','Norte de Santander'];
 
 export default function IndependentStep2() {
   const router = useRouter();
@@ -26,6 +24,16 @@ export default function IndependentStep2() {
   const { mergeFormData } = useRegistrationStore();
   const [serviceType, setServiceType] = useState('both');
   const [selected, setSelected] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const allStates = useMemo(() => getStateList(country as 'usa' | 'colombia'), [country]);
+
+  const filteredStates = useMemo(() => {
+    if (!searchQuery.trim()) return allStates;
+    const q = searchQuery.toLowerCase();
+    return allStates.filter((s) => s.toLowerCase().includes(q));
+  }, [allStates, searchQuery]);
+
   const toggle = (s: string) => setSelected((p) => p.includes(s) ? p.filter((x) => x !== s) : [...p, s]);
 
   return (
@@ -38,6 +46,7 @@ export default function IndependentStep2() {
             {isColombia ? 'Atrás' : 'Back'}
           </Text>
         </TouchableOpacity>
+
         <View style={{ paddingTop: 8, paddingBottom: 24 }}>
           <StepProgressBar current={2} total={4} />
           <Text style={{ color: C.textPrimary, fontSize: 26, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
@@ -69,8 +78,31 @@ export default function IndependentStep2() {
         <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 12 }}>
           {isColombia ? 'Áreas de Cobertura' : 'Coverage Areas'}
         </Text>
+
+        {/* Search */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'center',
+          backgroundColor: C.surface, borderWidth: 1.5,
+          borderColor: searchQuery.length > 0 ? C.accent : C.line,
+          borderRadius: 12, paddingHorizontal: 14, height: 44, marginBottom: 14,
+        }}>
+          <Feather name="search" size={15} color={C.textMuted} style={{ marginRight: 8 }} />
+          <TextInput
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={isColombia ? 'Buscar departamento...' : 'Search state...'}
+            placeholderTextColor={C.textMuted}
+            style={{ flex: 1, color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_400Regular' }}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Feather name="x" size={15} color={C.textMuted} />
+            </TouchableOpacity>
+          )}
+        </View>
+
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 24 }}>
-          {(isColombia ? CO_DEPTS : US_STATES).map((s) => {
+          {filteredStates.map((s) => {
             const active = selected.includes(s);
             return (
               <TouchableOpacity key={s} onPress={() => toggle(s)} activeOpacity={0.85}
@@ -79,7 +111,32 @@ export default function IndependentStep2() {
               </TouchableOpacity>
             );
           })}
+          {filteredStates.length === 0 && (
+            <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+              {isColombia ? 'Sin resultados' : 'No results'}
+            </Text>
+          )}
         </View>
+
+        {selected.length > 0 && (
+          <View style={{ backgroundColor: C.surface, borderWidth: 1, borderColor: C.line, borderRadius: 14, padding: 16, marginBottom: 24 }}>
+            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginBottom: 8 }}>
+              {selected.length} {isColombia ? (selected.length === 1 ? 'departamento seleccionado' : 'departamentos seleccionados') : (selected.length === 1 ? 'state selected' : 'states selected')}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {selected.map((s) => (
+                <TouchableOpacity
+                  key={s}
+                  onPress={() => toggle(s)}
+                  style={{ backgroundColor: `${C.accent}20`, borderRadius: 9999, paddingHorizontal: 10, paddingVertical: 4, flexDirection: 'row', alignItems: 'center' }}
+                >
+                  <Text style={{ color: C.accent, fontSize: 12, fontFamily: 'Inter_500Medium', marginRight: 4 }}>{s}</Text>
+                  <Feather name="x" size={10} color={C.accent} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+        )}
 
         <Button
           label={isColombia ? 'Continuar' : 'Continue'}

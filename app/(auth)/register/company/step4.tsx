@@ -70,6 +70,31 @@ export default function CompanyStep4() {
         if (areasError) throw areasError;
       }
 
+      // Upload documents collected in step3 now that we have a userId
+      const docFiles: Record<string, { name: string; uri: string; mimeType: string }> = formData.docFiles ?? {};
+      for (const [docKey, docFile] of Object.entries(docFiles)) {
+        try {
+          const ext = docFile.name.split('.').pop()?.toLowerCase() ?? 'pdf';
+          const storagePath = `${userId}/${docKey}_${Date.now()}.${ext}`;
+          const response = await fetch(docFile.uri);
+          const arrayBuffer = await response.arrayBuffer();
+          const { error: storErr } = await supabase.storage
+            .from('provider-documents')
+            .upload(storagePath, arrayBuffer, { contentType: docFile.mimeType, upsert: true });
+          if (!storErr) {
+            await supabase.from('documents').insert({
+              user_id: userId,
+              doc_type: docKey,
+              file_name: docFile.name,
+              file_url: storagePath,
+              status: 'pending',
+            });
+          }
+        } catch {
+          // Don't block registration if an individual doc upload fails
+        }
+      }
+
       reset();
       await initialize();
       router.replace('/(provider)/home');

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import EmptyState from '@/components/ui/EmptyState';
 import Input from '@/components/ui/Input';
@@ -467,7 +467,8 @@ export default function MyRequests() {
     }
   }, [user?.id]);
 
-  useEffect(() => { loadJobs(); }, [loadJobs]);
+  // Reload list every time this screen comes into focus (e.g. after returning from job-offers)
+  useFocusEffect(useCallback(() => { loadJobs(); }, [loadJobs]));
 
   const handleCancel = (job: JobRequest) => {
     Alert.alert(
