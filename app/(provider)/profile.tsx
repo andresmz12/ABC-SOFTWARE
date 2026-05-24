@@ -1,6 +1,7 @@
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView, Modal } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
@@ -37,6 +38,7 @@ export default function ProviderProfile() {
   const { user, signOut } = useAuthStore();
   const router = useRouter();
   const { lang } = useLang();
+  const insets = useSafeAreaInsets();
   const es = lang === 'es';
   const isPending = user?.status === 'pending';
   const country = (user?.country ?? 'usa') as 'usa' | 'colombia';
@@ -180,8 +182,11 @@ export default function ProviderProfile() {
     .toUpperCase() || '?';
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: C.background, paddingTop: insets.top }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 20, paddingBottom: 40 }}
+      >
 
         {/* Header */}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, marginTop: 12 }}>
@@ -421,7 +426,8 @@ export default function ProviderProfile() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* ── Edit Modal ─────────────────────────────────────────────────────── */}
+      {/* ── Edit Modal — conditionally mounted so the overlay never blocks touches when hidden */}
+      {editVisible && (
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
           <View style={{
@@ -511,6 +517,7 @@ export default function ProviderProfile() {
           </View>
         </View>
       </Modal>
+      )}
     </View>
   );
 }

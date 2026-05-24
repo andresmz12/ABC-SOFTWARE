@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import LanguageToggle from '@/components/ui/LanguageToggle';
@@ -36,6 +37,7 @@ export default function ClientProfile() {
   const { user, signOut } = useAuthStore();
   const router = useRouter();
   const { lang } = useLang();
+  const insets = useSafeAreaInsets();
   const es = lang === 'es';
   const country = (user?.country ?? 'usa') as 'usa' | 'colombia';
 
@@ -124,8 +126,11 @@ export default function ClientProfile() {
     .toUpperCase() || '?';
 
   return (
-    <View style={{ flex: 1, backgroundColor: C.background }}>
-      <ScrollView contentContainerStyle={{ padding: 24, paddingBottom: 48 }} showsVerticalScrollIndicator={false}>
+    <View style={{ flex: 1, backgroundColor: C.background, paddingTop: insets.top }}>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ padding: 24, paddingBottom: 40 }}
+      >
 
         {/* Header */}
         <View style={{ paddingTop: 8, paddingBottom: 24, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -218,7 +223,8 @@ export default function ClientProfile() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* ── Edit Modal ─────────────────────────────────────────────────────── */}
+      {/* ── Edit Modal — conditionally mounted so the overlay never blocks touches when hidden */}
+      {editVisible && (
       <Modal visible={editVisible} transparent animationType="slide" onRequestClose={() => setEditVisible(false)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' }}>
           <View style={{
@@ -308,6 +314,7 @@ export default function ClientProfile() {
           </View>
         </View>
       </Modal>
+      )}
     </View>
   );
 }
