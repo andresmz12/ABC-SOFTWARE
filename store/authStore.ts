@@ -28,37 +28,66 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, session: null });
   },
   initialize: async () => {
-    // Subscribe to auth state changes once — keeps session in sync with token
-    // refreshes and handles remote sign-out automatically.
-    if (!authListenerStarted) {
-      authListenerStarted = true;
-      supabase.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'TOKEN_REFRESHED' && session) {
-          // Silently update the session reference so API calls keep working.
-          set({ session });
-        } else if (event === 'SIGNED_OUT') {
-          set({ user: null, session: null });
-        }
-      });
-    }
+    // After INIT_TIMEOUT_MS we give up waiting for Supabase and drop the
+    // loading flag so the UI can redirect to the welcome screen.  This
+    // prevents an infinite spinner when the network is slow or when the app
+    // is statically pre-rendered and env vars are missing.
+    const INIT_TIMEOUT_MS = 5000;
+    let settled = false;
 
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const { data: userData } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
-      // If the DB row is missing (e.g. user deleted from Supabase but token still valid),
-      // sign out cleanly rather than landing in an indeterminate state.
-      if (!userData) {
-        await supabase.auth.signOut();
-        set({ user: null, session: null, loading: false });
-        return;
+    const settle = (state: Partial<AuthState>) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      set(state);
+    };
+
+    const timeoutId = setTimeout(() => {
+      if (!settled) {
+        settled = true;
+        console.warn('[authStore] initialize() timed out — dropping loading flag');
+        set({ loading: false });
       }
-      set({ user: userData, session, loading: false });
-    } else {
-      set({ loading: false });
+    }, INIT_TIMEOUT_MS);
+
+    try {
+      // Subscribe to auth state changes once.
+      if (!authListenerStarted) {
+        authListenerStarted = true;
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          if (event === 'TOKEN_REFRESHED' && session) {
+            set({ session });
+          } else if (event === 'SIGNED_OUT') {
+            set({ user: null, session: null });
+          }
+        });
+      }
+
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (session?.user) {
+        const { data: userData } = await supabase
+          .from('users')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+
+        // If the DB row is missing (e.g. user deleted from Supabase but token
+        // still valid), sign out cleanly rather than landing in an
+        // indeterminate state.
+        if (!userData) {
+          await supabase.auth.signOut();
+          settle({ user: null, session: null, loading: false });
+          return;
+        }
+
+        settle({ user: userData as User, session, loading: false });
+      } else {
+        settle({ loading: false });
+      }
+    } catch (err) {
+      console.warn('[authStore] initialize() error:', err);
+      settle({ loading: false });
     }
   },
 }));
