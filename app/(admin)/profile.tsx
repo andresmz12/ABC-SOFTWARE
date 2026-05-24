@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import LanguageToggle from '@/components/ui/LanguageToggle';
@@ -37,7 +37,7 @@ export default function AdminProfile() {
   const loadTestAccounts = async () => {
     const entries = await Promise.all(
       ROLE_META.map(async ({ role }) => {
-        const raw = await AsyncStorage.getItem(storageKey(role));
+        const raw = await SecureStore.getItemAsync(storageKey(role));
         return [role, raw ? (JSON.parse(raw) as TestAccount) : null] as [TestRole, TestAccount | null];
       })
     );
@@ -52,13 +52,13 @@ export default function AdminProfile() {
     if (!editing || !editing.email.trim() || !editing.password.trim()) return;
     const { role, email, password } = editing;
     const acct: TestAccount = { email: email.trim(), password: password.trim() };
-    await AsyncStorage.setItem(storageKey(role), JSON.stringify(acct));
+    await SecureStore.setItemAsync(storageKey(role), JSON.stringify(acct));
     setTestAccounts((prev) => ({ ...prev, [role]: acct }));
     setEditing(null);
   };
 
   const removeTestAccount = async (role: TestRole) => {
-    await AsyncStorage.removeItem(storageKey(role));
+    await SecureStore.deleteItemAsync(storageKey(role));
     setTestAccounts(({ [role]: _, ...rest }) => rest);
   };
 
@@ -287,7 +287,16 @@ export default function AdminProfile() {
         </View>
 
         <TouchableOpacity
-          onPress={async () => { await signOut(); router.replace('/(auth)/welcome' as any); }}
+          onPress={() => {
+            Alert.alert(
+              es ? '¿Cerrar sesión?' : 'Sign out?',
+              es ? '¿Estás seguro de que deseas cerrar sesión?' : 'Are you sure you want to sign out?',
+              [
+                { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/welcome' as any); } },
+              ],
+            );
+          }}
           style={{
             backgroundColor: `${C.danger}15`,
             borderWidth: 1,

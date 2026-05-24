@@ -1,11 +1,12 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Feather } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import Input from '@/components/ui/Input';
 import LocationSelector from '@/components/ui/LocationSelector';
 import { useAuthStore } from '@/store/authStore';
@@ -61,6 +62,21 @@ function parseTimeInput(value: string, ampm: 'AM' | 'PM'): string | null {
   return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
 }
 
+async function uploadJobPhoto(userId: string, uri: string, index: number): Promise<string | null> {
+  try {
+    const ext = uri.split('.').pop()?.split('?')[0] ?? 'jpg';
+    const path = `${userId}/${Date.now()}_${index}.${ext}`;
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    const { error } = await supabase.storage.from('job-photos').upload(path, blob, { contentType: `image/${ext}` });
+    if (error) throw error;
+    const { data } = supabase.storage.from('job-photos').getPublicUrl(path);
+    return data.publicUrl;
+  } catch {
+    return null;
+  }
+}
+
 export default function PostJob() {
   const { t, lang } = useLang();
   const router = useRouter();
@@ -75,6 +91,9 @@ export default function PostJob() {
   const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
   const [dateError, setDateError] = useState('');
   const [timeError, setTimeError] = useState('');
+  const [county, setCounty] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
   const { control, handleSubmit, watch, setValue, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -82,6 +101,28 @@ export default function PostJob() {
   });
 
   const serviceType = watch('serviceType');
+
+  const pickPhoto = async () => {
+    if (photos.length >= 3) {
+      Alert.alert(es ? 'Límite alcanzado' : 'Limit reached', es ? 'Máximo 3 fotos.' : 'Maximum 3 photos.');
+      return;
+    }
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert(es ? 'Permiso requerido' : 'Permission required', es ? 'Se necesita acceso a la galería.' : 'Gallery access is required.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, allowsEditing: true });
+    if (result.canceled || !result.assets[0]) return;
+    setUploadingPhoto(true);
+    const url = await uploadJobPhoto(user!.id, result.assets[0].uri, photos.length);
+    setUploadingPhoto(false);
+    if (url) {
+      setPhotos((prev) => [...prev, url]);
+    } else {
+      Alert.alert(es ? 'Error' : 'Error', es ? 'No se pudo subir la foto.' : 'Failed to upload photo.');
+    }
+  };
 
   const onSubmit = async (data: FormData) => {
     if (!user) return;
@@ -136,10 +177,12 @@ export default function PostJob() {
         description: data.description ?? null,
         status: 'open',
         expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+        photos: photos.length > 0 ? photos : null,
       };
 
       if (isColombia) {
         insertData.budget_cop = budgetNum;
+        if (county.trim()) insertData.county = county.trim();
       } else {
         insertData.budget_usd = budgetNum;
       }
@@ -236,6 +279,15 @@ export default function PostJob() {
               error={errors.zip?.message}
             />
           )} />
+          {isColombia && (
+            <Input
+              label={es ? 'Barrio / Vereda (opcional)' : 'Neighborhood / County (optional)'}
+              value={county}
+              onChangeText={setCounty}
+              placeholder={es ? 'Ej: Chapinero, Kennedy...' : 'e.g. El Poblado...'}
+              iconName="map"
+            />
+          )}
 
           {/* Schedule */}
           <SectionLabel text={es ? 'Fecha y Hora' : 'Schedule'} />
@@ -310,6 +362,41 @@ export default function PostJob() {
               numberOfLines={3}
             />
           )} />
+
+          {/* Photos */}
+          <SectionLabel text={es ? 'Fotos (opcional)' : 'Photos (optional)'} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+            {photos.map((uri, idx) => (
+              <View key={idx} style={{ position: 'relative' }}>
+                <Image source={{ uri }} style={{ width: 88, height: 88, borderRadius: 10, backgroundColor: C.surface2 }} />
+                <TouchableOpacity
+                  onPress={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                  style={{ position: 'absolute', top: -6, right: -6, backgroundColor: C.danger, borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+                >
+                  <Feather name="x" size={11} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            ))}
+            {photos.length < 3 && (
+              <TouchableOpacity
+                onPress={pickPhoto}
+                disabled={uploadingPhoto}
+                style={{ width: 88, height: 88, borderRadius: 10, borderWidth: 1.5, borderColor: C.line, borderStyle: 'dashed', alignItems: 'center', justifyContent: 'center', backgroundColor: C.surface }}
+                activeOpacity={0.75}
+              >
+                {uploadingPhoto ? (
+                  <ActivityIndicator color={C.accent} size="small" />
+                ) : (
+                  <>
+                    <Feather name="camera" size={20} color={C.textMuted} style={{ marginBottom: 4 }} />
+                    <Text style={{ color: C.textMuted, fontSize: 10, fontFamily: 'Inter_400Regular' }}>
+                      {es ? 'Agregar' : 'Add photo'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            )}
+          </View>
 
           <TouchableOpacity
             onPress={handleSubmit(onSubmit, () => {

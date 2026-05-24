@@ -35,9 +35,12 @@ export default function RootLayout() {
   const resetTimerRef   = useRef<() => void>(() => {});
 
   useEffect(() => {
+    // Run Stripe initialization independently so its errors are surfaced and
+    // never silently swallowed by a shared Promise.all catch.
+    initializeStripe().catch((e) => console.error('[stripe] initializeStripe failed:', e));
+
     Promise.all([
       Font.loadAsync({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold }),
-      initializeStripe(),
       useSettingsStore.getState().loadSettings(),
     ])
       .catch(() => {})

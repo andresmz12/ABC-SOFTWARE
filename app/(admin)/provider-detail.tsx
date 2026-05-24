@@ -62,7 +62,7 @@ export default function ProviderDetail() {
 
   const [provider, setProvider] = useState<ProviderData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [modalAction, setModalAction] = useState<'approve' | 'reject' | null>(null);
+  const [modalAction, setModalAction] = useState<'approve' | 'reject' | 'suspend' | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [actionLoading, setActionLoading] = useState(false);
   const [docLoading, setDocLoading] = useState<string | null>(null);
@@ -110,21 +110,26 @@ export default function ProviderDetail() {
     if (!modalAction || !provider) return;
     setActionLoading(true);
     try {
-      const newStatus = modalAction === 'approve' ? 'approved' : 'rejected';
+      const newStatus = modalAction === 'approve' ? 'approved' : modalAction === 'reject' ? 'rejected' : 'suspended';
       const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', provider.id);
       if (error) throw error;
 
       const isApprove = modalAction === 'approve';
-      const reasonText = !isApprove && rejectReason.trim() ? ` ${es ? 'Motivo' : 'Reason'}: ${rejectReason.trim()}.` : '';
+      const isSuspend = modalAction === 'suspend';
+      const reasonText = modalAction === 'reject' && rejectReason.trim() ? ` ${es ? 'Motivo' : 'Reason'}: ${rejectReason.trim()}.` : '';
       await supabase.from('notifications').insert({
         user_id: provider.id,
-        title_en: isApprove ? 'Account Approved' : 'Application Not Approved',
-        title_es: isApprove ? 'Cuenta Aprobada' : 'Solicitud No Aprobada',
+        title_en: isApprove ? 'Account Approved' : isSuspend ? 'Account Suspended' : 'Application Not Approved',
+        title_es: isApprove ? 'Cuenta Aprobada' : isSuspend ? 'Cuenta Suspendida' : 'Solicitud No Aprobada',
         body_en: isApprove
           ? 'Your account has been approved. You can now browse and apply to jobs.'
+          : isSuspend
+          ? 'Your account has been suspended. Please contact support for more information.'
           : `Your application was not approved. Please review your documents and resubmit.${reasonText}`,
         body_es: isApprove
           ? 'Tu cuenta ha sido aprobada. Ya puedes explorar y aplicar a trabajos.'
+          : isSuspend
+          ? 'Tu cuenta ha sido suspendida. Por favor contacta al soporte para más información.'
           : `Tu solicitud no fue aprobada. Por favor revisa tus documentos y vuelve a enviar.${reasonText}`,
         type: 'account_update',
         read: false,
@@ -135,10 +140,12 @@ export default function ProviderDetail() {
       setRejectReason('');
       const name = provider.profile?.name ?? provider.email;
       Alert.alert(
-        es ? (isApprove ? 'Proveedor Aprobado' : 'Proveedor Rechazado') : (isApprove ? 'Provider Approved' : 'Provider Rejected'),
         es
-          ? `${name} ha sido ${isApprove ? 'aprobado' : 'rechazado'} y notificado.`
-          : `${name} has been ${isApprove ? 'approved' : 'rejected'} and notified.`,
+          ? (isApprove ? 'Proveedor Aprobado' : isSuspend ? 'Proveedor Suspendido' : 'Proveedor Rechazado')
+          : (isApprove ? 'Provider Approved' : isSuspend ? 'Provider Suspended' : 'Provider Rejected'),
+        es
+          ? `${name} ha sido ${isApprove ? 'aprobado' : isSuspend ? 'suspendido' : 'rechazado'} y notificado.`
+          : `${name} has been ${isApprove ? 'approved' : isSuspend ? 'suspended' : 'rejected'} and notified.`,
       );
     } catch (e: any) {
       Alert.alert('Error', e.message ?? (es ? 'Falló la actualización.' : 'Failed to update status.'));
@@ -352,11 +359,23 @@ export default function ProviderDetail() {
         )}
 
         {provider.status === 'approved' && (
-          <View style={{ backgroundColor: '#0d2d1a', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.success }}>
-            <Feather name="check-circle" size={18} color={C.success} style={{ marginRight: 10 }} />
-            <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
-              {es ? 'Este proveedor está aprobado y activo en la plataforma.' : 'This provider is approved and active on the platform.'}
-            </Text>
+          <View>
+            <View style={{ backgroundColor: '#0d2d1a', borderRadius: 12, padding: 16, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: C.success, marginBottom: 12 }}>
+              <Feather name="check-circle" size={18} color={C.success} style={{ marginRight: 10 }} />
+              <Text style={{ color: C.success, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
+                {es ? 'Este proveedor está aprobado y activo en la plataforma.' : 'This provider is approved and active on the platform.'}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setModalAction('suspend')}
+              style={{ backgroundColor: C.surface2, borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: C.warning, flexDirection: 'row', justifyContent: 'center' }}
+              activeOpacity={0.85}
+            >
+              <Feather name="slash" size={15} color={C.warning} style={{ marginRight: 8 }} />
+              <Text style={{ color: C.warning, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Suspender Proveedor' : 'Suspend Provider'}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -376,21 +395,33 @@ export default function ProviderDetail() {
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
           <View style={{ backgroundColor: C.surface, borderRadius: 24, padding: 24, width: '100%', borderWidth: 1, borderColor: C.line }}>
             <View style={{ alignItems: 'center', marginBottom: 20 }}>
-              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: modalAction === 'approve' ? '#0d2d1a' : '#2d0d0d', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-                <Feather name={modalAction === 'approve' ? 'check-circle' : 'x-circle'} size={24} color={modalAction === 'approve' ? C.success : C.danger} />
+              <View style={{
+                width: 56, height: 56, borderRadius: 28,
+                backgroundColor: modalAction === 'approve' ? '#0d2d1a' : modalAction === 'suspend' ? '#2a1e0a' : '#2d0d0d',
+                alignItems: 'center', justifyContent: 'center', marginBottom: 12,
+              }}>
+                <Feather
+                  name={modalAction === 'approve' ? 'check-circle' : modalAction === 'suspend' ? 'slash' : 'x-circle'}
+                  size={24}
+                  color={modalAction === 'approve' ? C.success : modalAction === 'suspend' ? C.warning : C.danger}
+                />
               </View>
               <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', marginBottom: 8 }}>
                 {es
-                  ? (modalAction === 'approve' ? 'Aprobar Proveedor' : 'Rechazar Proveedor')
-                  : (modalAction === 'approve' ? 'Approve Provider' : 'Reject Provider')}
+                  ? (modalAction === 'approve' ? 'Aprobar Proveedor' : modalAction === 'suspend' ? 'Suspender Proveedor' : 'Rechazar Proveedor')
+                  : (modalAction === 'approve' ? 'Approve Provider' : modalAction === 'suspend' ? 'Suspend Provider' : 'Reject Provider')}
               </Text>
               <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20 }}>
                 {es
                   ? (modalAction === 'approve'
                       ? `${displayName} será notificado y podrá comenzar a aceptar trabajos.`
+                      : modalAction === 'suspend'
+                      ? `${displayName} será suspendido y no podrá acceder a la plataforma.`
                       : `${displayName} será notificado y podrá volver a enviar su solicitud.`)
                   : (modalAction === 'approve'
                       ? `${displayName} will be notified and can start accepting jobs.`
+                      : modalAction === 'suspend'
+                      ? `${displayName} will be suspended and cannot access the platform.`
                       : `${displayName} will be notified and can resubmit their application.`)}
               </Text>
             </View>
@@ -430,14 +461,20 @@ export default function ProviderDetail() {
               <TouchableOpacity
                 onPress={handleProviderAction}
                 disabled={actionLoading}
-                style={{ flex: 1, backgroundColor: modalAction === 'approve' ? C.success : C.danger, borderRadius: 12, paddingVertical: 14, alignItems: 'center', opacity: actionLoading ? 0.6 : 1 }}
+                style={{
+                  flex: 1,
+                  backgroundColor: modalAction === 'approve' ? C.success : modalAction === 'suspend' ? C.warning : C.danger,
+                  borderRadius: 12, paddingVertical: 14, alignItems: 'center', opacity: actionLoading ? 0.6 : 1,
+                }}
                 activeOpacity={0.85}
               >
                 {actionLoading ? (
-                  <ActivityIndicator color="#fff" size="small" />
+                  <ActivityIndicator color={modalAction === 'approve' ? '#000' : '#fff'} size="small" />
                 ) : (
-                  <Text style={{ color: '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-                    {es ? (modalAction === 'approve' ? 'Aprobar' : 'Rechazar') : (modalAction === 'approve' ? 'Approve' : 'Reject')}
+                  <Text style={{ color: modalAction === 'approve' ? '#000' : '#fff', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                    {es
+                      ? (modalAction === 'approve' ? 'Aprobar' : modalAction === 'suspend' ? 'Suspender' : 'Rechazar')
+                      : (modalAction === 'approve' ? 'Approve' : modalAction === 'suspend' ? 'Suspend' : 'Reject')}
                   </Text>
                 )}
               </TouchableOpacity>

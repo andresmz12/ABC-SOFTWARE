@@ -473,9 +473,15 @@ export default function ProviderProfile() {
 
         {/* Sign out */}
         <TouchableOpacity
-          onPress={async () => {
-            await signOut();
-            router.replace('/(auth)/welcome' as any);
+          onPress={() => {
+            Alert.alert(
+              es ? '¿Cerrar sesión?' : 'Sign out?',
+              es ? '¿Estás seguro de que deseas cerrar sesión?' : 'Are you sure you want to sign out?',
+              [
+                { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/welcome' as any); } },
+              ],
+            );
           }}
           style={{
             backgroundColor: '#2d0d0d',

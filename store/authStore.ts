@@ -49,6 +49,13 @@ export const useAuthStore = create<AuthState>((set) => ({
         .select('*')
         .eq('id', session.user.id)
         .single();
+      // If the DB row is missing (e.g. user deleted from Supabase but token still valid),
+      // sign out cleanly rather than landing in an indeterminate state.
+      if (!userData) {
+        await supabase.auth.signOut();
+        set({ user: null, session: null, loading: false });
+        return;
+      }
       set({ user: userData, session, loading: false });
     } else {
       set({ loading: false });

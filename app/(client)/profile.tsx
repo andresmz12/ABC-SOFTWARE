@@ -17,6 +17,8 @@ interface ClientData {
   city: string;
   state: string;
   zip: string;
+  service_preference?: 'commercial' | 'residential' | 'both' | null;
+  frequency?: 'one_time' | 'weekly' | 'biweekly' | 'monthly' | null;
 }
 
 function Row({ icon, label, value }: { icon: keyof typeof Feather.glyphMap; label: string; value: string }) {
@@ -51,6 +53,8 @@ export default function ClientProfile() {
   const [editState, setEditState] = useState('');
   const [editCity, setEditCity] = useState('');
   const [editZip, setEditZip] = useState('');
+  const [editServicePref, setEditServicePref] = useState<'commercial' | 'residential' | 'both' | null>(null);
+  const [editFrequency, setEditFrequency] = useState<'one_time' | 'weekly' | 'biweekly' | 'monthly' | null>(null);
   const [saving, setSaving] = useState(false);
 
   const loadProfile = async () => {
@@ -59,7 +63,7 @@ export default function ClientProfile() {
     try {
       const { data } = await supabase
         .from('clients')
-        .select('full_name, phone, city, state, zip')
+        .select('full_name, phone, city, state, zip, service_preference, frequency')
         .eq('user_id', user.id)
         .single();
       setClientData(data ?? null);
@@ -76,6 +80,8 @@ export default function ClientProfile() {
     setEditState(clientData?.state ?? '');
     setEditCity(clientData?.city ?? '');
     setEditZip(clientData?.zip ?? '');
+    setEditServicePref(clientData?.service_preference ?? null);
+    setEditFrequency(clientData?.frequency ?? null);
     setEditVisible(true);
   };
 
@@ -104,6 +110,8 @@ export default function ClientProfile() {
           city: editCity,
           state: editState,
           zip: editZip.trim(),
+          service_preference: editServicePref ?? null,
+          frequency: editFrequency ?? null,
         })
         .eq('user_id', user!.id);
       if (error) throw error;
@@ -183,6 +191,21 @@ export default function ClientProfile() {
                                  value={clientData?.city ? `${clientData.city}${clientData.state ? ', ' + clientData.state : ''}` : '—'} />
             <Row icon="hash"     label={country === 'colombia' ? (es ? 'Código Postal' : 'Postal Code') : 'ZIP'}
                                  value={clientData?.zip ?? '—'} />
+            <Row icon="briefcase" label={es ? 'Tipo de servicio' : 'Service preference'}
+                                 value={
+                                   clientData?.service_preference === 'commercial' ? (es ? 'Comercial' : 'Commercial')
+                                   : clientData?.service_preference === 'residential' ? (es ? 'Residencial' : 'Residential')
+                                   : clientData?.service_preference === 'both' ? (es ? 'Ambos' : 'Both')
+                                   : '—'
+                                 } />
+            <Row icon="repeat"  label={es ? 'Frecuencia' : 'Frequency'}
+                                 value={
+                                   clientData?.frequency === 'one_time' ? (es ? 'Una vez' : 'One time')
+                                   : clientData?.frequency === 'weekly' ? (es ? 'Semanal' : 'Weekly')
+                                   : clientData?.frequency === 'biweekly' ? (es ? 'Quincenal' : 'Biweekly')
+                                   : clientData?.frequency === 'monthly' ? (es ? 'Mensual' : 'Monthly')
+                                   : '—'
+                                 } />
             <Row icon="globe"    label={es ? 'País' : 'Country'}
                                  value={country === 'usa' ? '🇺🇸 United States' : '🇨🇴 Colombia'} />
             <View style={{ borderBottomWidth: 0 }}>
@@ -202,7 +225,16 @@ export default function ClientProfile() {
 
         {/* Sign out */}
         <TouchableOpacity
-          onPress={async () => { await signOut(); router.replace('/(auth)/welcome' as any); }}
+          onPress={() => {
+            Alert.alert(
+              es ? '¿Cerrar sesión?' : 'Sign out?',
+              es ? '¿Estás seguro de que deseas cerrar sesión?' : 'Are you sure you want to sign out?',
+              [
+                { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/welcome' as any); } },
+              ],
+            );
+          }}
           style={{
             backgroundColor: `${C.danger}15`,
             borderWidth: 1,
@@ -285,6 +317,52 @@ export default function ClientProfile() {
                 iconName="hash"
                 placeholder={country === 'colombia' ? '110111' : '33101'}
               />
+
+              {/* Service preference chips */}
+              <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, marginTop: 4 }}>
+                {es ? 'Tipo de servicio' : 'Service preference'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
+                {(['commercial', 'residential', 'both'] as const).map((opt) => {
+                  const label = opt === 'commercial' ? (es ? 'Comercial' : 'Commercial') : opt === 'residential' ? (es ? 'Residencial' : 'Residential') : (es ? 'Ambos' : 'Both');
+                  const active = editServicePref === opt;
+                  return (
+                    <TouchableOpacity
+                      key={opt}
+                      onPress={() => setEditServicePref(active ? null : opt)}
+                      style={{ flex: 1, paddingVertical: 10, borderRadius: 10, alignItems: 'center', borderWidth: 1.5, borderColor: active ? C.accent : C.line, backgroundColor: active ? `${C.accent}15` : C.surface2 }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ color: active ? C.accent : C.textSecondary, fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>{label}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Frequency chips */}
+              <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
+                {es ? 'Frecuencia' : 'Frequency'}
+              </Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
+                {([
+                  { val: 'one_time', en: 'One time', es: 'Una vez' },
+                  { val: 'weekly',   en: 'Weekly',   es: 'Semanal' },
+                  { val: 'biweekly', en: 'Biweekly', es: 'Quincenal' },
+                  { val: 'monthly',  en: 'Monthly',  es: 'Mensual' },
+                ] as { val: 'one_time' | 'weekly' | 'biweekly' | 'monthly'; en: string; es: string }[]).map(({ val, en, es: esLabel }) => {
+                  const active = editFrequency === val;
+                  return (
+                    <TouchableOpacity
+                      key={val}
+                      onPress={() => setEditFrequency(active ? null : val)}
+                      style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: active ? C.accent : C.line, backgroundColor: active ? `${C.accent}15` : C.surface2 }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ color: active ? C.accent : C.textSecondary, fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>{es ? esLabel : en}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>
                 <TouchableOpacity
