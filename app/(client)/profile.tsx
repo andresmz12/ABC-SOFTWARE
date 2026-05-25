@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuthStore } from '@/store/authStore';
@@ -231,7 +231,12 @@ export default function ClientProfile() {
               es ? '¿Estás seguro de que deseas cerrar sesión?' : 'Are you sure you want to sign out?',
               [
                 { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); setTimeout(() => router.replace('/(auth)/welcome' as any), 100); } },
+                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut();
+              if ((typeof Platform !== 'undefined' ? Platform.OS : 'web') === 'web') {
+                (window as any).location.href = '/';
+              } else {
+                setTimeout(() => router.replace('/(auth)/welcome' as any), 100);
+              } } },
               ],
             );
           }}

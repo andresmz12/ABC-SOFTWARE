@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView, Modal, FlatList, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView, Modal, FlatList, TextInput, Platform } from 'react-native';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -491,7 +491,12 @@ export default function ProviderProfile() {
               es ? '¿Estás seguro de que deseas cerrar sesión?' : 'Are you sure you want to sign out?',
               [
                 { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); setTimeout(() => router.replace('/(auth)/welcome' as any), 100); } },
+                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut();
+              if ((typeof Platform !== 'undefined' ? Platform.OS : 'web') === 'web') {
+                (window as any).location.href = '/';
+              } else {
+                setTimeout(() => router.replace('/(auth)/welcome' as any), 100);
+              } } },
               ],
             );
           }}
