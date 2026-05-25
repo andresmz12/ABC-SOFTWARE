@@ -31,6 +31,7 @@ const schema = z.object({
   city: z.string().min(2),
   zip: z.string().min(1),
   state: z.string().min(2),
+  address: z.string().min(3, 'Address is required'),
   estimatedHours: z.string().min(1),
   budget: z.string().min(1),
   description: z.string().optional(),
@@ -212,6 +213,7 @@ export default function PostJob() {
         city: data.city,
         state: data.state,
         zip: data.zip,
+        address: data.address,
         country: user.country,
         scheduled_date: isoDate!,
         scheduled_time: isoTime!,
@@ -255,7 +257,7 @@ export default function PostJob() {
           text: 'OK',
           onPress: () => {
             // Reset form so it's clean for the next post
-            reset();
+            reset({ serviceType: 'residential', address: '', city: '', state: '', zip: '', estimatedHours: '', budget: '' });
             setScheduledDate('');
             setScheduledTime('');
             setAmpm('AM');
@@ -445,6 +447,18 @@ export default function PostJob() {
               iconName="map"
             />
           )}
+
+          {/* Exact address */}
+          <Controller control={control} name="address" render={({ field: { onChange, value } }) => (
+            <Input
+              label={es ? 'Dirección exacta *' : 'Exact Address *'}
+              placeholder={es ? 'Ej: 123 Main St, Apt 4B' : 'e.g. 123 Main St, Apt 4B'}
+              value={value}
+              onChangeText={onChange}
+              iconName="home"
+              error={errors.address?.message}
+            />
+          )} />
 
           {/* Schedule */}
           <SectionLabel text={es ? 'Fecha y Hora' : 'Schedule'} />

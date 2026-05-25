@@ -18,6 +18,7 @@ interface ProviderRow {
   role: 'company' | 'independent';
   status: ProviderStatus;
   country: string;
+  state: string;
   name: string;
   created_at: string;
 }
@@ -71,7 +72,9 @@ function ProviderCard({ provider, es, onStatusChange, onPress }: { provider: Pro
             {provider.name}
           </Text>
           <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-            {isCompany ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')} · {provider.country === 'colombia' ? '🇨🇴' : '🇺🇸'} {provider.email}
+            {isCompany ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')}
+            {' · '}{provider.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
+            {provider.state ? ` ${provider.state}` : ''}
           </Text>
         </View>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
@@ -141,8 +144,8 @@ export default function AdminProviders() {
     try {
       // Query companies and independents directly — no users table needed
       const [companiesRes, independentsRes] = await Promise.all([
-        supabase.from('companies').select('user_id, company_name, status, country, created_at').order('created_at', { ascending: false }),
-        supabase.from('independents').select('user_id, full_name, status, country, created_at').order('created_at', { ascending: false }),
+        supabase.from('companies').select('user_id, company_name, status, country, state, created_at').order('created_at', { ascending: false }),
+        supabase.from('independents').select('user_id, full_name, status, country, state, created_at').order('created_at', { ascending: false }),
       ]);
 
       const rows = [
@@ -150,23 +153,26 @@ export default function AdminProviders() {
           id: c.user_id,
           email: '',
           role: 'company' as const,
-          status: c.status ?? 'pending',
+          status: (c.status ?? 'pending') as ProviderStatus,
           country: c.country ?? 'usa',
+          state: c.state ?? '',
           created_at: c.created_at,
-          name: c.company_name,
+          name: c.company_name ?? '',
         })),
         ...(independentsRes.data ?? []).map((i: any) => ({
           id: i.user_id,
           email: '',
           role: 'independent' as const,
-          status: i.status ?? 'pending',
+          status: (i.status ?? 'pending') as ProviderStatus,
           country: i.country ?? 'usa',
+          state: i.state ?? '',
           created_at: i.created_at,
-          name: i.full_name,
+          name: i.full_name ?? '',
         })),
       ];
       rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      if (rows.length > 0) setProviders(rows);
+      // Always update state (even when empty, to clear stale data)
+      setProviders(rows);
     } catch {
       // keep empty
     } finally {

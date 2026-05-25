@@ -261,6 +261,7 @@ export default function JobDetail() {
             [es ? 'Hora' : 'Time', job.scheduled_time],
             [es ? 'Duración estimada' : 'Duration', `${job.estimated_hours}h`],
             [es ? 'Código postal' : 'ZIP', job.zip || '—'],
+            ...(((job as any).address) ? [[es ? 'Dirección' : 'Address', (job as any).address] as [string, string]] : []),
           ] as [string, string][]).map(([label, value], idx, arr) => (
             <View key={label} style={{
               flexDirection: 'row',

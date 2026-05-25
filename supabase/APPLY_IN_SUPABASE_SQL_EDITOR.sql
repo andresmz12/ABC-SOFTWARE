@@ -71,6 +71,53 @@ AS $$
   SELECT EXISTS (SELECT 1 FROM admins WHERE id = auth.uid())
 $$;
 
+-- ── Admin read access for profile tables ──────────────────────────────────────
+-- Ensures admins can see ALL providers and clients (needed for admin panel)
+ALTER TABLE clients      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE companies    ENABLE ROW LEVEL SECURITY;
+ALTER TABLE independents ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "clients_select"      ON clients;
+DROP POLICY IF EXISTS "companies_select"    ON companies;
+DROP POLICY IF EXISTS "independents_select" ON independents;
+
+CREATE POLICY "clients_select" ON clients
+  FOR SELECT USING (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "companies_select" ON companies
+  FOR SELECT USING (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "independents_select" ON independents
+  FOR SELECT USING (auth.uid() = user_id OR is_admin());
+
+-- Allow users to update their own profile rows
+DROP POLICY IF EXISTS "clients_update"      ON clients;
+DROP POLICY IF EXISTS "companies_update"    ON companies;
+DROP POLICY IF EXISTS "independents_update" ON independents;
+
+CREATE POLICY "clients_update" ON clients
+  FOR UPDATE USING (auth.uid() = user_id);
+
+CREATE POLICY "companies_update" ON companies
+  FOR UPDATE USING (auth.uid() = user_id OR is_admin());
+
+CREATE POLICY "independents_update" ON independents
+  FOR UPDATE USING (auth.uid() = user_id OR is_admin());
+
+-- Allow insert for registration (user inserts their own row)
+DROP POLICY IF EXISTS "clients_insert"      ON clients;
+DROP POLICY IF EXISTS "companies_insert"    ON companies;
+DROP POLICY IF EXISTS "independents_insert" ON independents;
+
+CREATE POLICY "clients_insert" ON clients
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "companies_insert" ON companies
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "independents_insert" ON independents
+  FOR INSERT WITH CHECK (auth.uid() = user_id);
+
 
 -- ─── MIGRATION 012: Chats, Reviews, Job Photos, Geolocation ──────────────────
 
@@ -139,6 +186,9 @@ ALTER TABLE job_requests DROP CONSTRAINT IF EXISTS job_requests_status_check;
 ALTER TABLE job_requests
   ADD CONSTRAINT job_requests_status_check
   CHECK (status IN ('open','accepted','in_progress','completed','cancelled','expired'));
+
+-- ── Address field for job requests ────────────────────────────────────────────
+ALTER TABLE job_requests ADD COLUMN IF NOT EXISTS address TEXT;
 
 -- ── Row-Level Security ────────────────────────────────────────────────────────
 ALTER TABLE chats    ENABLE ROW LEVEL SECURITY;

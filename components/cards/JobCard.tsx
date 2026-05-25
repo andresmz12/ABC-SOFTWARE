@@ -9,6 +9,7 @@ import type { JobRequest } from '@/types';
 interface Props {
   job: JobRequest;
   onPress: () => void;
+  applied?: boolean;
 }
 
 function timeAgo(iso: string, es: boolean): string {
@@ -31,7 +32,7 @@ function countdown(iso: string, es: boolean): { text: string; urgent: boolean } 
   return { text: h > 0 ? `${h}h ${m}m ${left}` : `${m}m ${left}`, urgent: totalMins < 30 };
 }
 
-const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
+const JobCard = React.memo(function JobCard({ job, onPress, applied }: Props) {
   const { lang } = useLang();
   const es = lang === 'es';
   const isCommercial = job.service_type === 'commercial';
@@ -146,25 +147,48 @@ const JobCard = React.memo(function JobCard({ job, onPress }: Props) {
         </View>
       </View>
 
-      <View style={{
-        backgroundColor: accentColor,
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        alignItems: 'center',
-        flexDirection: 'row',
-        justifyContent: 'center',
-      }}>
-        <Text style={{
-          color: '#FFFFFF',
-          fontSize: 13,
-          fontFamily: 'Inter_600SemiBold',
-          letterSpacing: 0.3,
-          marginRight: 6,
+      {applied ? (
+        <View style={{
+          backgroundColor: `${C.success}18`,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          alignItems: 'center',
+          flexDirection: 'row',
+          justifyContent: 'center',
+          borderTopWidth: 1,
+          borderTopColor: `${C.success}35`,
         }}>
-          {es ? 'Aplicar Ahora' : 'Apply Now'}
-        </Text>
-        <Feather name="arrow-right" size={14} color="#FFFFFF" />
-      </View>
+          <Feather name="check-circle" size={14} color={C.success} style={{ marginRight: 6 }} />
+          <Text style={{
+            color: C.success,
+            fontSize: 13,
+            fontFamily: 'Inter_600SemiBold',
+            letterSpacing: 0.3,
+          }}>
+            {es ? '✓ Aplicado' : '✓ Applied'}
+          </Text>
+        </View>
+      ) : (
+        <View style={{
+          backgroundColor: accentColor,
+          paddingHorizontal: 16,
+          paddingVertical: 10,
+          alignItems: 'center',
+          flexDirection: 'row',
+          justifyContent: 'center',
+        }}>
+          <Text style={{
+            color: '#FFFFFF',
+            fontSize: 13,
+            fontFamily: 'Inter_600SemiBold',
+            letterSpacing: 0.3,
+            marginRight: 6,
+          }}>
+            {es ? 'Aplicar Ahora' : 'Apply Now'}
+          </Text>
+          <Feather name="arrow-right" size={14} color="#FFFFFF" />
+        </View>
+      )}
     </TouchableOpacity>
   );
 });

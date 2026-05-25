@@ -28,22 +28,27 @@ export default function ProviderJobs() {
   const es = lang === 'es';
   const isPending = user?.status === 'pending';
 
-  const { openJobs, fetchOpenJobs, loading } = useJobStore(
+  const { openJobs, fetchOpenJobs, loading, appliedJobs, fetchMyJobs } = useJobStore(
     useShallow((s) => ({
       openJobs: s.openJobs,
       fetchOpenJobs: s.fetchOpenJobs,
       loading: s.loading,
+      appliedJobs: s.appliedJobs,
+      fetchMyJobs: s.fetchMyJobs,
     })),
   );
 
   const load = useCallback(async () => {
     if (!user?.id || isPending) return;
-    await fetchOpenJobs(
-      (user.country ?? 'usa') as any,
-      user.id,
-      user.role as 'company' | 'independent',
-    );
-  }, [user?.id, user?.country, user?.role, isPending, fetchOpenJobs]);
+    await Promise.all([
+      fetchOpenJobs(
+        (user.country ?? 'usa') as any,
+        user.id,
+        user.role as 'company' | 'independent',
+      ),
+      fetchMyJobs(user.id),
+    ]);
+  }, [user?.id, user?.country, user?.role, isPending, fetchOpenJobs, fetchMyJobs]);
 
   // Refresh every time the tab comes into focus so new jobs appear
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -62,12 +67,16 @@ export default function ProviderJobs() {
     ? openJobs
     : openJobs.filter((j) => j.service_type === filter);
 
-  const renderItem = useCallback(({ item }: { item: JobRequest }) => (
-    <JobCard
-      job={item}
-      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-    />
-  ), [router]);
+  const renderItem = useCallback(({ item }: { item: JobRequest }) => {
+    const isApplied = appliedJobs.some((aj) => aj.id === item.id);
+    return (
+      <JobCard
+        job={item}
+        applied={isApplied}
+        onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+      />
+    );
+  }, [router, appliedJobs]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>

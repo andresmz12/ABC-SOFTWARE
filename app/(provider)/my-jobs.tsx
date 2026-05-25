@@ -198,18 +198,22 @@ function JobCard({
   appStatus,
   isRejected,
   es,
+  onPress,
+  onStart,
   onComplete,
 }: {
   job: JobRequest;
   appStatus?: string;
   isRejected: boolean;
   es: boolean;
+  onPress?: () => void;
+  onStart?: () => void;
   onComplete?: () => void;
 }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
 
-  return (
+  const inner = (
     <View style={{
       backgroundColor: C.surface,
       borderRadius: 16,
@@ -239,13 +243,21 @@ function JobCard({
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 8 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 8 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="map-pin" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
             <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
-              {job.city}, {job.state}
+              {job.city}{job.state ? `, ${job.state}` : ''}
             </Text>
           </View>
+          {(job as any).address ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="home" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
+              <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }} numberOfLines={1}>
+                {(job as any).address}
+              </Text>
+            </View>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Feather name="calendar" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
             <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
@@ -267,25 +279,54 @@ function JobCard({
             </Text>
           </View>
         )}
+
+        {onPress && (
+          <View style={{ position: 'absolute', right: 14, bottom: 14 }}>
+            <Feather name="chevron-right" size={16} color={C.textMuted} />
+          </View>
+        )}
       </View>
 
-      {/* Complete button for in_progress jobs */}
-      {job.status === 'accepted' && onComplete && (
+      {/* Action buttons — Start Job / Complete Job */}
+      {(job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) ? (
         <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
-          <TouchableOpacity
-            onPress={onComplete}
-            style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 }}
-            activeOpacity={0.8}
-          >
-            <Feather name="check-circle" size={15} color={C.success} />
-            <Text style={{ color: C.success, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-              {es ? 'Marcar como Completado' : 'Mark as Completed'}
-            </Text>
-          </TouchableOpacity>
+          {job.status === 'accepted' && onStart && (
+            <TouchableOpacity
+              onPress={onStart}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 }}
+              activeOpacity={0.8}
+            >
+              <Feather name="play" size={15} color="#3B82F6" />
+              <Text style={{ color: '#3B82F6', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Iniciar Trabajo' : 'Start Job'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {job.status === 'in_progress' && onComplete && (
+            <TouchableOpacity
+              onPress={onComplete}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 }}
+              activeOpacity={0.8}
+            >
+              <Feather name="check-circle" size={15} color={C.success} />
+              <Text style={{ color: C.success, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Completar Trabajo' : 'Complete Job'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
-      )}
+      ) : null}
     </View>
   );
+
+  if (onPress) {
+    return (
+      <TouchableOpacity onPress={onPress} activeOpacity={0.85}>
+        {inner}
+      </TouchableOpacity>
+    );
+  }
+  return inner;
 }
 
 // ─── Main Screen ─────────────────────────────────────────────────────────────
@@ -342,7 +383,12 @@ export default function MyJobsScreen() {
 
       const allJobs = (jobs ?? []) as JobRequest[];
       setApplied(allJobs.filter((j) => statusMap[j.id] === 'pending' || statusMap[j.id] === 'rejected'));
-      setActive(allJobs.filter((j) => statusMap[j.id] === 'accepted' && j.status !== 'completed'));
+      // Active = application accepted AND job not yet completed/cancelled/expired
+      // Sorted by scheduled_date ascending so most urgent comes first
+      const activeList = allJobs
+        .filter((j) => statusMap[j.id] === 'accepted' && j.status !== 'completed' && j.status !== 'cancelled' && j.status !== 'expired')
+        .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
+      setActive(activeList);
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
     } catch (e: any) {
       Alert.alert('Error', e.message);
@@ -353,6 +399,28 @@ export default function MyJobsScreen() {
 
   useFocusEffect(useCallback(() => { loadJobs(); }, [loadJobs]));
 
+  const handleStartJob = async (jobId: string) => {
+    Alert.alert(
+      es ? 'Iniciar Trabajo' : 'Start Job',
+      es ? '¿Confirmas que estás comenzando este trabajo?' : 'Confirm you are starting this job?',
+      [
+        { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+        {
+          text: es ? 'Iniciar' : 'Start',
+          onPress: async () => {
+            const { error } = await supabase
+              .from('job_requests')
+              .update({ status: 'in_progress' })
+              .eq('id', jobId);
+            if (error) { Alert.alert('Error', error.message); return; }
+            // Optimistic update
+            setActive((prev) => prev.map((j) => j.id === jobId ? { ...j, status: 'in_progress' } : j));
+          },
+        },
+      ],
+    );
+  };
+
   const current = activeTab === 'applied' ? applied : activeTab === 'active' ? active : completed;
   const counts: Record<Tab, number> = { applied: applied.length, active: active.length, completed: completed.length };
 
@@ -362,9 +430,11 @@ export default function MyJobsScreen() {
       appStatus={appStatuses[item.id]}
       isRejected={rejectedIds.has(item.id)}
       es={es}
+      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+      onStart={activeTab === 'active' ? () => handleStartJob(item.id) : undefined}
       onComplete={activeTab === 'active' ? () => setCompleteJob(item) : undefined}
     />
-  ), [appStatuses, rejectedIds, es, activeTab]);
+  ), [appStatuses, rejectedIds, es, activeTab, router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
