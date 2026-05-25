@@ -57,52 +57,80 @@ export default function ProviderSupport() {
   const [loading, setLoading] = useState(true);
   const listRef = useRef<FlatList>(null);
 
+  // ── Load messages for a known chat ────────────────────────────────────────
+  const loadMessages = useCallback(async (id: string) => {
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('chat_id', id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('[ProviderSupport] loadMessages error:', error.message);
+      return;
+    }
+    setMessages((data as Message[]) ?? []);
+
+    // Mark all incoming admin messages as read
+    if (user?.id) {
+      supabase.from('messages')
+        .update({ read: true })
+        .eq('chat_id', id)
+        .neq('sender_id', user.id)
+        .then(() => {});
+    }
+  }, [user?.id]);
+
+  // ── Get or create chat ────────────────────────────────────────────────────
+  // Uses .limit(1) instead of .maybeSingle() so the query succeeds even if
+  // there are multiple chat rows for this user (maybeSingle() errors in that case
+  // and would silently create a new, empty chat each time).
   const getOrCreateChat = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
     try {
-      const { data: existing } = await supabase
-        .from('chats').select('id').eq('user_id', user.id).maybeSingle();
+      const { data: chats, error: chatErr } = await supabase
+        .from('chats')
+        .select('id')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true }) // oldest first = most history
+        .limit(1);
+
+      if (chatErr) console.warn('[ProviderSupport] chat lookup error:', chatErr.message);
 
       let id: string;
-      if (existing?.id) {
-        id = existing.id;
+      if (chats && chats.length > 0) {
+        id = chats[0].id;
       } else {
-        // Create chat — admin_id left null; admin claims it when they first reply
+        // No existing chat — create one. admin_id is null until admin first replies.
         const userType = user.role === 'company' ? 'company' : 'independent';
         const { data: newChat, error } = await supabase
           .from('chats')
           .insert({ user_id: user.id, admin_id: null, user_type: userType })
-          .select('id').single();
+          .select('id')
+          .single();
         if (error) throw error;
         id = newChat.id;
       }
+
       setChatId(id);
       await loadMessages(id);
     } catch (e: any) {
+      console.error('[ProviderSupport] getOrCreateChat error:', e.message);
       Alert.alert('Error', e.message);
     } finally {
       setLoading(false);
     }
-  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [user?.id, user?.role, loadMessages]);
 
-  const loadMessages = async (id: string) => {
-    const { data } = await supabase
-      .from('messages').select('*').eq('chat_id', id).order('created_at', { ascending: true });
-    setMessages((data as Message[]) ?? []);
-    if (user?.id) {
-      supabase.from('messages').update({ read: true })
-        .eq('chat_id', id).neq('sender_id', user.id).then(() => {});
-    }
-  };
-
+  // useFocusEffect handles both initial load and re-navigation to this tab.
+  // The separate useEffect is intentionally removed — it caused double-calls
+  // that raced with useFocusEffect and produced empty message lists.
   useFocusEffect(useCallback(() => {
-    if (chatId) loadMessages(chatId);
-    else getOrCreateChat();
-  }, [chatId, getOrCreateChat])); // eslint-disable-line react-hooks/exhaustive-deps
+    getOrCreateChat();
+  }, [getOrCreateChat]));
 
-  useEffect(() => { getOrCreateChat(); }, [getOrCreateChat]);
-
+  // ── Realtime subscription ─────────────────────────────────────────────────
   useEffect(() => {
     if (!chatId) return;
     const channel = supabase
@@ -122,6 +150,7 @@ export default function ProviderSupport() {
     return () => { supabase.removeChannel(channel); };
   }, [chatId, user?.id]);
 
+  // ── Send message ──────────────────────────────────────────────────────────
   const handleSend = async () => {
     if (!text.trim() || !chatId || !user?.id) return;
     setSending(true);
@@ -142,6 +171,7 @@ export default function ProviderSupport() {
     }
   };
 
+  // ── Group messages by date ────────────────────────────────────────────────
   type ListItem = { type: 'date'; label: string } | { type: 'message'; item: Message };
   const listData = (): ListItem[] => {
     const result: ListItem[] = [];

@@ -28,7 +28,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, session: null });
   },
   initialize: async () => {
-    const INIT_TIMEOUT_MS = 5000;
+    const INIT_TIMEOUT_MS = 6000;
     let settled = false;
 
     const settle = (state: Partial<AuthState>) => {
@@ -47,6 +47,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     }, INIT_TIMEOUT_MS);
 
     try {
+      // TOKEN_REFRESHED / SIGNED_OUT listener — runs once, handles background refreshes.
+      // Profile loading is NOT done here to avoid racing with initialize().
       if (!authListenerStarted) {
         authListenerStarted = true;
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -61,29 +63,14 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
-        const uid = session.user.id;
+        const uid   = session.user.id;
         const email = session.user.email ?? '';
 
-        // First try the legacy `users` table (if it exists in this deployment)
-        const { data: usersRow, error: usersErr } = await supabase
-          .from('users')
-          .select('*')
-          .eq('id', uid)
-          .maybeSingle();
-
-        if (usersRow) {
-          // users table exists and has the row — use it directly
-          settle({ user: { ...usersRow, email } as User, session, loading: false });
-          return;
-        }
-
-        // `users` table missing or row absent — fall back to profile tables
-        if (usersErr) {
-          console.info('[authStore] users table not found, trying profile tables');
-        }
-
+        // Use priority-ordered lookup: admins → companies → independents → clients
+        // (legacy "users" table check removed — it returned stale/wrong roles)
         const profile = await getUserProfile(uid);
         if (!profile) {
+          console.warn('[authStore] no profile found for uid', uid, '— signing out');
           await supabase.auth.signOut();
           settle({ user: null, session: null, loading: false });
           return;

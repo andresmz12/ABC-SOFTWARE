@@ -3,11 +3,14 @@
  *
  * The DB has no central `users` table. Identity lives in:
  *   clients(user_id = auth.uid(), ...)
- *   companies(user_id = auth.uid(), ...)
- *   independents(user_id = auth.uid(), ...)
+ *   companies(user_id = auth.uid(), ...)   — NO status column
+ *   independents(user_id = auth.uid(), ...) — NO status column
  *   admins(id = auth.uid(), ...)
  *
- * All helpers try each table in order and return on first match.
+ * Lookup priority: admins → companies → independents → clients
+ * Admins are checked FIRST so an account in both tables gets the admin role.
+ *
+ * companies/independents have no status column — approval lives in documents.
  */
 import { supabase } from '@/lib/supabase';
 import type { UserRole } from '@/types';
@@ -25,52 +28,39 @@ export interface UnifiedUser {
   created_at?: string;
 }
 
+// Ordered by priority: companies → independents → clients
+// (admins checked separately and first in getUserProfile)
+// NOTE: companies/independents intentionally omit 'status' — column does not exist.
 const PROFILE_TABLES = [
-  {
-    table: 'clients',
-    role: 'client' as UserRole,
-    nameField: 'full_name',
-    select: 'user_id, full_name, country, status, preferred_language, push_token, available, created_at',
-  },
   {
     table: 'companies',
     role: 'company' as UserRole,
     nameField: 'company_name',
-    select: 'user_id, company_name, country, status, preferred_language, push_token, available, created_at',
+    select: 'user_id, company_name, country, preferred_language, push_token, available, created_at',
+    defaultStatus: 'pending',
   },
   {
     table: 'independents',
     role: 'independent' as UserRole,
     nameField: 'full_name',
+    select: 'user_id, full_name, country, preferred_language, push_token, available, created_at',
+    defaultStatus: 'pending',
+  },
+  {
+    table: 'clients',
+    role: 'client' as UserRole,
+    nameField: 'full_name',
     select: 'user_id, full_name, country, status, preferred_language, push_token, available, created_at',
+    defaultStatus: 'approved',
   },
 ] as const;
 
-/** Find a single user across all profile tables. */
+/** Find a single user across all profile tables.
+ *  Priority: admins first → companies → independents → clients.
+ *  This ensures an admin is never mistakenly identified as another role.
+ */
 export async function getUserProfile(userId: string): Promise<UnifiedUser | null> {
-  for (const { table, role, nameField, select } of PROFILE_TABLES) {
-    const { data } = await (supabase as any)
-      .from(table)
-      .select(select)
-      .eq('user_id', userId)
-      .maybeSingle();
-    if (data) {
-      return {
-        id: userId,
-        email: '',
-        role,
-        status: data.status ?? (role === 'client' ? 'approved' : 'pending'),
-        country: data.country ?? 'usa',
-        preferred_language: data.preferred_language ?? 'en',
-        push_token: data.push_token ?? null,
-        name: data[nameField] ?? '',
-        available: data.available ?? false,
-        created_at: data.created_at,
-      };
-    }
-  }
-
-  // Check admins table
+  // ── 1. Check admins FIRST ────────────────────────────────────────────────
   const { data: admin } = await supabase
     .from('admins')
     .select('id, email, created_at')
@@ -87,6 +77,34 @@ export async function getUserProfile(userId: string): Promise<UnifiedUser | null
       push_token: null,
       created_at: admin.created_at,
     };
+  }
+
+  // ── 2. Then check companies → independents → clients ────────────────────
+  for (const { table, role, nameField, select, defaultStatus } of PROFILE_TABLES) {
+    const { data, error } = await (supabase as any)
+      .from(table)
+      .select(select)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (error) {
+      console.warn(`[getUserProfile] ${table} query error:`, error.message);
+      continue;
+    }
+    if (data) {
+      return {
+        id: userId,
+        email: '',
+        role,
+        // clients have a status column; companies/independents default to 'pending'
+        status: data.status ?? defaultStatus,
+        country: data.country ?? 'usa',
+        preferred_language: data.preferred_language ?? 'en',
+        push_token: data.push_token ?? null,
+        name: data[nameField] ?? '',
+        available: data.available ?? false,
+        created_at: data.created_at,
+      };
+    }
   }
 
   return null;
@@ -133,18 +151,20 @@ export async function getUserPushTokens(
   return result;
 }
 
-/** Get all registered users for admin panels (name, role, status). */
+/** Get all registered users for admin panels (name, role, status).
+ *  NOTE: companies/independents have no status column — omitted from SELECT.
+ */
 export async function getAllUsers(): Promise<UnifiedUser[]> {
   const [clientsRes, companiesRes, independentsRes] = await Promise.all([
     supabase.from('clients').select('user_id, full_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
-    supabase.from('companies').select('user_id, company_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
-    supabase.from('independents').select('user_id, full_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
+    supabase.from('companies').select('user_id, company_name, country, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
+    supabase.from('independents').select('user_id, full_name, country, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
   ]);
 
   const users: UnifiedUser[] = [
     ...(clientsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'client' as UserRole, status: r.status ?? 'approved', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
-    ...(companiesRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'company' as UserRole, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.company_name, created_at: r.created_at })),
-    ...(independentsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'independent' as UserRole, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
+    ...(companiesRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'company' as UserRole, status: 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.company_name, created_at: r.created_at })),
+    ...(independentsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'independent' as UserRole, status: 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
   ];
 
   users.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());

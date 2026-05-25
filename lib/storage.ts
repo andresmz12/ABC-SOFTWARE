@@ -1,39 +1,8 @@
 /**
- * storage.ts — Platform-aware key-value storage adapter
- *
- * On web:    wraps localStorage in a Promise-based API
- * On native: delegates to @react-native-async-storage/async-storage
- *
- * Usage: import { storage } from '@/lib/storage'
- *        storage.getItem(key), storage.setItem(key, val), storage.removeItem(key)
+ * storage.ts — Native (iOS/Android) implementation of the storage adapter
+ * On web, storage.web.ts is loaded instead by the bundler — AsyncStorage
+ * is NOT bundled for web at all, preventing import errors on Vercel.
  */
-import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface StorageAdapter {
-  getItem(key: string): Promise<string | null>;
-  setItem(key: string, value: string): Promise<void>;
-  removeItem(key: string): Promise<void>;
-}
-
-const webStorage: StorageAdapter = {
-  getItem: (key) => {
-    try { return Promise.resolve(localStorage.getItem(key)); }
-    catch { return Promise.resolve(null); }
-  },
-  setItem: (key, value) => {
-    try { localStorage.setItem(key, value); } catch {}
-    return Promise.resolve();
-  },
-  removeItem: (key) => {
-    try { localStorage.removeItem(key); } catch {}
-    return Promise.resolve();
-  },
-};
-
-// Avoid bundling AsyncStorage at all on web (it has no web support)
-const nativeStorage: StorageAdapter =
-  Platform.OS !== 'web'
-    ? (require('@react-native-async-storage/async-storage').default as StorageAdapter)
-    : webStorage; // fallback — should never be reached on native
-
-export const storage: StorageAdapter = Platform.OS === 'web' ? webStorage : nativeStorage;
+export const storage = AsyncStorage;
