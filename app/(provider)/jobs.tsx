@@ -1,6 +1,12 @@
-import { useState, useEffect, useCallback } from 'react';
+/**
+ * Provider — Jobs
+ * Browses open job requests posted by clients that match the provider's
+ * service areas. Tapping a job navigates to job-detail where they can apply.
+ */
+import { useState, useCallback } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useShallow } from 'zustand/react/shallow';
 import JobCard from '@/components/cards/JobCard';
@@ -11,91 +17,75 @@ import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import type { JobRequest } from '@/types';
 
-type Tab = 'applied' | 'active' | 'completed';
+type Filter = 'all' | 'commercial' | 'residential';
 
 export default function ProviderJobs() {
-  const [activeTab, setActiveTab] = useState<Tab>('applied');
+  const [filter, setFilter] = useState<Filter>('all');
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const { user } = useAuthStore(useShallow((s) => ({ user: s.user })));
   const { lang } = useLang();
   const es = lang === 'es';
   const isPending = user?.status === 'pending';
-  const { appliedJobs, activeJobs, completedJobs, fetchMyJobs, loading, rejectedJobIds } = useJobStore(
+
+  const { openJobs, fetchOpenJobs, loading } = useJobStore(
     useShallow((s) => ({
-      appliedJobs: s.appliedJobs,
-      activeJobs: s.activeJobs,
-      completedJobs: s.completedJobs,
-      fetchMyJobs: s.fetchMyJobs,
+      openJobs: s.openJobs,
+      fetchOpenJobs: s.fetchOpenJobs,
       loading: s.loading,
-      rejectedJobIds: s.rejectedJobIds,
     })),
   );
 
-  const TAB_LABELS: Record<Tab, string> = es
-    ? { applied: 'Aplicados', active: 'Activos', completed: 'Completados' }
-    : { applied: 'Applied', active: 'Active', completed: 'Done' };
+  const load = useCallback(async () => {
+    if (!user?.id || isPending) return;
+    await fetchOpenJobs(
+      (user.country ?? 'usa') as any,
+      user.id,
+      user.role as 'company' | 'independent',
+    );
+  }, [user?.id, user?.country, user?.role, isPending, fetchOpenJobs]);
 
-  useEffect(() => {
-    if (user?.id && !isPending) fetchMyJobs(user.id);
-  }, [user?.id, isPending]);
+  // Refresh every time the tab comes into focus so new jobs appear
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const onRefresh = async () => {
     setRefreshing(true);
-    if (user?.id) await fetchMyJobs(user.id);
+    await load();
     setRefreshing(false);
   };
 
-  const tabData: Record<Tab, JobRequest[]> = {
-    applied: appliedJobs,
-    active: activeJobs,
-    completed: completedJobs,
-  };
+  const FILTER_LABELS: Record<Filter, string> = es
+    ? { all: 'Todos', commercial: 'Comercial', residential: 'Residencial' }
+    : { all: 'All', commercial: 'Commercial', residential: 'Residential' };
 
-  const jobs = tabData[activeTab];
+  const filtered = filter === 'all'
+    ? openJobs
+    : openJobs.filter((j) => j.service_type === filter);
 
-  const renderItem = useCallback(({ item }: { item: JobRequest }) => {
-    const isRejected = activeTab === 'applied' && rejectedJobIds.includes(item.id);
-    return (
-      <View>
-        <JobCard
-          job={item}
-          onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-        />
-        {isRejected && (
-          <View style={{ marginTop: -6, marginBottom: 6, paddingHorizontal: 20, flexDirection: 'row' }}>
-            <View style={{
-              backgroundColor: '#FFE4E6',
-              borderRadius: 6,
-              paddingHorizontal: 8,
-              paddingVertical: 3,
-              borderWidth: 1,
-              borderColor: C.danger,
-            }}>
-              <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
-                {es ? 'Rechazado' : 'Rejected'}
-              </Text>
-            </View>
-          </View>
-        )}
-      </View>
-    );
-  }, [activeTab, rejectedJobIds, router, es]);
+  const renderItem = useCallback(({ item }: { item: JobRequest }) => (
+    <JobCard
+      job={item}
+      onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
+    />
+  ), [router]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
-      <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 20 }}>
+      {/* Header */}
+      <View style={{ paddingHorizontal: 20, paddingTop: 32, paddingBottom: 8 }}>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold' }}>
-          {es ? 'Mis Trabajos' : 'My Jobs'}
+          {es ? 'Trabajos' : 'Jobs'}
         </Text>
         <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
-          {es ? 'Aplicaciones y trabajo activo' : 'Applications and active work'}
+          {isPending
+            ? (es ? 'Disponible cuando tu cuenta sea aprobada' : 'Available once your account is approved')
+            : `${filtered.length} ${es ? 'trabajos en tu área' : 'jobs in your area'}`}
         </Text>
       </View>
 
       {isPending ? (
         <View style={{
-          marginHorizontal: 20,
+          margin: 20,
           backgroundColor: '#FFF3CD',
           borderRadius: 16,
           padding: 16,
@@ -110,86 +100,65 @@ export default function ProviderJobs() {
           </View>
           <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
             {es
-              ? 'Podrás aplicar a trabajos una vez que tu cuenta sea aprobada.'
-              : "You'll be able to apply for jobs once your account is approved."}
+              ? 'Podrás ver y aplicar a trabajos una vez que tu cuenta sea aprobada.'
+              : "You'll be able to see and apply for jobs once your account is approved."}
           </Text>
         </View>
       ) : (
         <>
-          {/* Tab bar */}
-          <View style={{
-            flexDirection: 'row',
-            marginHorizontal: 20,
-            marginBottom: 16,
-            backgroundColor: C.surface,
-            borderRadius: 12,
-            padding: 4,
-            borderWidth: 1,
-            borderColor: C.line,
-          }}>
-            {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => {
-              const isActive = activeTab === tab;
-              const count = tabData[tab].length;
+          {/* Filter chips */}
+          <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginTop: 12, marginBottom: 16 }}>
+            {(Object.keys(FILTER_LABELS) as Filter[]).map((f) => {
+              const active = filter === f;
+              const count = f === 'all' ? openJobs.length : openJobs.filter((j) => j.service_type === f).length;
               return (
                 <TouchableOpacity
-                  key={tab}
-                  onPress={() => setActiveTab(tab)}
+                  key={f}
+                  onPress={() => setFilter(f)}
                   style={{
-                    flex: 1,
+                    paddingHorizontal: 14,
                     paddingVertical: 8,
-                    alignItems: 'center',
-                    borderRadius: 8,
-                    backgroundColor: isActive ? C.accent : 'transparent',
-                    flexDirection: 'row',
-                    justifyContent: 'center',
+                    borderRadius: 9999,
+                    backgroundColor: active ? C.accent : C.surface,
+                    borderWidth: 1,
+                    borderColor: active ? C.accent : C.line,
                   }}
-                  activeOpacity={0.75}
+                  activeOpacity={0.85}
                 >
                   <Text style={{
-                    fontSize: 12,
-                    fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular',
-                    color: isActive ? '#FFFFFF' : C.textSecondary,
+                    color: active ? '#000' : C.textMuted,
+                    fontSize: 13,
+                    fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular',
                   }}>
-                    {TAB_LABELS[tab]}
+                    {FILTER_LABELS[f]}{count > 0 ? ` (${count})` : ''}
                   </Text>
-                  {count > 0 && (
-                    <View style={{
-                      marginLeft: 5,
-                      width: 16,
-                      height: 16,
-                      borderRadius: 8,
-                      backgroundColor: isActive ? 'rgba(255,255,255,0.25)' : C.surface2,
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <Text style={{ fontSize: 9, color: isActive ? '#FFFFFF' : C.textSecondary, fontFamily: 'Inter_600SemiBold' }}>
-                        {count}
-                      </Text>
-                    </View>
-                  )}
                 </TouchableOpacity>
               );
             })}
           </View>
 
-          {loading ? (
+          {loading && !refreshing ? (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
               <ActivityIndicator color={C.accent} size="large" />
             </View>
-          ) : jobs.length === 0 ? (
+          ) : filtered.length === 0 ? (
             <EmptyState
-              title={es ? `Sin trabajos ${TAB_LABELS[activeTab].toLowerCase()}` : `No ${TAB_LABELS[activeTab].toLowerCase()} jobs`}
-              subtitle={es ? 'Los trabajos aparecerán aquí' : 'Your jobs will appear here'}
-              iconName="clipboard"
+              title={es ? 'Sin trabajos disponibles' : 'No jobs available'}
+              subtitle={es
+                ? 'Cuando un cliente publique un trabajo en tu área aparecerá aquí.'
+                : 'When a client posts a job in your service area it will appear here.'}
+              iconName="briefcase"
             />
           ) : (
             <FlatList
-              data={jobs}
+              data={filtered}
               keyExtractor={(item) => item.id}
               renderItem={renderItem}
               contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}
               showsVerticalScrollIndicator={false}
-              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={C.accent} />
+              }
             />
           )}
         </>
