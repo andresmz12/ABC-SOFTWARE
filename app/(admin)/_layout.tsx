@@ -1,8 +1,34 @@
+import { useState, useEffect, useCallback } from 'react';
 import { Tabs } from 'expo-router';
 import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
+import { supabase } from '@/lib/supabase';
+import { useAuthStore } from '@/store/authStore';
 
 export default function AdminLayout() {
+  const { user } = useAuthStore();
+  const [totalUnread, setTotalUnread] = useState(0);
+
+  const fetchTotalUnread = useCallback(async () => {
+    if (!user?.id) return;
+    const { count } = await supabase
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .neq('sender_id', user.id)
+      .eq('read', false);
+    setTotalUnread(count ?? 0);
+  }, [user?.id]);
+
+  useEffect(() => {
+    fetchTotalUnread();
+    const ch = supabase
+      .channel('admin-chats-badge')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, fetchTotalUnread)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, fetchTotalUnread)
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [fetchTotalUnread]);
+
   return (
     <Tabs
       screenOptions={{
@@ -20,14 +46,23 @@ export default function AdminLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
     >
-      <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard', tabBarIcon: ({ focused }) => <TabIcon name="grid"        focused={focused} activeColor={C.accent2} /> }} />
-      <Tabs.Screen name="providers"    options={{ title: 'Providers', tabBarIcon: ({ focused }) => <TabIcon name="users"       focused={focused} activeColor={C.accent2} /> }} />
-      <Tabs.Screen name="jobs"         options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase"   focused={focused} activeColor={C.accent2} /> }} />
-      <Tabs.Screen name="chats"        options={{ title: 'Messages',  tabBarIcon: ({ focused }) => <TabIcon name="message-square" focused={focused} activeColor={C.accent2} /> }} />
-      <Tabs.Screen name="profile"      options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"        focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard', tabBarIcon: ({ focused }) => <TabIcon name="grid"           focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen name="providers"    options={{ title: 'Providers', tabBarIcon: ({ focused }) => <TabIcon name="users"          focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen name="jobs"         options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase"      focused={focused} activeColor={C.accent2} /> }} />
+      <Tabs.Screen
+        name="chats"
+        options={{
+          title: 'Messages',
+          tabBarIcon: ({ focused }) => <TabIcon name="message-square" focused={focused} activeColor={C.accent2} />,
+          tabBarBadge: totalUnread > 0 ? totalUnread : undefined,
+          tabBarBadgeStyle: { backgroundColor: C.danger, fontSize: 10, minWidth: 18, height: 18, borderRadius: 9 },
+        }}
+      />
+      <Tabs.Screen name="profile"      options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"           focused={focused} activeColor={C.accent2} /> }} />
       <Tabs.Screen name="documents"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail" options={{ href: null }} />
       <Tabs.Screen name="chat-detail"     options={{ href: null }} />
+      <Tabs.Screen name="new-chat"        options={{ href: null }} />
     </Tabs>
   );
 }

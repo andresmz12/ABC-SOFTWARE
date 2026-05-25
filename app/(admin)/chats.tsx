@@ -119,7 +119,7 @@ export default function AdminChats() {
 
   const renderItem = ({ item }: { item: ChatItem }) => (
     <TouchableOpacity
-      onPress={() => router.push({ pathname: '/(admin)/chat-detail', params: { chatId: item.id, userEmail: item.user_email } } as any)}
+      onPress={() => router.push({ pathname: '/(admin)/chat-detail', params: { chatId: item.id, userEmail: item.user_email, userId: item.user_id } } as any)}
       style={{
         backgroundColor: C.surface,
         borderRadius: 16,
@@ -197,18 +197,32 @@ export default function AdminChats() {
               {es ? 'Mensajes' : 'Messages'}
             </Text>
           </View>
-          {totalUnread > 0 && (
-            <View style={{
-              backgroundColor: C.danger,
-              borderRadius: 12,
-              paddingHorizontal: 10,
-              paddingVertical: 4,
-            }}>
-              <Text style={{ color: '#FFF', fontSize: 13, fontFamily: 'Inter_700Bold' }}>
-                {totalUnread} {es ? 'nuevos' : 'new'}
-              </Text>
-            </View>
-          )}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            {totalUnread > 0 && (
+              <View style={{
+                backgroundColor: C.danger,
+                borderRadius: 12,
+                paddingHorizontal: 10,
+                paddingVertical: 4,
+              }}>
+                <Text style={{ color: '#FFF', fontSize: 13, fontFamily: 'Inter_700Bold' }}>
+                  {totalUnread} {es ? 'nuevos' : 'new'}
+                </Text>
+              </View>
+            )}
+            <TouchableOpacity
+              onPress={() => router.push('/(admin)/new-chat' as any)}
+              style={{
+                width: 40, height: 40, borderRadius: 20,
+                backgroundColor: C.accent2, alignItems: 'center', justifyContent: 'center',
+                shadowColor: C.accent2, shadowOffset: { width: 0, height: 2 },
+                shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+              }}
+              activeOpacity={0.85}
+            >
+              <Feather name="plus" size={20} color="#FFF" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 

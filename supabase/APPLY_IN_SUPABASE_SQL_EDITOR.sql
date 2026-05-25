@@ -69,17 +69,46 @@ ALTER TABLE job_requests
   ADD CONSTRAINT job_requests_status_check
   CHECK (status IN ('open','accepted','in_progress','completed','cancelled','expired'));
 
+-- ── resolved flag on chats (for admin to close conversations) ────────────────
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT false;
+
 -- ── Row-Level Security ────────────────────────────────────────────────────────
 ALTER TABLE chats    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE reviews  ENABLE ROW LEVEL SECURITY;
 
--- Chats: user sees their own chat; admin sees all
-DROP POLICY IF EXISTS "chats_user_access" ON chats;
-CREATE POLICY "chats_user_access" ON chats
-  FOR ALL USING (
+-- Chats: split into explicit per-operation policies to prevent RLS insert errors
+DROP POLICY IF EXISTS "chats_user_access"  ON chats;
+DROP POLICY IF EXISTS "chats_select"       ON chats;
+DROP POLICY IF EXISTS "chats_insert"       ON chats;
+DROP POLICY IF EXISTS "chats_update"       ON chats;
+DROP POLICY IF EXISTS "chats_delete"       ON chats;
+
+-- SELECT: user sees their own; admin sees all
+CREATE POLICY "chats_select" ON chats
+  FOR SELECT USING (
     auth.uid() = user_id
     OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+  );
+
+-- INSERT: user inserts their own chat (user_id = auth.uid()); admin inserts for any user
+CREATE POLICY "chats_insert" ON chats
+  FOR INSERT WITH CHECK (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+  );
+
+-- UPDATE: user can update their own; admin can update any
+CREATE POLICY "chats_update" ON chats
+  FOR UPDATE USING (
+    auth.uid() = user_id
+    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+  );
+
+-- DELETE: only admin
+CREATE POLICY "chats_delete" ON chats
+  FOR DELETE USING (
+    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
   );
 
 -- Messages: accessible via parent chat access

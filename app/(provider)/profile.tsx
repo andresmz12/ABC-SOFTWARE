@@ -479,7 +479,7 @@ export default function ProviderProfile() {
               es ? '¿Estás seguro de que deseas cerrar sesión?' : 'Are you sure you want to sign out?',
               [
                 { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); router.replace('/(auth)/welcome' as any); } },
+                { text: es ? 'Cerrar Sesión' : 'Sign Out', style: 'destructive', onPress: async () => { await signOut(); setTimeout(() => router.replace('/(auth)/welcome' as any), 100); } },
               ],
             );
           }}
