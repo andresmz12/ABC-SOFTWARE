@@ -5,50 +5,60 @@ import { Platform } from 'react-native';
 import { supabase } from './supabase';
 import { savePushToken as saveTokenToProfile } from './userUtils';
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// ── setNotificationHandler: wrap in try/catch — throws in Expo Go ─────────────
+try {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+    }),
+  });
+} catch {
+  // Not available in Expo Go or web — silently skip
+}
 
 // ─── Register for push notifications ─────────────────────────────────────────
 
 export const registerForPushNotifications = async (): Promise<string | null> => {
+  // Push notifications require a real device AND a standalone/production build.
+  // In Expo Go (SDK 53+) and in __DEV__ mode they are not supported.
   if (!Device.isDevice) return null;
-
-  const { status: existingStatus } = await Notifications.getPermissionsAsync();
-  let finalStatus = existingStatus;
-
-  if (existingStatus !== 'granted') {
-    const { status } = await Notifications.requestPermissionsAsync();
-    finalStatus = status;
-  }
-
-  // If user declines, continue silently without blocking the app
-  if (finalStatus !== 'granted') return null;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#00B4D8',
-    });
-  }
-
-  // SDK 54 requires projectId from app config
-  const projectId =
-    Constants.expoConfig?.extra?.eas?.projectId ??
-    Constants.easConfig?.projectId;
+  if (__DEV__) return null;                                    // skip in Metro dev builds
+  if (Constants.appOwnership === 'expo') return null;          // skip in Expo Go
 
   try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+
+    // If user declines, continue silently without blocking the app
+    if (finalStatus !== 'granted') return null;
+
+    if (Platform.OS === 'android') {
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#00B4D8',
+      });
+    }
+
+    const projectId =
+      Constants.expoConfig?.extra?.eas?.projectId ??
+      Constants.easConfig?.projectId;
+
     const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
     return token;
-  } catch {
+  } catch (e) {
+    // Silently fail — never block the user flow due to notification errors
+    console.warn('[notifications] registerForPushNotifications failed:', e);
     return null;
   }
 };
