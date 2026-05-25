@@ -14,7 +14,7 @@ import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
-import { getAllUsers, type UnifiedUser } from '@/lib/userUtils';
+import type { UnifiedUser } from '@/lib/userUtils';
 import { C } from '@/constants/theme';
 
 type UserItem = UnifiedUser;
@@ -41,8 +41,23 @@ export default function NewChat() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      // Query across clients, companies, independents — no users table needed
-      const items = await getAllUsers();
+      // Query all 3 tables directly for maximum reliability
+      const [clientsRes, companiesRes, indepRes] = await Promise.all([
+        supabase.from('clients').select('user_id, full_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
+        supabase.from('companies').select('user_id, company_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
+        supabase.from('independents').select('user_id, full_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
+      ]);
+
+      if (clientsRes.error) console.warn('[NewChat] clients:', clientsRes.error.message);
+      if (companiesRes.error) console.warn('[NewChat] companies:', companiesRes.error.message);
+      if (indepRes.error) console.warn('[NewChat] independents:', indepRes.error.message);
+
+      const items: UserItem[] = [
+        ...(clientsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'client' as const, status: r.status ?? 'approved', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name ?? '', created_at: r.created_at })),
+        ...(companiesRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'company' as const, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.company_name ?? '', created_at: r.created_at })),
+        ...(indepRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'independent' as const, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name ?? '', created_at: r.created_at })),
+      ];
+      items.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
       setUsers(items);
       setFiltered(items);
     } catch (e: any) {
@@ -77,10 +92,15 @@ export default function NewChat() {
       if (existing?.id) {
         chatId = existing.id;
       } else {
-        // Admin creates a chat for the user
+        // Admin creates a chat for the user — must include user_type (NOT NULL)
+        const userType = targetUser.role === 'company'
+          ? 'company'
+          : targetUser.role === 'independent'
+          ? 'independent'
+          : 'client';
         const { data: newChat, error } = await supabase
           .from('chats')
-          .insert({ user_id: targetUser.id, admin_id: user.id })
+          .insert({ user_id: targetUser.id, admin_id: user.id, user_type: userType })
           .select('id').single();
         if (error) throw error;
         chatId = newChat.id;
@@ -88,7 +108,7 @@ export default function NewChat() {
 
       router.replace({
         pathname: '/(admin)/chat-detail',
-        params: { chatId, userEmail: targetUser.email, userId: targetUser.id },
+        params: { chatId, userName: targetUser.name ?? '', userId: targetUser.id },
       } as any);
     } catch (e: any) {
       Alert.alert('Error', e.message);

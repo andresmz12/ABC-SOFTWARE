@@ -48,7 +48,7 @@ export default function AdminChatDetail() {
   const es = lang === 'es';
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { chatId, userEmail, userId } = useLocalSearchParams<{ chatId: string; userEmail?: string; userId?: string }>();
+  const { chatId, userName: userNameParam, userId } = useLocalSearchParams<{ chatId: string; userName?: string; userId?: string }>();
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState('');
@@ -56,7 +56,8 @@ export default function AdminChatDetail() {
   const [loading, setLoading] = useState(true);
   const [resolved, setResolved] = useState(false);
   const [userRole, setUserRole] = useState<string>('');
-  const [userName, setUserName] = useState<string>('');
+  // Pre-populate from route param so header never shows 'Usuario' while loading
+  const [userName, setUserName] = useState<string>(userNameParam ?? '');
   const [userPushToken, setUserPushToken] = useState<string | null>(null);
   const [userLang, setUserLang] = useState<string>('en');
   const listRef = useRef<FlatList>(null);
@@ -81,7 +82,7 @@ export default function AdminChatDetail() {
       setUserRole(profile.role);
       setUserPushToken(profile.push_token ?? null);
       setUserLang(profile.preferred_language ?? (profile.country === 'colombia' ? 'es' : 'en'));
-      setUserName(profile.name ?? '');
+      if (profile.name?.trim()) setUserName(profile.name.trim());
     }
   }, [chatId, userId]);
 
@@ -235,7 +236,7 @@ export default function AdminChatDetail() {
 
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>
-            {userName || userEmail || (es ? 'Usuario' : 'User')}
+            {userName || userId?.slice(0, 8) || (es ? 'Usuario' : 'User')}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
             {userRole ? (

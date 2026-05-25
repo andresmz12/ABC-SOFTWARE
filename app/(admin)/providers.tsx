@@ -148,6 +148,9 @@ export default function AdminProviders() {
         supabase.from('independents').select('user_id, full_name, status, country, state, created_at').order('created_at', { ascending: false }),
       ]);
 
+      if (companiesRes.error) console.warn('[Providers] companies error:', companiesRes.error.message);
+      if (independentsRes.error) console.warn('[Providers] independents error:', independentsRes.error.message);
+
       const rows = [
         ...(companiesRes.data ?? []).map((c: any) => ({
           id: c.user_id,
@@ -173,8 +176,8 @@ export default function AdminProviders() {
       rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       // Always update state (even when empty, to clear stale data)
       setProviders(rows);
-    } catch {
-      // keep empty
+    } catch (e: any) {
+      console.warn('[Providers] load error:', e?.message ?? e);
     } finally {
       setLoading(false);
     }
