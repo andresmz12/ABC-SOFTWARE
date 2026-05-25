@@ -7,6 +7,7 @@ import { Feather } from '@expo/vector-icons';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
+import { updateProviderStatus } from '@/lib/userUtils';
 
 type Filter = 'all' | 'pending' | 'approved' | 'rejected';
 type ProviderStatus = 'pending' | 'approved' | 'rejected';
@@ -138,25 +139,34 @@ export default function AdminProviders() {
   const loadProviders = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('id, email, role, status, country, created_at, companies(company_name), independents(full_name)')
-        .in('role', ['company', 'independent'])
-        .order('created_at', { ascending: false });
+      // Query companies and independents directly — no users table needed
+      const [companiesRes, independentsRes] = await Promise.all([
+        supabase.from('companies').select('user_id, company_name, status, country, created_at').order('created_at', { ascending: false }),
+        supabase.from('independents').select('user_id, full_name, status, country, created_at').order('created_at', { ascending: false }),
+      ]);
 
-      if (data) {
-        setProviders(data.map((u: any) => ({
-          id: u.id,
-          email: u.email,
-          role: u.role,
-          status: u.status,
-          country: u.country,
-          created_at: u.created_at,
-          name: u.role === 'company'
-            ? (u.companies?.[0]?.company_name ?? u.email.split('@')[0])
-            : (u.independents?.[0]?.full_name ?? u.email.split('@')[0]),
-        })));
-      }
+      const rows = [
+        ...(companiesRes.data ?? []).map((c: any) => ({
+          id: c.user_id,
+          email: '',
+          role: 'company' as const,
+          status: c.status ?? 'pending',
+          country: c.country ?? 'usa',
+          created_at: c.created_at,
+          name: c.company_name,
+        })),
+        ...(independentsRes.data ?? []).map((i: any) => ({
+          id: i.user_id,
+          email: '',
+          role: 'independent' as const,
+          status: i.status ?? 'pending',
+          country: i.country ?? 'usa',
+          created_at: i.created_at,
+          name: i.full_name,
+        })),
+      ];
+      rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      if (rows.length > 0) setProviders(rows);
     } catch {
       // keep empty
     } finally {
@@ -181,7 +191,8 @@ export default function AdminProviders() {
           text: es ? (isApprove ? 'Aprobar' : 'Rechazar') : (isApprove ? 'Approve' : 'Reject'),
           style: newStatus === 'rejected' ? 'destructive' : 'default',
           onPress: async () => {
-            const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', id);
+            const { error: statusError } = await updateProviderStatus(id, newStatus);
+            const error = statusError ? { message: statusError } : null;
             if (error) {
               Alert.alert('Error', error.message);
               return;

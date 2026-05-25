@@ -123,12 +123,13 @@ async function remindClients(): Promise<number> {
 
   let sent = 0;
   for (const job of unfilledJobs as any[]) {
-    const { data: client } = await supabase
-      .from('users')
-      .select('email, preferred_language, push_token')
-      .eq('id', job.client_id)
-      .single();
-    if (!client) continue;
+    const [clientAuth, clientProfile] = await Promise.all([
+      supabase.auth.admin.getUserById(job.client_id),
+      supabase.from('clients').select('preferred_language, push_token').eq('user_id', job.client_id).maybeSingle(),
+    ]);
+    const clientEmail = clientAuth.data?.user?.email;
+    if (!clientEmail) continue;
+    const client = { email: clientEmail, preferred_language: clientProfile.data?.preferred_language ?? 'en', push_token: clientProfile.data?.push_token ?? null };
 
     const es = client.preferred_language === 'es';
     const subject = es
@@ -193,12 +194,15 @@ async function remindProviders(): Promise<number> {
     const job = (jobs as any[]).find((j) => j.id === app.job_request_id);
     if (!job) continue;
 
-    const { data: provider } = await supabase
-      .from('users')
-      .select('email, preferred_language, push_token')
-      .eq('id', app.provider_id)
-      .single();
-    if (!provider) continue;
+    const [provAuth, compProf, indProf] = await Promise.all([
+      supabase.auth.admin.getUserById(app.provider_id),
+      supabase.from('companies').select('preferred_language, push_token').eq('user_id', app.provider_id).maybeSingle(),
+      supabase.from('independents').select('preferred_language, push_token').eq('user_id', app.provider_id).maybeSingle(),
+    ]);
+    const provEmail = provAuth.data?.user?.email;
+    if (!provEmail) continue;
+    const provProfile = compProf.data ?? indProf.data;
+    const provider = { email: provEmail, preferred_language: provProfile?.preferred_language ?? 'en', push_token: provProfile?.push_token ?? null };
 
     const es = provider.preferred_language === 'es';
     const subject = es

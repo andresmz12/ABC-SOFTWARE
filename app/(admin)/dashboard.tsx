@@ -57,15 +57,23 @@ export default function AdminDashboard() {
     const fetchStats = async () => {
       setLoadingStats(true);
       try {
-        const [pendingRes, approvedRes, jobsRes, clientsRes] = await Promise.all([
-          supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'pending').in('role', ['company', 'independent']),
-          supabase.from('users').select('*', { count: 'exact', head: true }).eq('status', 'approved').in('role', ['company', 'independent']),
-          supabase.from('job_requests').select('*', { count: 'exact', head: true }).eq('status', 'open'),
-          supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'client'),
+        // Query profile tables instead of users table
+        const [
+          pendingCompRes, pendingIndRes,
+          approvedCompRes, approvedIndRes,
+          jobsRes,
+          clientsRes,
+        ] = await Promise.all([
+          supabase.from('companies').select('user_id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('independents').select('user_id', { count: 'exact', head: true }).eq('status', 'pending'),
+          supabase.from('companies').select('user_id', { count: 'exact', head: true }).eq('status', 'approved'),
+          supabase.from('independents').select('user_id', { count: 'exact', head: true }).eq('status', 'approved'),
+          supabase.from('job_requests').select('id', { count: 'exact', head: true }).eq('status', 'open'),
+          supabase.from('clients').select('user_id', { count: 'exact', head: true }),
         ]);
         setStats({
-          pending:  pendingRes.count  ?? 0,
-          approved: approvedRes.count ?? 0,
+          pending:  (pendingCompRes.count ?? 0) + (pendingIndRes.count ?? 0),
+          approved: (approvedCompRes.count ?? 0) + (approvedIndRes.count ?? 0),
           jobs:     jobsRes.count     ?? 0,
           clients:  clientsRes.count  ?? 0,
         });

@@ -4,6 +4,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useLang } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
+import { getUserProfile, updateProviderStatus } from '@/lib/userUtils';
 import { C } from '@/constants/theme';
 
 type ProviderStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
@@ -72,17 +73,18 @@ export default function ProviderDetail() {
   const loadProvider = async () => {
     setLoading(true);
     try {
-      const { data: userData } = await supabase.from('users').select('*').eq('id', id).single();
-      if (!userData) { setLoading(false); return; }
+      // Get user info from profile tables (no users table required)
+      const unifiedUser = await getUserProfile(id);
+      if (!unifiedUser) { setLoading(false); return; }
 
       let profile: ProviderData['profile'];
-      if (userData.role === 'company') {
+      if (unifiedUser.role === 'company') {
         const { data: co } = await supabase
           .from('companies')
           .select('company_name, phone, address, city, state, service_type')
           .eq('user_id', id).single();
         if (co) profile = { name: co.company_name, phone: co.phone, address: co.address, city: co.city, state: co.state, service_type: co.service_type };
-      } else if (userData.role === 'independent') {
+      } else if (unifiedUser.role === 'independent') {
         const { data: ind } = await supabase
           .from('independents')
           .select('full_name, phone, address, city, state, service_type')
@@ -96,7 +98,7 @@ export default function ProviderDetail() {
       ]);
 
       setProvider({
-        ...userData,
+        ...unifiedUser,
         profile,
         documents: docsRes.data ?? [],
         service_areas: areasRes.data ?? [],
@@ -111,8 +113,8 @@ export default function ProviderDetail() {
     setActionLoading(true);
     try {
       const newStatus = modalAction === 'approve' ? 'approved' : modalAction === 'reject' ? 'rejected' : 'suspended';
-      const { error } = await supabase.from('users').update({ status: newStatus }).eq('id', provider.id);
-      if (error) throw error;
+      const { error: statusErr } = await updateProviderStatus(provider.id, newStatus);
+      if (statusErr) throw new Error(statusErr);
 
       const isApprove = modalAction === 'approve';
       const isSuspend = modalAction === 'suspend';

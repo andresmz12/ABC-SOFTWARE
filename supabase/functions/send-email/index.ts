@@ -112,26 +112,28 @@ async function handleNewJob(job: any): Promise<{ sent: number }> {
   ];
   if (!providerIds.length) return { sent: 0 };
 
-  // 3. Get approved providers, filtered by service_type eligibility:
-  //    commercial → company only; residential → company + independent
-  let q = supabase
-    .from('users')
-    .select('id, email, preferred_language, role')
-    .in('id', providerIds)
-    .eq('status', 'approved')
-    .in('role', ['company', 'independent']);
-
-  if (job.service_type === 'commercial') {
-    q = q.eq('role', 'company');
-  }
-
-  const { data: providers } = await q;
-  if (!providers?.length) return { sent: 0 };
-
+  // 3. Get approved, available providers from profile tables
   const isCom = job.service_type === 'commercial';
+
+  const [companiesRes, independentsRes] = await Promise.all([
+    supabase.from('companies').select('user_id, preferred_language').in('user_id', providerIds).eq('status', 'approved').eq('available', true),
+    isCom
+      ? Promise.resolve({ data: [] })
+      : supabase.from('independents').select('user_id, preferred_language').in('user_id', providerIds).eq('status', 'approved').eq('available', true),
+  ]);
+
+  const providerRows: Array<{ user_id: string; preferred_language: string }> = [
+    ...(companiesRes.data ?? []).map((c: any) => ({ user_id: c.user_id, preferred_language: c.preferred_language ?? 'en' })),
+    ...((independentsRes as any).data ?? []).map((i: any) => ({ user_id: i.user_id, preferred_language: i.preferred_language ?? 'en' })),
+  ];
+  if (!providerRows.length) return { sent: 0 };
+
   let sent = 0;
 
-  for (const p of providers as any[]) {
+  for (const p of providerRows) {
+    const { data: authUser } = await supabase.auth.admin.getUserById(p.user_id);
+    const email = authUser?.user?.email;
+    if (!email) continue;
     const es = p.preferred_language === 'es';
     const kind = isCom
       ? (es ? 'limpieza comercial' : 'commercial cleaning')
@@ -161,10 +163,10 @@ async function handleNewJob(job: any): Promise<{ sent: number }> {
     `);
 
     try {
-      await sendEmail(p.email, subject, html);
+      await sendEmail(email, subject, html);
       sent++;
     } catch (e) {
-      console.error('[send-email] new_job provider', p.id, e);
+      console.error('[send-email] new_job provider', p.user_id, e);
     }
   }
 
@@ -182,13 +184,14 @@ async function handleNewOffer(application: any): Promise<void> {
     .single();
   if (!job || job.status !== 'open') return;
 
-  // Get the client's email and language
-  const { data: clientUser } = await supabase
-    .from('users')
-    .select('email, preferred_language')
-    .eq('id', job.client_id)
-    .single();
-  if (!clientUser) return;
+  // Get the client's email (from auth.users) and language (from clients profile)
+  const [clientAuth, clientProfile] = await Promise.all([
+    supabase.auth.admin.getUserById(job.client_id),
+    supabase.from('clients').select('preferred_language').eq('user_id', job.client_id).maybeSingle(),
+  ]);
+  const clientEmail = clientAuth.data?.user?.email;
+  if (!clientEmail) return;
+  const clientUser = { email: clientEmail, preferred_language: clientProfile.data?.preferred_language ?? 'en' };
 
   // Get the provider's display name
   let providerName = 'Un proveedor';
@@ -242,12 +245,14 @@ async function handleNewOffer(application: any): Promise<void> {
 // ─── Handler: offer accepted → email the provider ─────────────────────────────
 
 async function handleOfferAccepted(application: any): Promise<void> {
-  const { data: providerUser } = await supabase
-    .from('users')
-    .select('email, preferred_language')
-    .eq('id', application.provider_id)
-    .single();
-  if (!providerUser) return;
+  const [providerAuth, companyProfile, indProfile] = await Promise.all([
+    supabase.auth.admin.getUserById(application.provider_id),
+    supabase.from('companies').select('preferred_language').eq('user_id', application.provider_id).maybeSingle(),
+    supabase.from('independents').select('preferred_language').eq('user_id', application.provider_id).maybeSingle(),
+  ]);
+  const providerEmail = providerAuth.data?.user?.email;
+  if (!providerEmail) return;
+  const providerUser = { email: providerEmail, preferred_language: (companyProfile.data ?? indProfile.data)?.preferred_language ?? 'en' };
 
   const { data: job } = await supabase
     .from('job_requests')
@@ -369,12 +374,14 @@ async function handleWelcome(user: any): Promise<void> {
 // ─── Handler: offer rejected → email the losing provider ─────────────────────
 
 async function handleOfferRejected(application: any): Promise<void> {
-  const { data: providerUser } = await supabase
-    .from('users')
-    .select('email, preferred_language')
-    .eq('id', application.provider_id)
-    .single();
-  if (!providerUser) return;
+  const [providerAuth, companyProfile, indProfile] = await Promise.all([
+    supabase.auth.admin.getUserById(application.provider_id),
+    supabase.from('companies').select('preferred_language').eq('user_id', application.provider_id).maybeSingle(),
+    supabase.from('independents').select('preferred_language').eq('user_id', application.provider_id).maybeSingle(),
+  ]);
+  const providerEmail = providerAuth.data?.user?.email;
+  if (!providerEmail) return;
+  const providerUser = { email: providerEmail, preferred_language: (companyProfile.data ?? indProfile.data)?.preferred_language ?? 'en' };
 
   const { data: job } = await supabase
     .from('job_requests')
@@ -406,11 +413,13 @@ async function handleOfferRejected(application: any): Promise<void> {
 
 async function handleJobCompleted(job: any): Promise<void> {
   // Email the client
-  const { data: client } = await supabase
-    .from('users')
-    .select('email, preferred_language')
-    .eq('id', job.client_id)
-    .single();
+  const [clientAuth, clientProfile] = await Promise.all([
+    supabase.auth.admin.getUserById(job.client_id),
+    supabase.from('clients').select('preferred_language').eq('user_id', job.client_id).maybeSingle(),
+  ]);
+  const client = clientAuth.data?.user?.email
+    ? { email: clientAuth.data.user.email, preferred_language: clientProfile.data?.preferred_language ?? 'en' }
+    : null;
 
   if (client) {
     const es = client.preferred_language === 'es';
@@ -434,11 +443,14 @@ async function handleJobCompleted(job: any): Promise<void> {
     .single();
 
   if (acceptedApp) {
-    const { data: provider } = await supabase
-      .from('users')
-      .select('email, preferred_language')
-      .eq('id', acceptedApp.provider_id)
-      .single();
+    const [provAuth, compProf, indProf] = await Promise.all([
+      supabase.auth.admin.getUserById(acceptedApp.provider_id),
+      supabase.from('companies').select('preferred_language').eq('user_id', acceptedApp.provider_id).maybeSingle(),
+      supabase.from('independents').select('preferred_language').eq('user_id', acceptedApp.provider_id).maybeSingle(),
+    ]);
+    const provider = provAuth.data?.user?.email
+      ? { email: provAuth.data.user.email, preferred_language: (compProf.data ?? indProf.data)?.preferred_language ?? 'en' }
+      : null;
 
     if (provider) {
       const es = provider.preferred_language === 'es';

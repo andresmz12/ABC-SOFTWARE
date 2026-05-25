@@ -14,15 +14,10 @@ import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
+import { getAllUsers, type UnifiedUser } from '@/lib/userUtils';
 import { C } from '@/constants/theme';
 
-interface UserItem {
-  id: string;
-  email: string;
-  role: string;
-  full_name?: string;
-  created_at: string;
-}
+type UserItem = UnifiedUser;
 
 const ROLE_META: Record<string, { icon: keyof typeof Feather.glyphMap; labelEn: string; labelEs: string; color: string }> = {
   client:      { icon: 'user',      labelEn: 'Client',      labelEs: 'Cliente',       color: C.accent },
@@ -46,34 +41,8 @@ export default function NewChat() {
   const fetchUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await supabase
-        .from('users')
-        .select('id, email, role, created_at')
-        .in('role', ['client', 'company', 'independent'])
-        .order('created_at', { ascending: false });
-
-      // Fetch client names
-      const clientIds = (data ?? []).filter((u: any) => u.role === 'client').map((u: any) => u.id);
-      const providerIds = (data ?? []).filter((u: any) => u.role !== 'client').map((u: any) => u.id);
-
-      const [clientRes, providerRes] = await Promise.all([
-        clientIds.length > 0
-          ? supabase.from('clients').select('user_id, full_name').in('user_id', clientIds)
-          : Promise.resolve({ data: [] }),
-        providerIds.length > 0
-          ? supabase.from('providers').select('user_id, company_name, full_name').in('user_id', providerIds)
-          : Promise.resolve({ data: [] }),
-      ]);
-
-      const nameMap: Record<string, string> = {};
-      (clientRes.data ?? []).forEach((c: any) => { if (c.full_name) nameMap[c.user_id] = c.full_name; });
-      (providerRes.data ?? []).forEach((p: any) => { if (p.company_name || p.full_name) nameMap[p.user_id] = p.company_name || p.full_name; });
-
-      const items: UserItem[] = (data ?? []).map((u: any) => ({
-        ...u,
-        full_name: nameMap[u.id] ?? null,
-      }));
-
+      // Query across clients, companies, independents — no users table needed
+      const items = await getAllUsers();
       setUsers(items);
       setFiltered(items);
     } catch (e: any) {
@@ -91,7 +60,7 @@ export default function NewChat() {
     if (!q) { setFiltered(users); return; }
     setFiltered(users.filter((u) =>
       u.email.toLowerCase().includes(q) ||
-      (u.full_name ?? '').toLowerCase().includes(q) ||
+      (u.name ?? '').toLowerCase().includes(q) ||
       u.role.toLowerCase().includes(q)
     ));
   }, [search, users]);
@@ -160,13 +129,13 @@ export default function NewChat() {
         </View>
 
         <View style={{ flex: 1 }}>
-          {item.full_name && (
+          {item.name && (
             <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }} numberOfLines={1}>
-              {item.full_name}
+              {item.name}
             </Text>
           )}
-          <Text style={{ color: item.full_name ? C.textMuted : C.textPrimary, fontSize: item.full_name ? 12 : 14, fontFamily: item.full_name ? 'Inter_400Regular' : 'Inter_600SemiBold' }} numberOfLines={1}>
-            {item.email}
+          <Text style={{ color: item.name ? C.textMuted : C.textPrimary, fontSize: item.name ? 12 : 14, fontFamily: item.name ? 'Inter_400Regular' : 'Inter_600SemiBold' }} numberOfLines={1}>
+            {item.email || item.id.slice(0, 8)}
           </Text>
           <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
             <View style={{ backgroundColor: `${meta.color}18`, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 }}>

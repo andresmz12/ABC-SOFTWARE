@@ -68,12 +68,10 @@ export default function ProviderSupport() {
       if (existing?.id) {
         id = existing.id;
       } else {
-        const { data: admin } = await supabase
-          .from('users').select('id').eq('role', 'admin').limit(1).maybeSingle();
-
+        // Create chat — admin_id left null; admin claims it when they first reply
         const { data: newChat, error } = await supabase
           .from('chats')
-          .insert({ user_id: user.id, admin_id: admin?.id ?? null })
+          .insert({ user_id: user.id, admin_id: null })
           .select('id').single();
         if (error) throw error;
         id = newChat.id;

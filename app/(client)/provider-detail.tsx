@@ -45,65 +45,34 @@ export default function ProviderDetail() {
     (async () => {
       setLoading(true);
       try {
-        const { data: userData } = await supabase
-          .from('users')
-          .select('id, email, role, country, available')
-          .eq('id', id)
-          .single();
+        // Query both profile tables simultaneously — no users table needed
+        const [coRes, indRes, areasRes] = await Promise.all([
+          supabase.from('companies').select('company_name, phone, city, state, service_type, country, available').eq('user_id', id).maybeSingle(),
+          supabase.from('independents').select('full_name, phone, city, state, service_type, country, available').eq('user_id', id).maybeSingle(),
+          supabase.from('service_areas').select('state').eq('provider_id', id),
+        ]);
 
-        if (!userData) { setLoading(false); return; }
+        const isCompany = !!coRes.data;
+        const profile = coRes.data ?? indRes.data;
+        if (!profile) { setLoading(false); return; }
 
-        let name = userData.email.split('@')[0];
-        let phone = '';
-        let city = '';
-        let state = '';
-        let serviceType = 'both';
-
-        if (userData.role === 'company') {
-          const { data: co } = await supabase
-            .from('companies')
-            .select('company_name, phone, city, state, service_type')
-            .eq('user_id', id)
-            .single();
-          if (co) {
-            name = co.company_name ?? name;
-            phone = co.phone ?? '';
-            city = co.city ?? '';
-            state = co.state ?? '';
-            serviceType = co.service_type ?? 'both';
-          }
-        } else {
-          const { data: ind } = await supabase
-            .from('independents')
-            .select('full_name, phone, city, state, service_type')
-            .eq('user_id', id)
-            .single();
-          if (ind) {
-            name = ind.full_name ?? name;
-            phone = ind.phone ?? '';
-            city = ind.city ?? '';
-            state = ind.state ?? '';
-            serviceType = ind.service_type ?? 'both';
-          }
-        }
-
-        const { data: areas } = await supabase
-          .from('service_areas')
-          .select('state')
-          .eq('provider_id', id);
-
+        const name = isCompany ? (coRes.data!.company_name ?? '') : (indRes.data!.full_name ?? '');
+        const phone = profile.phone ?? '';
+        const city = profile.city ?? '';
+        const state = profile.state ?? '';
+        const serviceType = profile.service_type ?? 'both';
         setProvider({
-          id: userData.id,
-          email: userData.email,
-          role: userData.role,
-          country: userData.country,
-          available: userData.available ?? false,
+          id,
+          email: '',
+          role: isCompany ? 'company' : 'independent',
+          country: profile.country ?? 'usa',
+          available: profile.available ?? false,
           name,
           phone,
           city,
           state,
           serviceType,
-          serviceAreas: (areas ?? []).map((a: { state: string }) => a.state),
+          serviceAreas: (areasRes.data ?? []).map((a: any) => a.state as string),
         });
       } catch {
         // provider not found — handled below

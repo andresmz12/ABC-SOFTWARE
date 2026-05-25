@@ -15,6 +15,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import { sendPushNotification } from '@/lib/notifications';
+import { getUserProfile } from '@/lib/userUtils';
 import { C } from '@/constants/theme';
 
 interface Message {
@@ -74,21 +75,13 @@ export default function AdminChatDetail() {
     }
     if (!targetUserId) return;
 
-    const { data: u } = await supabase
-      .from('users').select('id, email, role, push_token, preferred_language, country').eq('id', targetUserId).single();
-    if (u) {
-      setUserRole(u.role ?? '');
-      setUserPushToken(u.push_token ?? null);
-      setUserLang(u.preferred_language ?? (u.country === 'colombia' ? 'es' : 'en'));
-    }
-
-    // Fetch full name based on role
-    if (u?.role === 'client') {
-      const { data: c } = await supabase.from('clients').select('full_name').eq('user_id', targetUserId).maybeSingle();
-      if (c?.full_name) setUserName(c.full_name);
-    } else {
-      const { data: p } = await supabase.from('providers').select('company_name, full_name').eq('user_id', targetUserId).maybeSingle();
-      if (p) setUserName(p.company_name ?? p.full_name ?? '');
+    // Look up user across profile tables (no users table required)
+    const profile = await getUserProfile(targetUserId);
+    if (profile) {
+      setUserRole(profile.role);
+      setUserPushToken(profile.push_token ?? null);
+      setUserLang(profile.preferred_language ?? (profile.country === 'colombia' ? 'es' : 'en'));
+      setUserName(profile.name ?? '');
     }
   }, [chatId, userId]);
 

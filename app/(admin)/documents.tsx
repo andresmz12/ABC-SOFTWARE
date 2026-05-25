@@ -4,6 +4,7 @@ import { Feather } from '@expo/vector-icons';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
 import { supabase } from '@/lib/supabase';
+import { updateProviderStatus } from '@/lib/userUtils';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 
@@ -191,30 +192,33 @@ export default function AdminDocuments() {
       }
 
       const userIds = Array.from(new Set(rawDocs.map((d: any) => d.user_id)));
-      const [usersRes, companiesRes, independentsRes, clientsRes] = await Promise.all([
-        supabase.from('users').select('id, email, role').in('id', userIds),
+      // Query profile tables directly — no users table exists
+      const [companiesRes, independentsRes, clientsRes] = await Promise.all([
         supabase.from('companies').select('user_id, company_name').in('user_id', userIds),
         supabase.from('independents').select('user_id, full_name').in('user_id', userIds),
         supabase.from('clients').select('user_id, full_name').in('user_id', userIds),
       ]);
 
-      const userMap = new Map((usersRes.data ?? []).map((u: any) => [u.id, u]));
       const companyMap = new Map((companiesRes.data ?? []).map((c: any) => [c.user_id, c.company_name]));
       const independentMap = new Map((independentsRes.data ?? []).map((i: any) => [i.user_id, i.full_name]));
       const clientMap = new Map((clientsRes.data ?? []).map((c: any) => [c.user_id, c.full_name]));
 
       const enriched: AdminDocument[] = rawDocs.map((d: any) => {
-        const u = userMap.get(d.user_id) as any;
-        const role = u?.role ?? 'independent';
+        // Determine role from which profile table has this user
+        const role: string = companyMap.has(d.user_id)
+          ? 'company'
+          : clientMap.has(d.user_id)
+          ? 'client'
+          : 'independent';
         const name = role === 'company'
-          ? companyMap.get(d.user_id) ?? u?.email?.split('@')[0] ?? '?'
+          ? companyMap.get(d.user_id) ?? '?'
           : role === 'client'
-          ? clientMap.get(d.user_id) ?? u?.email?.split('@')[0] ?? '?'
-          : independentMap.get(d.user_id) ?? u?.email?.split('@')[0] ?? '?';
+          ? clientMap.get(d.user_id) ?? '?'
+          : independentMap.get(d.user_id) ?? '?';
         return {
           ...d,
           provider_name: name,
-          provider_email: u?.email ?? '',
+          provider_email: '',
           provider_role: role,
         };
       });
@@ -250,11 +254,7 @@ export default function AdminDocuments() {
       const userDocs = updated.filter((d) => d.user_id === userId);
       const allApproved = userDocs.length > 0 && userDocs.every((d) => d.status === 'approved');
       if (allApproved) {
-        const { error: userErr } = await supabase
-          .from('users')
-          .update({ status: 'approved' })
-          .eq('id', userId)
-          .eq('status', 'pending'); // only promote if still pending
+        const { error: userErr } = await updateProviderStatus(userId, 'approved');
         if (!userErr) {
           await supabase.from('notifications').insert({
             user_id: userId,

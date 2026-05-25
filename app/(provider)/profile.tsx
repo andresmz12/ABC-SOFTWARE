@@ -69,14 +69,13 @@ export default function ProviderProfile() {
       const table = user.role === 'company' ? 'companies' : 'independents';
       const nameField = user.role === 'company' ? 'company_name' : 'full_name';
 
-      const [availRes, areasRes, profileRes] = await Promise.all([
-        supabase.from('users').select('available').eq('id', user.id).single(),
+      const [areasRes, profileRes] = await Promise.all([
         supabase.from('service_areas').select('state, city').eq('provider_id', user.id),
-        supabase.from(table).select(`${nameField}, phone, city, state, zip, service_type`).eq('user_id', user.id).single(),
+        supabase.from(table).select(`${nameField}, phone, city, state, zip, service_type, available`).eq('user_id', user.id).single(),
       ]);
 
-      if (availRes.data && typeof availRes.data.available === 'boolean') {
-        setAvailable(availRes.data.available);
+      if (profileRes.data && typeof profileRes.data.available === 'boolean') {
+        setAvailable(profileRes.data.available);
       }
       if (areasRes.data) {
         setServiceAreas(areasRes.data.map((a: any) => a.state as string).filter(Boolean));
@@ -105,10 +104,11 @@ export default function ProviderProfile() {
     setAvailable(value);
     setTogglingAvailability(true);
     try {
+      const table = user!.role === 'company' ? 'companies' : 'independents';
       const { error } = await supabase
-        .from('users')
+        .from(table)
         .update({ available: value })
-        .eq('id', user!.id);
+        .eq('user_id', user!.id);
       if (error) throw error;
     } catch (e: any) {
       setAvailable(!value);

@@ -1,5 +1,5 @@
 -- ══════════════════════════════════════════════════════════════════════════════
--- ProVendor · Migrations 012 + 013 · Consolidated SQL for Supabase SQL Editor
+-- ProVendor · Migrations 012 + 013 + 014 · Consolidated SQL for Supabase SQL Editor
 -- ══════════════════════════════════════════════════════════════════════════════
 --
 -- HOW TO APPLY:
@@ -10,23 +10,77 @@
 --
 -- SAFE TO RE-RUN: all statements use IF NOT EXISTS / CREATE OR REPLACE / DROP IF EXISTS
 -- ══════════════════════════════════════════════════════════════════════════════
+-- NOTE: This database does NOT have a "users" table.
+-- User identity is stored in: clients, companies, independents (each with user_id = auth.uid())
+-- Admin identity is stored in the "admins" table.
+-- ══════════════════════════════════════════════════════════════════════════════
+
+-- ─── MIGRATION 014: Admins table + profile table columns ────────────────────
+
+-- Admins table (replaces users WHERE role='admin')
+CREATE TABLE IF NOT EXISTS admins (
+  id         UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email      TEXT,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+ALTER TABLE admins ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "admins_self_read" ON admins;
+CREATE POLICY "admins_self_read" ON admins FOR SELECT USING (auth.uid() = id);
+
+-- ── Add missing columns to profile tables ─────────────────────────────────────
+
+-- clients table
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS status            TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS push_token        TEXT;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'en';
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS latitude          DOUBLE PRECISION;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS longitude         DOUBLE PRECISION;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS country           TEXT DEFAULT 'usa';
+
+-- companies table
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS status            TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS push_token        TEXT;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'en';
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS available         BOOLEAN DEFAULT false;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS latitude          DOUBLE PRECISION;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS longitude         DOUBLE PRECISION;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS country           TEXT DEFAULT 'usa';
+
+-- independents table
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS status            TEXT NOT NULL DEFAULT 'pending';
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS push_token        TEXT;
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'en';
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS available         BOOLEAN DEFAULT false;
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS latitude          DOUBLE PRECISION;
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS longitude         DOUBLE PRECISION;
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS country           TEXT DEFAULT 'usa';
+
+-- ── is_admin() helper — uses admins table (NOT users) ─────────────────────────
+CREATE OR REPLACE FUNCTION is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (SELECT 1 FROM admins WHERE id = auth.uid())
+$$;
+
 
 -- ─── MIGRATION 012: Chats, Reviews, Job Photos, Geolocation ──────────────────
 
--- Push token (for Expo push notifications)
-ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token TEXT;
-
--- Geolocation columns
-ALTER TABLE users ADD COLUMN IF NOT EXISTS latitude  DOUBLE PRECISION;
-ALTER TABLE users ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION;
-
 -- ── Chats table (admin ↔ user support chat) ───────────────────────────────────
+-- FKs reference auth.users(id) since there is no public users table
 CREATE TABLE IF NOT EXISTS chats (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  admin_id    UUID REFERENCES users(id) ON DELETE SET NULL,
-  user_id     UUID REFERENCES users(id) ON DELETE CASCADE,
+  admin_id    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
+
+-- Add resolved flag (safe to run even if column exists)
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT false;
 
 CREATE INDEX IF NOT EXISTS chats_user_id_idx  ON chats(user_id);
 CREATE INDEX IF NOT EXISTS chats_admin_id_idx ON chats(admin_id);
@@ -35,7 +89,7 @@ CREATE INDEX IF NOT EXISTS chats_admin_id_idx ON chats(admin_id);
 CREATE TABLE IF NOT EXISTS messages (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   chat_id     UUID REFERENCES chats(id) ON DELETE CASCADE,
-  sender_id   UUID REFERENCES users(id) ON DELETE CASCADE,
+  sender_id   UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   content     TEXT NOT NULL,
   read        BOOLEAN DEFAULT false,
   created_at  TIMESTAMPTZ DEFAULT now()
@@ -48,8 +102,8 @@ CREATE INDEX IF NOT EXISTS messages_sender_id_idx ON messages(sender_id);
 CREATE TABLE IF NOT EXISTS reviews (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   job_id      UUID REFERENCES job_requests(id) ON DELETE CASCADE,
-  client_id   UUID REFERENCES users(id) ON DELETE CASCADE,
-  provider_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  client_id   UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  provider_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   rating      INTEGER NOT NULL CHECK (rating >= 1 AND rating <= 5),
   comment     TEXT,
   created_at  TIMESTAMPTZ DEFAULT now(),
@@ -69,9 +123,6 @@ ALTER TABLE job_requests
   ADD CONSTRAINT job_requests_status_check
   CHECK (status IN ('open','accepted','in_progress','completed','cancelled','expired'));
 
--- ── resolved flag on chats (for admin to close conversations) ────────────────
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT false;
-
 -- ── Row-Level Security ────────────────────────────────────────────────────────
 ALTER TABLE chats    ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
@@ -84,44 +135,62 @@ DROP POLICY IF EXISTS "chats_insert"       ON chats;
 DROP POLICY IF EXISTS "chats_update"       ON chats;
 DROP POLICY IF EXISTS "chats_delete"       ON chats;
 
--- SELECT: user sees their own; admin sees all
+-- SELECT: user sees their own chat; admin sees all
 CREATE POLICY "chats_select" ON chats
   FOR SELECT USING (
     auth.uid() = user_id
-    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR is_admin()
   );
 
 -- INSERT: user inserts their own chat (user_id = auth.uid()); admin inserts for any user
 CREATE POLICY "chats_insert" ON chats
   FOR INSERT WITH CHECK (
     auth.uid() = user_id
-    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR is_admin()
   );
 
 -- UPDATE: user can update their own; admin can update any
 CREATE POLICY "chats_update" ON chats
   FOR UPDATE USING (
     auth.uid() = user_id
-    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR is_admin()
   );
 
 -- DELETE: only admin
 CREATE POLICY "chats_delete" ON chats
-  FOR DELETE USING (
-    EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
-  );
+  FOR DELETE USING (is_admin());
 
 -- Messages: accessible via parent chat access
-DROP POLICY IF EXISTS "messages_access" ON messages;
-CREATE POLICY "messages_access" ON messages
-  FOR ALL USING (
+DROP POLICY IF EXISTS "messages_access"  ON messages;
+DROP POLICY IF EXISTS "messages_select"  ON messages;
+DROP POLICY IF EXISTS "messages_insert"  ON messages;
+DROP POLICY IF EXISTS "messages_update"  ON messages;
+
+CREATE POLICY "messages_select" ON messages
+  FOR SELECT USING (
     EXISTS (
       SELECT 1 FROM chats c
       WHERE c.id = messages.chat_id
-        AND (
-          c.user_id = auth.uid()
-          OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
-        )
+        AND (c.user_id = auth.uid() OR is_admin())
+    )
+  );
+
+CREATE POLICY "messages_insert" ON messages
+  FOR INSERT WITH CHECK (
+    auth.uid() = sender_id
+    AND EXISTS (
+      SELECT 1 FROM chats c
+      WHERE c.id = messages.chat_id
+        AND (c.user_id = auth.uid() OR is_admin())
+    )
+  );
+
+CREATE POLICY "messages_update" ON messages
+  FOR UPDATE USING (
+    EXISTS (
+      SELECT 1 FROM chats c
+      WHERE c.id = messages.chat_id
+        AND (c.user_id = auth.uid() OR is_admin())
     )
   );
 
@@ -194,31 +263,40 @@ NOTIFY pgrst, 'reload schema';
 -- ✅ DONE — After running the SQL above, complete these MANUAL STEPS:
 -- ══════════════════════════════════════════════════════════════════════════════
 --
--- STEP 1 · Create Storage Bucket for job photos
+-- STEP 1 · Add admin user(s)
+--   For each admin, insert their auth.uid() into the admins table:
+--
+--     INSERT INTO admins (id, email)
+--     VALUES ('<admin-auth-uid>', 'admin@yourapp.com')
+--     ON CONFLICT (id) DO NOTHING;
+--
+--   Find the UUID in: Authentication → Users → click the admin user → copy User UID
+--
+-- STEP 2 · Create Storage Bucket for job photos
 --   Go to: Storage → New bucket
 --   Name:  job-photos
 --   Public: YES (so photo URLs work in the app)
 --
--- STEP 2 · Set DB config for email triggers
+-- STEP 3 · Set DB config for email triggers
 --   Run this in a new SQL Editor query:
 --
---     ALTER DATABASE postgres SET "app.supabase_url"        = 'https://pnmxsonnfdgbwtvkwfhj.supabase.co';
---     ALTER DATABASE postgres SET "app.service_role_key"    = '<your-service-role-key>';
+--     ALTER DATABASE postgres SET "app.supabase_url"     = 'https://pnmxsonnfdgbwtvkwfhj.supabase.co';
+--     ALTER DATABASE postgres SET "app.service_role_key" = '<your-service-role-key>';
 --     SELECT pg_reload_conf();
 --
 --   (Get the service_role_key from: Project Settings → API → service_role)
 --
--- STEP 3 · Set Supabase Secrets for edge functions
+-- STEP 4 · Set Supabase Secrets for edge functions
 --   In Supabase Dashboard: Settings → Edge Functions → Secrets
 --   Add:
 --     SENDGRID_API_KEY   = SG.your_actual_key
 --     FROM_EMAIL         = noreply@yourapp.com
 --
--- STEP 4 · Deploy edge functions (run locally with Supabase CLI)
+-- STEP 5 · Deploy edge functions (run locally with Supabase CLI)
 --   supabase functions deploy send-email
 --   supabase functions deploy check-reminders
 --
--- STEP 5 · Schedule check-reminders (hourly) — run in SQL Editor AFTER deploying:
+-- STEP 6 · Schedule check-reminders (hourly) — run in SQL Editor AFTER deploying:
 --
 --   SELECT cron.schedule(
 --     'check-reminders-hourly',

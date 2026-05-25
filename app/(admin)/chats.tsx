@@ -10,6 +10,7 @@ import { Feather } from '@expo/vector-icons';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
+import { getAllUsers } from '@/lib/userUtils';
 import { C } from '@/constants/theme';
 
 interface ChatItem {
@@ -56,8 +57,9 @@ export default function AdminChats() {
       const chatIds = rawChats.map((c) => c.id);
       const userIds = rawChats.map((c) => c.user_id);
 
-      const [usersRes, messagesRes] = await Promise.all([
-        supabase.from('users').select('id, email, role').in('id', userIds),
+      // Look up user info from profile tables (no users table required)
+      const [allUsersData, messagesRes] = await Promise.all([
+        getAllUsers(),
         supabase
           .from('messages')
           .select('chat_id, content, created_at, read, sender_id')
@@ -65,8 +67,12 @@ export default function AdminChats() {
           .order('created_at', { ascending: false }),
       ]);
 
-      const usersMap: Record<string, { email: string; role: string }> = {};
-      (usersRes.data ?? []).forEach((u: any) => { usersMap[u.id] = { email: u.email, role: u.role }; });
+      const usersMap: Record<string, { email: string; role: string; name: string }> = {};
+      allUsersData.forEach((u) => {
+        if (userIds.includes(u.id)) {
+          usersMap[u.id] = { email: u.email, role: u.role, name: u.name ?? u.email };
+        }
+      });
 
       // For each chat, find last message and unread count
       const allMsgs = (messagesRes.data ?? []) as any[];
@@ -77,7 +83,7 @@ export default function AdminChats() {
         return {
           id: c.id,
           user_id: c.user_id,
-          user_email: usersMap[c.user_id]?.email ?? c.user_id,
+          user_email: usersMap[c.user_id]?.name || usersMap[c.user_id]?.email || c.user_id,
           user_role: usersMap[c.user_id]?.role ?? 'user',
           last_message: last?.content ?? (es ? 'Sin mensajes aún' : 'No messages yet'),
           last_message_at: last?.created_at ?? c.created_at,

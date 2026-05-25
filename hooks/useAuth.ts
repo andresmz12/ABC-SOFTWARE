@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
+import { getUserProfile } from '@/lib/userUtils';
 
 export const useAuth = () => {
   const { user, session, loading, setUser, setSession, initialize, signOut } = useAuthStore();
@@ -13,12 +14,12 @@ export const useAuth = () => {
       async (event, session) => {
         setSession(session);
         if (session?.user) {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-          setUser(userData);
+          // Use profile tables (clients / companies / independents / admins)
+          // rather than the non-existent users table
+          const profile = await getUserProfile(session.user.id);
+          if (profile) {
+            setUser({ ...profile, email: session.user.email ?? '' } as any);
+          }
 
           if (event === 'SIGNED_IN') {
             const token = await registerForPushNotifications();

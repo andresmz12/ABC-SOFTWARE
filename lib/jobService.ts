@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase';
 import { sendPushNotification } from '@/lib/notifications';
+import { getUserPushTokens } from '@/lib/userUtils';
 import type { JobRequest, JobApplication, Country } from '@/types';
 
 export async function fetchOpenJobs(country: Country): Promise<JobRequest[]> {
@@ -201,17 +202,9 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
   });
 
   // ── Push notifications ──────────────────────────────────────────────────────
-  // Fetch push tokens for winner, client, and losers
+  // Fetch push tokens across profile tables (no users table required)
   const allUserIds = [provider_id, ...(client_id ? [client_id] : []), ...losingProviderIds];
-  const { data: userTokens } = await supabase
-    .from('users')
-    .select('id, push_token, preferred_language')
-    .in('id', allUserIds);
-
-  const tokenMap: Record<string, { token: string | null; es: boolean }> = {};
-  (userTokens ?? []).forEach((u: any) => {
-    tokenMap[u.id] = { token: u.push_token, es: u.preferred_language === 'es' };
-  });
+  const tokenMap = await getUserPushTokens(allUserIds);
 
   const pushPromises: Promise<void>[] = [];
 

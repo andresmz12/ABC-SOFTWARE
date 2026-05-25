@@ -64,17 +64,9 @@ export default function ChatScreen() {
       if (existing?.id) {
         id = existing.id;
       } else {
-        // Find any admin
-        const { data: admin } = await supabase
-          .from('users')
-          .select('id')
-          .eq('role', 'admin')
-          .limit(1)
-          .single();
-
         const { data: newChat, error } = await supabase
           .from('chats')
-          .insert({ user_id: user.id, admin_id: admin?.id ?? null })
+          .insert({ user_id: user.id, admin_id: null })
           .select('id')
           .single();
         if (error) throw error;

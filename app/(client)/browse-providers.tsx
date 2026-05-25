@@ -9,6 +9,7 @@ import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/context/LanguageContext';
 import { useAuthStore } from '@/store/authStore';
+import { saveUserLocation } from '@/lib/userUtils';
 import * as Location from 'expo-location';
 
 // ─── Haversine distance (km) ──────────────────────────────────────────────────
@@ -178,12 +179,9 @@ export default function BrowseProviders() {
         const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
         setUserLocation({ lat: loc.coords.latitude, lon: loc.coords.longitude });
 
-        // Save to DB for future matching
+        // Save to profile table for future matching (no users table required)
         if (user?.id) {
-          await supabase.from('users').update({
-            latitude: loc.coords.latitude,
-            longitude: loc.coords.longitude,
-          }).eq('id', user.id);
+          await saveUserLocation(user.id, loc.coords.latitude, loc.coords.longitude);
         }
       } catch {
         // Location unavailable — continue without it
@@ -194,51 +192,51 @@ export default function BrowseProviders() {
   const fetchPage = useCallback(async (startOffset: number, append: boolean) => {
     if (append) setLoadingMore(true); else setLoading(true);
     try {
-      let q = supabase
-        .from('users')
-        .select('id, email, role, country, available, latitude, longitude, companies(company_name, service_type, city, state), independents(full_name, service_type, city, state)')
-        .eq('status', 'approved')
-        .eq('available', true)
-        .in('role', ['company', 'independent'])
-        .range(startOffset, startOffset + PAGE_SIZE - 1);
+      // Query companies and independents directly (no users table needed)
+      const countryFilter = user?.country;
+      const [companiesRes, independentsRes] = await Promise.all([
+        (() => {
+          let q = supabase.from('companies')
+            .select('user_id, company_name, service_type, city, state, country, available, latitude, longitude, status')
+            .eq('status', 'approved').eq('available', true)
+            .range(startOffset, startOffset + PAGE_SIZE - 1);
+          if (countryFilter) q = q.eq('country', countryFilter);
+          return q;
+        })(),
+        (() => {
+          let q = supabase.from('independents')
+            .select('user_id, full_name, service_type, city, state, country, available, latitude, longitude, status')
+            .eq('status', 'approved').eq('available', true)
+            .range(startOffset, startOffset + PAGE_SIZE - 1);
+          if (countryFilter) q = q.eq('country', countryFilter);
+          return q;
+        })(),
+      ]);
 
-      if (user?.country) q = q.eq('country', user.country);
-
-      const { data } = await q;
-      if (!data) return;
-
-      const mapped: Provider[] = data.map((u: any) => {
-        const lat = u.latitude as number | null;
-        const lon = u.longitude as number | null;
-        const distanceKm = (userLocation && lat != null && lon != null)
-          ? haversineKm(userLocation.lat, userLocation.lon, lat, lon)
-          : null;
-
-        return {
-          id: u.id,
-          email: u.email,
-          role: u.role,
-          country: u.country,
-          available: u.available ?? false,
-          name: u.role === 'company'
-            ? (u.companies?.[0]?.company_name ?? u.email.split('@')[0])
-            : (u.independents?.[0]?.full_name ?? u.email.split('@')[0]),
-          serviceType: u.role === 'company'
-            ? (u.companies?.[0]?.service_type ?? 'both')
-            : (u.independents?.[0]?.service_type ?? 'both'),
-          city: u.role === 'company'
-            ? (u.companies?.[0]?.city ?? '')
-            : (u.independents?.[0]?.city ?? ''),
-          state: u.role === 'company'
-            ? (u.companies?.[0]?.state ?? '')
-            : (u.independents?.[0]?.state ?? ''),
-          latitude: lat,
-          longitude: lon,
-          distanceKm,
-          avgRating: null,
-          reviewCount: 0,
-        };
-      });
+      const mapped: Provider[] = [
+        ...(companiesRes.data ?? []).map((c: any) => {
+          const lat = c.latitude as number | null;
+          const lon = c.longitude as number | null;
+          return {
+            id: c.user_id, email: '', role: 'company' as const, country: c.country ?? 'usa', available: c.available ?? false,
+            name: c.company_name, serviceType: c.service_type ?? 'both', city: c.city ?? '', state: c.state ?? '',
+            latitude: lat, longitude: lon,
+            distanceKm: (userLocation && lat != null && lon != null) ? haversineKm(userLocation.lat, userLocation.lon, lat, lon) : null,
+            avgRating: null, reviewCount: 0,
+          };
+        }),
+        ...(independentsRes.data ?? []).map((i: any) => {
+          const lat = i.latitude as number | null;
+          const lon = i.longitude as number | null;
+          return {
+            id: i.user_id, email: '', role: 'independent' as const, country: i.country ?? 'usa', available: i.available ?? false,
+            name: i.full_name, serviceType: i.service_type ?? 'both', city: i.city ?? '', state: i.state ?? '',
+            latitude: lat, longitude: lon,
+            distanceKm: (userLocation && lat != null && lon != null) ? haversineKm(userLocation.lat, userLocation.lon, lat, lon) : null,
+            avgRating: null, reviewCount: 0,
+          };
+        }),
+      ];
 
       // Fetch reviews for this page's providers
       if (mapped.length > 0) {

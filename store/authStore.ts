@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '@/lib/supabase';
+import { getUserProfile } from '@/lib/userUtils';
 import type { User } from '@/types';
 
 interface AuthState {
@@ -13,7 +14,6 @@ interface AuthState {
   initialize: () => Promise<void>;
 }
 
-// Guard so we only start one listener regardless of how many times initialize() is called.
 let authListenerStarted = false;
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -28,10 +28,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({ user: null, session: null });
   },
   initialize: async () => {
-    // After INIT_TIMEOUT_MS we give up waiting for Supabase and drop the
-    // loading flag so the UI can redirect to the welcome screen.  This
-    // prevents an infinite spinner when the network is slow or when the app
-    // is statically pre-rendered and env vars are missing.
     const INIT_TIMEOUT_MS = 5000;
     let settled = false;
 
@@ -51,7 +47,6 @@ export const useAuthStore = create<AuthState>((set) => ({
     }, INIT_TIMEOUT_MS);
 
     try {
-      // Subscribe to auth state changes once.
       if (!authListenerStarted) {
         authListenerStarted = true;
         supabase.auth.onAuthStateChange(async (event, session) => {
@@ -66,22 +61,48 @@ export const useAuthStore = create<AuthState>((set) => ({
       const { data: { session } } = await supabase.auth.getSession();
 
       if (session?.user) {
-        const { data: userData } = await supabase
+        const uid = session.user.id;
+        const email = session.user.email ?? '';
+
+        // First try the legacy `users` table (if it exists in this deployment)
+        const { data: usersRow, error: usersErr } = await supabase
           .from('users')
           .select('*')
-          .eq('id', session.user.id)
-          .single();
+          .eq('id', uid)
+          .maybeSingle();
 
-        // If the DB row is missing (e.g. user deleted from Supabase but token
-        // still valid), sign out cleanly rather than landing in an
-        // indeterminate state.
-        if (!userData) {
+        if (usersRow) {
+          // users table exists and has the row — use it directly
+          settle({ user: { ...usersRow, email } as User, session, loading: false });
+          return;
+        }
+
+        // `users` table missing or row absent — fall back to profile tables
+        if (usersErr) {
+          console.info('[authStore] users table not found, trying profile tables');
+        }
+
+        const profile = await getUserProfile(uid);
+        if (!profile) {
           await supabase.auth.signOut();
           settle({ user: null, session: null, loading: false });
           return;
         }
 
-        settle({ user: userData as User, session, loading: false });
+        settle({
+          user: {
+            id: uid,
+            email,
+            role: profile.role,
+            status: profile.status as any,
+            country: profile.country as any,
+            preferred_language: profile.preferred_language as any,
+            push_token: profile.push_token,
+            created_at: profile.created_at ?? new Date().toISOString(),
+          } as User,
+          session,
+          loading: false,
+        });
       } else {
         settle({ loading: false });
       }

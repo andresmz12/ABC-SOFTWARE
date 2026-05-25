@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 import { supabase } from './supabase';
+import { savePushToken as saveTokenToProfile } from './userUtils';
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -55,10 +56,8 @@ export const registerForPushNotifications = async (): Promise<string | null> => 
 // ─── Save push token to DB ────────────────────────────────────────────────────
 
 export const savePushToken = async (userId: string, token: string): Promise<void> => {
-  await supabase
-    .from('users')
-    .update({ push_token: token })
-    .eq('id', userId);
+  // Write to profile tables (clients / companies / independents)
+  await saveTokenToProfile(userId, token);
 };
 
 // ─── Register + save in one call (use after login / email confirmation) ───────
