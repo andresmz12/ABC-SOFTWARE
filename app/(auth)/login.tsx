@@ -56,13 +56,26 @@ export default function Login() {
     else if (loggedInUser?.role === 'company' || loggedInUser?.role === 'independent') router.replace('/(provider)/home');
     else if (loggedInUser?.role === 'admin') router.replace('/(admin)/dashboard');
     else {
-      // Authenticated but no profile found — likely email not yet confirmed
+      // Auth succeeded but no profile found in any table.
+      // Distinguish between two cases BEFORE signing out (getUser needs the live session).
+      const { data: { user: authUser } } = await supabase.auth.getUser();
       await supabase.auth.signOut();
-      setError(
-        es
-          ? 'Por favor verifica tu correo electrónico antes de iniciar sesión.'
-          : 'Please verify your email address before signing in.',
-      );
+
+      if (authUser && !authUser.email_confirmed_at) {
+        // Genuine email-not-confirmed case
+        setError(
+          es
+            ? 'Por favor verifica tu correo electrónico antes de iniciar sesión.'
+            : 'Please verify your email address before signing in.',
+        );
+      } else {
+        // Email IS confirmed but profile lookup failed (DB issue, missing row, etc.)
+        setError(
+          es
+            ? 'No encontramos tu perfil. Por favor intenta de nuevo o contacta soporte.'
+            : 'Profile not found. Please try again or contact support.',
+        );
+      }
     }
   };
 
