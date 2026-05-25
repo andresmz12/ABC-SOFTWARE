@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import { registerForPushNotifications, savePushToken } from '@/lib/notifications';
@@ -21,9 +22,14 @@ export const useAuth = () => {
             setUser({ ...profile, email: session.user.email ?? '' } as any);
           }
 
-          if (event === 'SIGNED_IN') {
-            const token = await registerForPushNotifications();
-            if (token) await savePushToken(session.user.id, token);
+          // Push notifications are only available on native (not web)
+          if (event === 'SIGNED_IN' && Platform.OS !== 'web') {
+            try {
+              const token = await registerForPushNotifications();
+              if (token) await savePushToken(session.user.id, token);
+            } catch (e) {
+              console.warn('[useAuth] push notification registration failed:', e);
+            }
           }
         } else {
           setUser(null);

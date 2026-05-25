@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { storage } from '@/lib/storage';
 import en from '../locales/en.json';
 import es from '../locales/es.json';
 
@@ -28,9 +28,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLangState] = useState<Lang>('en');
 
   const setLang = useCallback((newLang: Lang) => {
-    console.log('Language changed to:', newLang);
     setLangState(newLang);
-    AsyncStorage.setItem('app_lang', newLang).catch(() => {});
+    storage.setItem('app_lang', newLang).catch(() => {});
   }, []);
 
   const t = useCallback((key: string) => {
@@ -38,9 +37,9 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [lang]);
 
   React.useEffect(() => {
-    AsyncStorage.getItem('app_lang').then((saved) => {
+    storage.getItem('app_lang').then((saved) => {
       if (saved === 'en' || saved === 'es') setLangState(saved);
-    });
+    }).catch(() => {});
   }, []);
 
   return (

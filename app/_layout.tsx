@@ -1,6 +1,10 @@
 import '../global.css';
 import { useEffect, useRef, useCallback } from 'react';
-import { AppState, AppStateStatus, Alert, TouchableWithoutFeedback, View } from 'react-native';
+import {
+  Platform,
+  AppState, AppStateStatus,
+  Alert, TouchableWithoutFeedback, View,
+} from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Stack, useRouter } from 'expo-router';
@@ -23,6 +27,31 @@ const INACTIVITY_MS = 15 * 60 * 1000;
 const WARNING_MS    = INACTIVITY_MS - 2 * 60 * 1000; // warn 2 min before logout
 const BACKGROUND_MS = 30 * 60 * 1000;
 
+// ─── Cross-platform alert ─────────────────────────────────────────────────────
+// Alert.alert is React Native only; on web we use window.alert / window.confirm.
+function platformAlert(
+  title: string,
+  message: string,
+  buttons?: Array<{ text: string; style?: string; onPress?: () => void }>,
+) {
+  if (Platform.OS === 'web') {
+    if (buttons && buttons.length > 1) {
+      // Use confirm() so the user can click Cancel or OK
+      const ok = window.confirm(`${title}\n\n${message}`);
+      if (ok) {
+        const confirmBtn = buttons.find((b) => b.style !== 'cancel');
+        confirmBtn?.onPress?.();
+      }
+    } else {
+      window.alert(`${title}\n\n${message}`);
+      // Fire the only button's callback (if any) after dismiss
+      buttons?.[0]?.onPress?.();
+    }
+  } else {
+    Alert.alert(title, message, buttons as any);
+  }
+}
+
 export default function RootLayout() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -30,15 +59,14 @@ export default function RootLayout() {
   const inactivityTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const warningTimer    = useRef<ReturnType<typeof setTimeout> | null>(null);
   const backgroundTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const appStateRef     = useRef<AppStateStatus>(AppState.currentState);
-  // Ref keeps the latest resetInactivityTimer so Alert callbacks never go stale
+  // Start with 'active' — safe default on both platforms
+  const appStateRef     = useRef<AppStateStatus>('active');
+  // Ref keeps the latest resetInactivityTimer so callbacks never go stale
   const resetTimerRef   = useRef<() => void>(() => {});
 
+  // ── Boot: fonts + settings ────────────────────────────────────────────────
   useEffect(() => {
-    // Run Stripe initialization independently so its errors are surfaced and
-    // never silently swallowed by a shared Promise.all catch.
     initializeStripe().catch((e) => console.error('[stripe] initializeStripe failed:', e));
-
     Promise.all([
       Font.loadAsync({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold }),
       useSettingsStore.getState().loadSettings(),
@@ -46,6 +74,8 @@ export default function RootLayout() {
       .catch(() => {})
       .finally(() => { SplashScreen.hideAsync().catch(() => {}); });
   }, []);
+
+  // ── Timer helpers ─────────────────────────────────────────────────────────
 
   const clearInactivityTimers = useCallback(() => {
     if (inactivityTimer.current) { clearTimeout(inactivityTimer.current); inactivityTimer.current = null; }
@@ -55,13 +85,17 @@ export default function RootLayout() {
   const handleAutoLogout = useCallback(async () => {
     clearInactivityTimers();
     if (backgroundTimer.current) { clearTimeout(backgroundTimer.current); backgroundTimer.current = null; }
-    // Read current state at call time — avoids stale closure on user
     const { user: currentUser, signOut } = useAuthStore.getState();
     if (!currentUser) return;
     const es = currentUser.country === 'colombia';
     await signOut();
-    router.replace('/(auth)/welcome');
-    Alert.alert(
+    // On web, router.replace can fail after signOut — use hard redirect
+    if (Platform.OS === 'web') {
+      (window as any).location.href = '/';
+    } else {
+      router.replace('/(auth)/welcome');
+    }
+    platformAlert(
       es ? 'Sesión Expirada' : 'Session Expired',
       es
         ? 'Has sido desconectado por inactividad.'
@@ -74,20 +108,22 @@ export default function RootLayout() {
     if (!currentUser) return;
     clearInactivityTimers();
     const es = currentUser.country === 'colombia';
-    // Warning 2 minutes before logout
     warningTimer.current = setTimeout(() => {
-      Alert.alert(
+      platformAlert(
         es ? 'Aviso de Sesión' : 'Session Warning',
         es
           ? 'Tu sesión expirará en 2 minutos por inactividad. Toca en cualquier lugar para continuar.'
           : 'Your session will expire in 2 minutes due to inactivity. Tap anywhere to continue.',
-        [{ text: es ? 'Continuar' : 'Continue', onPress: () => resetTimerRef.current() }],
+        [
+          { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+          { text: es ? 'Continuar' : 'Continue', onPress: () => resetTimerRef.current() },
+        ],
       );
     }, WARNING_MS);
     inactivityTimer.current = setTimeout(() => { handleAutoLogout(); }, INACTIVITY_MS);
   }, [clearInactivityTimers, handleAutoLogout]);
 
-  // Keep ref in sync so Alert callbacks always call the latest version
+  // Keep ref in sync so callbacks always call the latest version
   useEffect(() => {
     resetTimerRef.current = resetInactivityTimer;
   }, [resetInactivityTimer]);
@@ -100,11 +136,39 @@ export default function RootLayout() {
       clearInactivityTimers();
     }
     return () => { clearInactivityTimers(); };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
-  // Background timeout: sign out if app stays backgrounded > 30 min
+  // ── Activity tracking ─────────────────────────────────────────────────────
+  // On web: attach DOM event listeners (no TouchableWithoutFeedback needed —
+  //   TWOF on web can block pointer events on child elements).
+  // On native: TouchableWithoutFeedback in the JSX handles it.
   useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const reset = () => resetTimerRef.current();
+    const evts = ['click', 'keydown', 'touchstart', 'scroll', 'mousemove'] as const;
+    evts.forEach((e) => window.addEventListener(e, reset, { passive: true }));
+    return () => evts.forEach((e) => window.removeEventListener(e, reset));
+  }, []);
+
+  // ── Background / foreground detection ────────────────────────────────────
+  // On web: document.visibilitychange API.
+  // On native: AppState API.
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const onVisibility = () => {
+        if (document.hidden) {
+          backgroundTimer.current = setTimeout(() => { handleAutoLogout(); }, BACKGROUND_MS);
+        } else {
+          if (backgroundTimer.current) { clearTimeout(backgroundTimer.current); backgroundTimer.current = null; }
+          resetTimerRef.current();
+        }
+      };
+      document.addEventListener('visibilitychange', onVisibility);
+      return () => document.removeEventListener('visibilitychange', onVisibility);
+    }
+
+    // Native: AppState
     const sub = AppState.addEventListener('change', (nextState: AppStateStatus) => {
       if (appStateRef.current === 'active' && nextState === 'background') {
         backgroundTimer.current = setTimeout(() => { handleAutoLogout(); }, BACKGROUND_MS);
@@ -117,15 +181,30 @@ export default function RootLayout() {
     return () => { sub.remove(); };
   }, [handleAutoLogout]);
 
+  // ── Render ────────────────────────────────────────────────────────────────
+
+  const innerView = (
+    <View style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </View>
+  );
+
   return (
     <LanguageProvider>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
         <SafeAreaProvider>
-          <TouchableWithoutFeedback onPress={() => resetTimerRef.current()} accessible={false}>
-            <View style={{ flex: 1 }}>
-              <Stack screenOptions={{ headerShown: false }} />
-            </View>
-          </TouchableWithoutFeedback>
+          {/*
+           * On web: plain View — activity tracking is done via DOM event
+           *   listeners above. TouchableWithoutFeedback on web can swallow
+           *   pointer events and break all interactions.
+           * On native: TouchableWithoutFeedback resets the inactivity timer
+           *   on any tap anywhere in the app.
+           */}
+          {Platform.OS !== 'web' ? (
+            <TouchableWithoutFeedback onPress={() => resetTimerRef.current()} accessible={false}>
+              {innerView}
+            </TouchableWithoutFeedback>
+          ) : innerView}
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </LanguageProvider>
