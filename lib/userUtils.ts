@@ -185,18 +185,17 @@ export async function saveUserLocation(
   }
 }
 
-/** Update status for a provider (admin action). */
+/** Update status for a provider (admin action).
+ *  Approval status lives in the `documents` table — companies/independents
+ *  do NOT have a status column.
+ */
 export async function updateProviderStatus(
   userId: string,
   status: 'approved' | 'rejected' | 'pending' | 'suspended',
 ): Promise<{ error: string | null }> {
-  // Companies and independents can have status; clients don't normally need it
-  for (const table of ['companies', 'independents'] as const) {
-    const { data } = await supabase.from(table).select('user_id').eq('user_id', userId).maybeSingle();
-    if (data) {
-      const { error } = await supabase.from(table).update({ status }).eq('user_id', userId);
-      return { error: error?.message ?? null };
-    }
-  }
-  return { error: 'Provider not found' };
+  const { error } = await supabase
+    .from('documents')
+    .update({ status })
+    .eq('user_id', userId);
+  return { error: error?.message ?? null };
 }

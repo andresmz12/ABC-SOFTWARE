@@ -379,16 +379,16 @@ export default function AdminDashboard() {
       const countryEq = tab !== 'global' ? tab : null;
 
       // ── Stats counts ──────────────────────────────────────────────────────
-      let pendCompQ = supabase.from('companies').select('user_id',    { count: 'exact', head: true }).eq('status', 'pending');
-      let pendIndQ  = supabase.from('independents').select('user_id', { count: 'exact', head: true }).eq('status', 'pending');
-      let clientsQ  = supabase.from('clients').select('user_id',      { count: 'exact', head: true });
-      let activeJQ  = supabase.from('job_requests').select('id',      { count: 'exact', head: true }).in('status', ['open', 'in_progress', 'accepted']);
+      // companies/independents have NO status column — pending count comes from documents
+      let pendingDocsQ = supabase.from('documents').select('user_id', { count: 'exact', head: true }).eq('status', 'pending');
+      let clientsQ     = supabase.from('clients').select('user_id',   { count: 'exact', head: true });
+      let activeJQ     = supabase.from('job_requests').select('id',   { count: 'exact', head: true }).in('status', ['open', 'in_progress', 'accepted']);
 
       if (countryEq) {
-        pendCompQ = (pendCompQ as any).eq('country', countryEq);
-        pendIndQ  = (pendIndQ  as any).eq('country', countryEq);
-        clientsQ  = (clientsQ  as any).eq('country', countryEq);
-        activeJQ  = (activeJQ  as any).eq('country', countryEq);
+        clientsQ = (clientsQ as any).eq('country', countryEq);
+        activeJQ = (activeJQ as any).eq('country', countryEq);
+        // documents table doesn't have country — filter pending by joining via user existence in country
+        // For simplicity, pending count is global (not filtered by country)
       }
 
       // Revenue: sum bid_amounts of accepted applications
@@ -397,15 +397,15 @@ export default function AdminDashboard() {
         .select('bid_amount')
         .eq('status', 'accepted');
 
-      const [pendCompRes, pendIndRes, clientsCountRes, activeJobsRes, revenueRes] = await Promise.all([
-        pendCompQ, pendIndQ, clientsQ, activeJQ, revenueQ,
+      const [pendingDocsRes, clientsCountRes, activeJobsRes, revenueRes] = await Promise.all([
+        pendingDocsQ, clientsQ, activeJQ, revenueQ,
       ]);
 
       const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount ?? 0), 0);
 
       setStats({
         activeJobs:       activeJobsRes.count ?? 0,
-        pendingProviders: (pendCompRes.count ?? 0) + (pendIndRes.count ?? 0),
+        pendingProviders: pendingDocsRes.count ?? 0,
         clients:          clientsCountRes.count ?? 0,
         revenue,
       });
@@ -421,20 +421,30 @@ export default function AdminDashboard() {
       if (jobsErr) console.warn('[Dashboard] jobs error:', jobsErr.message);
       setJobs((jobsData ?? []) as DashJob[]);
 
-      // ── Providers ─────────────────────────────────────────────────────────
-      let compQ: any  = supabase.from('companies').select('user_id, company_name, status, country, state').order('created_at', { ascending: false }).limit(60);
-      let indepQ: any = supabase.from('independents').select('user_id, full_name, status, country, state').order('created_at', { ascending: false }).limit(60);
+      // ── Providers ───────────────────────────────────────────────────────────────────────────
+      // companies/independents have NO status column — approval lives in documents
+      let compQ: any  = supabase.from('companies').select('user_id, company_name, country, state').order('created_at', { ascending: false }).limit(60);
+      let indepQ: any = supabase.from('independents').select('user_id, full_name, country, state').order('created_at', { ascending: false }).limit(60);
       if (countryEq) {
         compQ  = compQ.eq('country', countryEq);
         indepQ = indepQ.eq('country', countryEq);
       }
-      const [compRes, indepRes] = await Promise.all([compQ, indepQ]);
+      const [compRes, indepRes, docsRes] = await Promise.all([
+        compQ, indepQ,
+        supabase.from('documents').select('user_id, status'),
+      ]);
       if (compRes.error)  console.warn('[Dashboard] companies error:', compRes.error.message);
       if (indepRes.error) console.warn('[Dashboard] independents error:', indepRes.error.message);
 
+      // Build status map from documents table (source of truth for provider approval)
+      const docStatusMap: Record<string, string> = {};
+      for (const doc of (docsRes.data ?? [])) {
+        if (!docStatusMap[doc.user_id]) docStatusMap[doc.user_id] = doc.status;
+      }
+
       const provRows: DashProvider[] = [
-        ...(compRes.data  ?? []).map((r: any) => ({ id: r.user_id, name: r.company_name ?? '', role: 'company'     as const, status: (r.status ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
-        ...(indepRes.data ?? []).map((r: any) => ({ id: r.user_id, name: r.full_name    ?? '', role: 'independent' as const, status: (r.status ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
+        ...(compRes.data  ?? []).map((r: any) => ({ id: r.user_id, name: r.company_name ?? '', role: 'company'     as const, status: (docStatusMap[r.user_id] ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
+        ...(indepRes.data ?? []).map((r: any) => ({ id: r.user_id, name: r.full_name    ?? '', role: 'independent' as const, status: (docStatusMap[r.user_id] ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
       ];
       // Pending first, then alphabetical
       provRows.sort((a, b) => {

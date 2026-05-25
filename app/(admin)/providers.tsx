@@ -143,20 +143,28 @@ export default function AdminProviders() {
     setLoading(true);
     try {
       // Query companies and independents directly — no users table needed
-      const [companiesRes, independentsRes] = await Promise.all([
-        supabase.from('companies').select('user_id, company_name, status, country, state, created_at').order('created_at', { ascending: false }),
-        supabase.from('independents').select('user_id, full_name, status, country, state, created_at').order('created_at', { ascending: false }),
+      // companies/independents have NO status column — approval lives in documents
+      const [companiesRes, independentsRes, docsRes] = await Promise.all([
+        supabase.from('companies').select('user_id, company_name, country, state, created_at').order('created_at', { ascending: false }),
+        supabase.from('independents').select('user_id, full_name, country, state, created_at').order('created_at', { ascending: false }),
+        supabase.from('documents').select('user_id, status'),
       ]);
 
       if (companiesRes.error) console.warn('[Providers] companies error:', companiesRes.error.message);
       if (independentsRes.error) console.warn('[Providers] independents error:', independentsRes.error.message);
+
+      // Build status map from documents table (source of truth for provider approval)
+      const docStatusMap: Record<string, string> = {};
+      for (const doc of (docsRes.data ?? [])) {
+        if (!docStatusMap[doc.user_id]) docStatusMap[doc.user_id] = doc.status;
+      }
 
       const rows = [
         ...(companiesRes.data ?? []).map((c: any) => ({
           id: c.user_id,
           email: '',
           role: 'company' as const,
-          status: (c.status ?? 'pending') as ProviderStatus,
+          status: (docStatusMap[c.user_id] ?? 'pending') as ProviderStatus,
           country: c.country ?? 'usa',
           state: c.state ?? '',
           created_at: c.created_at,
@@ -166,7 +174,7 @@ export default function AdminProviders() {
           id: i.user_id,
           email: '',
           role: 'independent' as const,
-          status: (i.status ?? 'pending') as ProviderStatus,
+          status: (docStatusMap[i.user_id] ?? 'pending') as ProviderStatus,
           country: i.country ?? 'usa',
           state: i.state ?? '',
           created_at: i.created_at,

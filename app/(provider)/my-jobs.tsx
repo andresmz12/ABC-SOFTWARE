@@ -6,7 +6,7 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Alert, Modal,
-  ScrollView, ActivityIndicator, Image,
+  ScrollView, ActivityIndicator, Image, TextInput,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -191,6 +191,125 @@ function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModal
   );
 }
 
+// ─── Rating Modal ────────────────────────────────────────────────────────────
+
+interface RatingModalProps {
+  job: JobRequest | null;
+  visible: boolean;
+  es: boolean;
+  onClose: () => void;
+  providerId: string;
+}
+
+function RatingModal({ job, visible, es, onClose, providerId }: RatingModalProps) {
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!job) return;
+    setSaving(true);
+    try {
+      await supabase.from('reviews').insert({
+        job_id: job.id,
+        reviewer_id: providerId,
+        reviewee_id: (job as any).client_id ?? null,
+        rating,
+        comment: comment.trim() || null,
+        role: 'provider',
+      });
+    } catch (e: any) {
+      console.warn('[RatingModal] insert error:', e.message);
+    } finally {
+      setSaving(false);
+      setRating(5);
+      setComment('');
+      onClose();
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.55)', justifyContent: 'flex-end' }}>
+        <View style={{
+          backgroundColor: C.surface,
+          borderTopLeftRadius: 24, borderTopRightRadius: 24,
+          padding: 24, paddingBottom: 40,
+          borderTopWidth: 1, borderTopColor: C.line,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
+              {es ? 'Calificar Cliente' : 'Rate Client'}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="x" size={18} color={C.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 20, lineHeight: 21 }}>
+            {es ? '¿Cómo fue tu experiencia con este cliente?' : 'How was your experience with this client?'}
+          </Text>
+
+          {/* Star rating */}
+          <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 12, marginBottom: 24 }}>
+            {[1, 2, 3, 4, 5].map((star) => (
+              <TouchableOpacity key={star} onPress={() => setRating(star)} activeOpacity={0.7}>
+                <Text style={{ fontSize: 38, color: star <= rating ? '#F59E0B' : C.line }}>★</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          {/* Optional comment */}
+          <TextInput
+            value={comment}
+            onChangeText={setComment}
+            placeholder={es ? 'Comentario opcional...' : 'Optional comment...'}
+            placeholderTextColor={C.textMuted}
+            multiline
+            numberOfLines={3}
+            style={{
+              backgroundColor: C.surface2,
+              borderRadius: 12,
+              padding: 14,
+              color: C.textPrimary,
+              fontSize: 14,
+              fontFamily: 'Inter_400Regular',
+              marginBottom: 20,
+              minHeight: 80,
+              textAlignVertical: 'top',
+              borderWidth: 1,
+              borderColor: C.line,
+            }}
+          />
+
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
+                {es ? 'Omitir' : 'Skip'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={saving}
+              style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.7 : 1 }}
+              activeOpacity={0.85}
+            >
+              {saving ? <ActivityIndicator color="#FFF" /> : (
+                <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Enviar Calificación' : 'Submit Rating'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 
 function JobCard({
@@ -270,6 +389,16 @@ function JobCard({
               {job.estimated_hours}h
             </Text>
           </View>
+          {((job as any).budget_usd || (job as any).budget_cop) ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="dollar-sign" size={11} color={C.textMuted} style={{ marginRight: 4 }} />
+              <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                {(job as any).budget_usd
+                  ? `$${Number((job as any).budget_usd).toLocaleString('en-US')}`
+                  : `$${Number((job as any).budget_cop).toLocaleString('es-CO')} COP`}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {isRejected && (
@@ -345,6 +474,7 @@ export default function MyJobsScreen() {
   const [appStatuses, setAppStatuses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [completeJob, setCompleteJob] = useState<JobRequest | null>(null);
+  const [ratingJob, setRatingJob] = useState<JobRequest | null>(null);
 
   const TAB_LABELS: Record<Tab, string> = {
     applied:   es ? 'Aplicados' : 'Applied',
@@ -385,8 +515,15 @@ export default function MyJobsScreen() {
       setApplied(allJobs.filter((j) => statusMap[j.id] === 'pending' || statusMap[j.id] === 'rejected'));
       // Active = application accepted AND job not yet completed/cancelled/expired
       // Sorted by scheduled_date ascending so most urgent comes first
+      // Active = job status is accepted OR in_progress, and provider application not rejected
       const activeList = allJobs
-        .filter((j) => statusMap[j.id] === 'accepted' && j.status !== 'completed' && j.status !== 'cancelled' && j.status !== 'expired')
+        .filter((j) => {
+          const appStatus = statusMap[j.id];
+          return (
+            (j.status === 'accepted' || j.status === 'in_progress') &&
+            appStatus != null && appStatus !== 'rejected'
+          );
+        })
         .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
       setActive(activeList);
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
@@ -533,7 +670,17 @@ export default function MyJobsScreen() {
         visible={!!completeJob}
         es={es}
         onClose={() => setCompleteJob(null)}
-        onCompleted={() => { loadJobs(); }}
+        onCompleted={() => {
+          setRatingJob(completeJob);
+          loadJobs();
+        }}
+      />
+      <RatingModal
+        job={ratingJob}
+        visible={!!ratingJob}
+        es={es}
+        onClose={() => setRatingJob(null)}
+        providerId={user?.id ?? ''}
       />
     </View>
   );
