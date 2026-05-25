@@ -74,8 +74,9 @@ export default function ProviderProfile() {
         supabase.from(table).select(`${nameField}, phone, city, state, zip, service_type, available`).eq('user_id', user.id).single(),
       ]);
 
-      if (profileRes.data && typeof profileRes.data.available === 'boolean') {
-        setAvailable(profileRes.data.available);
+      if (profileRes.data) {
+        // Treat NULL (newly-added column) as false; handle both boolean and null
+        setAvailable(profileRes.data.available ?? false);
       }
       if (areasRes.data) {
         setServiceAreas(areasRes.data.map((a: any) => a.state as string).filter(Boolean));
@@ -101,27 +102,38 @@ export default function ProviderProfile() {
   }, [user?.id]);
 
   const handleAvailabilityToggle = async (value: boolean) => {
+    // Optimistic update — flip immediately so the UI feels instant
     setAvailable(value);
     setTogglingAvailability(true);
     try {
       const table = user!.role === 'company' ? 'companies' : 'independents';
-      const { error } = await supabase
+      // Use .select() so Supabase returns the updated row; if no row is returned
+      // it means the update silently matched 0 rows (e.g. RLS blocked it).
+      const { data: updated, error } = await supabase
         .from(table)
         .update({ available: value })
-        .eq('user_id', user!.id);
+        .eq('user_id', user!.id)
+        .select('available')
+        .single();
+
       if (error) throw error;
+
+      // Confirm with the value actually stored (source of truth)
+      if (updated && typeof updated.available === 'boolean') {
+        setAvailable(updated.available);
+      }
     } catch (e: any) {
+      // Roll back optimistic update on failure
       setAvailable(!value);
-      const isColumnMissing =
-        typeof e?.message === 'string' &&
-        (e.message.includes('available') || e.message.includes('column'));
+      const msg: string = e?.message ?? '';
+      const isColumnMissing = msg.includes('available') || msg.includes('column');
       Alert.alert(
         'Error',
         isColumnMissing
           ? (es
-              ? 'Columna faltante en la base de datos. Ejecuta la migración SQL 004 en Supabase primero.'
-              : 'Missing database column. Run SQL migration 004 in Supabase first.')
-          : (e.message ?? (es ? 'Error al actualizar disponibilidad.' : 'Failed to update availability.')),
+              ? 'Columna faltante. Ejecuta la migración SQL en Supabase primero.'
+              : 'Missing column. Run the SQL migration in Supabase first.')
+          : (msg || (es ? 'Error al actualizar disponibilidad.' : 'Failed to update availability.')),
       );
     } finally {
       setTogglingAvailability(false);

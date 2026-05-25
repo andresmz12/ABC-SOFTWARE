@@ -42,19 +42,23 @@ ALTER TABLE clients ADD COLUMN IF NOT EXISTS country           TEXT DEFAULT 'usa
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS status            TEXT NOT NULL DEFAULT 'pending';
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS push_token        TEXT;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'en';
-ALTER TABLE companies ADD COLUMN IF NOT EXISTS available         BOOLEAN DEFAULT false;
+ALTER TABLE companies ADD COLUMN IF NOT EXISTS available         BOOLEAN DEFAULT true;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS latitude          DOUBLE PRECISION;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS longitude         DOUBLE PRECISION;
 ALTER TABLE companies ADD COLUMN IF NOT EXISTS country           TEXT DEFAULT 'usa';
+-- Backfill NULLs for rows that existed before the column was added
+UPDATE companies SET available = true WHERE available IS NULL;
 
 -- independents table
 ALTER TABLE independents ADD COLUMN IF NOT EXISTS status            TEXT NOT NULL DEFAULT 'pending';
 ALTER TABLE independents ADD COLUMN IF NOT EXISTS push_token        TEXT;
 ALTER TABLE independents ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'en';
-ALTER TABLE independents ADD COLUMN IF NOT EXISTS available         BOOLEAN DEFAULT false;
+ALTER TABLE independents ADD COLUMN IF NOT EXISTS available         BOOLEAN DEFAULT true;
 ALTER TABLE independents ADD COLUMN IF NOT EXISTS latitude          DOUBLE PRECISION;
 ALTER TABLE independents ADD COLUMN IF NOT EXISTS longitude         DOUBLE PRECISION;
 ALTER TABLE independents ADD COLUMN IF NOT EXISTS country           TEXT DEFAULT 'usa';
+-- Backfill NULLs for rows that existed before the column was added
+UPDATE independents SET available = true WHERE available IS NULL;
 
 -- ── is_admin() helper — uses admins table (NOT users) ─────────────────────────
 CREATE OR REPLACE FUNCTION is_admin()
