@@ -76,11 +76,24 @@ CREATE TABLE IF NOT EXISTS chats (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   admin_id    UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  user_type   TEXT NOT NULL DEFAULT 'client' CHECK (user_type IN ('client','company','independent')),
   created_at  TIMESTAMPTZ DEFAULT now()
 );
 
--- Add resolved flag (safe to run even if column exists)
-ALTER TABLE chats ADD COLUMN IF NOT EXISTS resolved BOOLEAN DEFAULT false;
+-- Add missing columns (safe to run even if columns already exist)
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS resolved   BOOLEAN DEFAULT false;
+ALTER TABLE chats ADD COLUMN IF NOT EXISTS user_type  TEXT NOT NULL DEFAULT 'client';
+-- Apply the check constraint only if it doesn't already exist
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'chats_user_type_check' AND conrelid = 'chats'::regclass
+  ) THEN
+    ALTER TABLE chats ADD CONSTRAINT chats_user_type_check
+      CHECK (user_type IN ('client','company','independent'));
+  END IF;
+END $$;
 
 CREATE INDEX IF NOT EXISTS chats_user_id_idx  ON chats(user_id);
 CREATE INDEX IF NOT EXISTS chats_admin_id_idx ON chats(admin_id);
