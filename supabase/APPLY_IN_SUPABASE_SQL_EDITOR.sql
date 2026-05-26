@@ -268,8 +268,22 @@ CREATE POLICY "reviews_read"   ON reviews FOR SELECT USING (true);
 CREATE POLICY "reviews_insert" ON reviews FOR INSERT WITH CHECK (auth.uid() = client_id);
 
 -- ── Enable Realtime on chat tables ────────────────────────────────────────────
-ALTER PUBLICATION supabase_realtime ADD TABLE chats;
-ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'chats'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE chats;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'messages'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+  END IF;
+END $$;
 
 
 -- ─── MIGRATION 013: Extended email triggers ───────────────────────────────────
