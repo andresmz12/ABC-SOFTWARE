@@ -59,6 +59,8 @@ export default function IndependentStep4() {
         date_of_birth: formData.dateOfBirth,
         service_type: formData.serviceType ?? 'both',
         identity_verified: false,
+        country: country ?? 'usa',
+        preferred_language: country === 'colombia' ? 'es' : 'en',
       });
       if (indError) throw indError;
 
@@ -99,8 +101,12 @@ export default function IndependentStep4() {
       }
 
       reset();
-      // Do NOT initialize() here — the email is not confirmed yet.
-      router.replace({ pathname: '/(auth)/confirm-email', params: { email: formData.email } } as any);
+      if (authData.session) {
+        await initialize();
+        router.replace('/(provider)/home' as any);
+      } else {
+        router.replace({ pathname: '/(auth)/confirm-email', params: { email: formData.email } } as any);
+      }
     } catch (e: any) {
       Alert.alert(
         isUSA ? 'Registration Error' : 'Error de Registro',

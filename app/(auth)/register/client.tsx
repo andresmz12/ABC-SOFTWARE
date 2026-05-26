@@ -145,9 +145,13 @@ export default function ClientRegister() {
       }
     }
 
-    // Do NOT initialize() here — email is not confirmed yet.
     setLoading(false);
-    router.replace({ pathname: '/(auth)/confirm-email', params: { email: data.email } } as any);
+    if (authData.session) {
+      await initialize();
+      router.replace('/(client)/home' as any);
+    } else {
+      router.replace({ pathname: '/(auth)/confirm-email', params: { email: data.email } } as any);
+    }
   };
 
   return (

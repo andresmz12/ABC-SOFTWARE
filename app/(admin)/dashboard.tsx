@@ -405,14 +405,14 @@ export default function AdminDashboard() {
       // Revenue: sum bid_amounts of accepted applications
       const revenueQ = supabase
         .from('job_applications')
-        .select('bid_amount')
+        .select('bid_amount_usd, bid_amount_cop')
         .eq('status', 'accepted');
 
       const [pendingDocsRes, clientsCountRes, activeJobsRes, revenueRes] = await Promise.all([
         pendingDocsQ, clientsQ, activeJQ, revenueQ,
       ]);
 
-      const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount ?? 0), 0);
+      const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount_usd ?? r.bid_amount_cop ?? 0), 0);
 
       setStats({
         activeJobs:       activeJobsRes.count ?? 0,

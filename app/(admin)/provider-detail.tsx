@@ -99,6 +99,8 @@ export default function ProviderDetail() {
 
       setProvider({
         ...unifiedUser,
+        status: (unifiedUser.status as ProviderStatus) || 'pending',
+        created_at: unifiedUser.created_at ?? new Date().toISOString(),
         profile,
         documents: docsRes.data ?? [],
         service_areas: areasRes.data ?? [],

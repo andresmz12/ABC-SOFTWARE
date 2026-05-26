@@ -58,6 +58,8 @@ export default function CompanyStep4() {
         state,
         zip,
         service_type: formData.serviceType ?? 'both',
+        country: country ?? 'usa',
+        preferred_language: country === 'colombia' ? 'es' : 'en',
       });
       if (companyError) throw companyError;
 
@@ -98,9 +100,12 @@ export default function CompanyStep4() {
       }
 
       reset();
-      // Do NOT initialize() here — the email is not confirmed yet.
-      // Redirect to email confirmation screen.
-      router.replace({ pathname: '/(auth)/confirm-email', params: { email: formData.email } } as any);
+      if (authData.session) {
+        await initialize();
+        router.replace('/(provider)/home' as any);
+      } else {
+        router.replace({ pathname: '/(auth)/confirm-email', params: { email: formData.email } } as any);
+      }
     } catch (e: any) {
       Alert.alert(
         isUSA ? 'Registration Error' : 'Error de Registro',

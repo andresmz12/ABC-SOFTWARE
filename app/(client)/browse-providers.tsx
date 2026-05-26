@@ -263,8 +263,9 @@ export default function BrowseProviders() {
         }
       }
 
-      setHasMore(mapped.length === PAGE_SIZE);
-      offsetRef.current = startOffset + mapped.length;
+      const totalFetched = (companiesRes.data?.length ?? 0) + (independentsRes.data?.length ?? 0);
+      setHasMore(totalFetched >= PAGE_SIZE);
+      offsetRef.current = startOffset + PAGE_SIZE;
 
       if (append) {
         setProviders((prev) => [...prev, ...mapped]);
