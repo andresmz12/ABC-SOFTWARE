@@ -74,15 +74,20 @@ export default function AdminJobs() {
     try {
       const { data, error } = await supabase
         .from('job_requests')
-        .select('id, service_type, city, country, status, scheduled_date, created_at, budget_usd, budget_cop, users!client_id(email)')
+        .select('id, service_type, city, country, status, scheduled_date, created_at, budget_usd, budget_cop, client_id')
         .order('created_at', { ascending: false })
         .limit(100);
 
       if (error) console.error('[AdminJobs] query failed:', error.message);
       if (data) {
+        const clientIds = [...new Set(data.map((j: any) => j.client_id).filter(Boolean))];
+        const { data: clientRows } = clientIds.length > 0
+          ? await supabase.from('clients').select('user_id, full_name').in('user_id', clientIds)
+          : { data: [] };
+        const clientMap = Object.fromEntries((clientRows ?? []).map((c: any) => [c.user_id, c.full_name]));
         setJobs(data.map((j: any) => ({
           ...j,
-          client_email: j.users?.email ?? 'Unknown',
+          client_email: clientMap[j.client_id] ?? `#${String(j.client_id).slice(0, 8)}`,
         })));
       }
     } catch (e: any) {

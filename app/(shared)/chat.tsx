@@ -58,7 +58,7 @@ export default function ChatScreen() {
         .from('chats')
         .select('id')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       let id: string;
       if (existing?.id) {

@@ -263,8 +263,8 @@ export default function BrowseProviders() {
         }
       }
 
-      setHasMore(data.length === PAGE_SIZE);
-      offsetRef.current = startOffset + data.length;
+      setHasMore(mapped.length === PAGE_SIZE);
+      offsetRef.current = startOffset + mapped.length;
 
       if (append) {
         setProviders((prev) => [...prev, ...mapped]);
@@ -284,9 +284,9 @@ export default function BrowseProviders() {
   }, [fetchPage]);
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (loadingMore || !hasMore || loading) return;
     await fetchPage(offsetRef.current, true);
-  }, [fetchPage, loadingMore, hasMore]);
+  }, [fetchPage, loadingMore, hasMore, loading]);
 
   useEffect(() => { loadProviders(); }, [loadProviders]);
 

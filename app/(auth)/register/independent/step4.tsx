@@ -82,7 +82,7 @@ export default function IndependentStep4() {
           const response = await fetch(docFile.uri);
           const arrayBuffer = await response.arrayBuffer();
           const { error: storErr } = await supabase.storage
-            .from('provider-documents')
+            .from('documents')
             .upload(storagePath, arrayBuffer, { contentType: docFile.mimeType, upsert: true });
           if (!storErr) {
             await supabase.from('documents').insert({

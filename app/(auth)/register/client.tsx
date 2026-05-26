@@ -108,6 +108,7 @@ export default function ClientRegister() {
       address: data.address, city: data.city, state: clientState, zip: data.zip, country: data.country,
     });
     if (clientResult.error) {
+      await supabase.auth.signOut();
       Alert.alert('Error', clientResult.error.message ?? (es ? 'Error al guardar perfil.' : 'Failed to save profile.'));
       setLoading(false);
       return;
