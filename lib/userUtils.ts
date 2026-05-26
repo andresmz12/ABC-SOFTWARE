@@ -50,7 +50,7 @@ const PROFILE_TABLES = [
     table: 'clients',
     role: 'client' as UserRole,
     nameField: 'full_name',
-    select: 'user_id, full_name, country, status, preferred_language, push_token, available, created_at',
+    select: 'user_id, full_name, country, status, preferred_language, push_token, created_at',
     defaultStatus: 'approved',
   },
 ] as const;
