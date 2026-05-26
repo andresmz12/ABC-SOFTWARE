@@ -348,7 +348,7 @@ export default function ProviderDetail() {
           </View>
         )}
 
-        {allDocsApproved && provider.status !== 'approved' && provider.status !== 'pending' && (
+        {allDocsApproved && provider.status !== 'approved' && (
           <TouchableOpacity
             onPress={() => setModalAction('approve')}
             style={{ backgroundColor: C.success, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 12 }}

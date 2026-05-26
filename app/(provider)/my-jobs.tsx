@@ -212,11 +212,10 @@ function RatingModal({ job, visible, es, onClose, providerId }: RatingModalProps
     try {
       await supabase.from('reviews').insert({
         job_id: job.id,
-        reviewer_id: providerId,
-        reviewee_id: (job as any).client_id ?? null,
+        provider_id: providerId,
+        client_id: (job as any).client_id ?? null,
         rating,
         comment: comment.trim() || null,
-        role: 'provider',
       });
     } catch (e: any) {
       console.warn('[RatingModal] insert error:', e.message);

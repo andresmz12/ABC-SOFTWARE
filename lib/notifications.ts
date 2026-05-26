@@ -92,7 +92,7 @@ export const sendPushNotification = async (
   data?: Record<string, unknown>,
 ): Promise<void> => {
   try {
-    await fetch('https://exp.host/--/api/v2/push/send', {
+    const res = await fetch('https://exp.host/--/api/v2/push/send', {
       method: 'POST',
       headers: {
         Accept: 'application/json',
@@ -107,6 +107,7 @@ export const sendPushNotification = async (
         data: data ?? {},
       }),
     });
+    if (!res.ok) console.warn('[notifications] Expo push API error:', res.status);
   } catch (e) {
     console.warn('[notifications] sendPushNotification error:', e);
   }

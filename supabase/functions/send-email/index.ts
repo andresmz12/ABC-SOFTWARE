@@ -117,9 +117,7 @@ async function handleNewJob(job: any): Promise<{ sent: number }> {
 
   const [companiesRes, independentsRes] = await Promise.all([
     supabase.from('companies').select('user_id, preferred_language').in('user_id', providerIds).eq('status', 'approved').eq('available', true),
-    isCom
-      ? Promise.resolve({ data: [] })
-      : supabase.from('independents').select('user_id, preferred_language').in('user_id', providerIds).eq('status', 'approved').eq('available', true),
+    supabase.from('independents').select('user_id, preferred_language').in('user_id', providerIds).eq('status', 'approved').eq('available', true),
   ]);
 
   const providerRows: Array<{ user_id: string; preferred_language: string }> = [

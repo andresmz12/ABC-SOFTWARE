@@ -13,7 +13,7 @@ serve(async (_req) => {
     // Find expired open jobs
     const { data: expiredJobs } = await supabase
       .from('job_requests')
-      .select('id, client_id, city, users!inner(push_token, preferred_language)')
+      .select('id, client_id, city')
       .eq('status', 'open')
       .lt('expires_at', new Date().toISOString());
 
@@ -28,12 +28,20 @@ serve(async (_req) => {
       .update({ status: 'expired' })
       .in('id', ids);
 
+    // Fetch client info from clients table
+    const clientIds = [...new Set(expiredJobs.map((j: any) => j.client_id).filter(Boolean))];
+    const { data: clientRows } = clientIds.length > 0
+      ? await supabase.from('clients').select('user_id, push_token, preferred_language').in('user_id', clientIds)
+      : { data: [] as any[] };
+    const clientMap = Object.fromEntries((clientRows ?? []).map((c: any) => [c.user_id, c]));
+
     // Notify clients
     const pushMessages = [];
     const notifications = [];
 
     for (const job of expiredJobs as any[]) {
-      const lang = job.users?.preferred_language ?? 'en';
+      const client = clientMap[job.client_id];
+      const lang = client?.preferred_language ?? 'en';
       notifications.push({
         user_id: job.client_id,
         title_en: 'Job Expired',
@@ -43,9 +51,9 @@ serve(async (_req) => {
         type: 'job_expired',
         data: { job_id: job.id },
       });
-      if (job.users?.push_token) {
+      if (client?.push_token) {
         pushMessages.push({
-          to: job.users.push_token,
+          to: client.push_token,
           title: lang === 'es' ? 'Trabajo Expirado' : 'Job Expired',
           body: lang === 'es'
             ? 'Tu publicación expiró sin aplicaciones. ¡Vuelve a publicar!'

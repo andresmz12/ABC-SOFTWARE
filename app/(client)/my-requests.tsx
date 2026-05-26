@@ -501,7 +501,7 @@ export default function MyRequests() {
   const TAB_LABELS: Record<Tab, string> = {
     open: es ? 'Abiertas' : 'Open',
     in_progress: es ? 'Activas' : 'Active',
-    completed: es ? 'Listas' : 'Done',
+    completed: es ? 'Historial' : 'History',
     expired: es ? 'Expiradas' : 'Expired',
   };
 

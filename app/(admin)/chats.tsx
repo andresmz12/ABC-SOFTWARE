@@ -48,6 +48,7 @@ export default function AdminChats() {
       const { data: rawChats } = await supabase
         .from('chats')
         .select('id, user_id, user_type, created_at')
+        .neq('resolved', true)
         .order('created_at', { ascending: false });
 
       if (!rawChats?.length) { setChats([]); return; }

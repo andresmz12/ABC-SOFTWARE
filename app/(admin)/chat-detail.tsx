@@ -133,7 +133,8 @@ export default function AdminChatDetail() {
     setText('');
     try {
       // Assign admin to chat if not assigned
-      await supabase.from('chats').update({ admin_id: user.id }).eq('id', chatId).is('admin_id', null);
+      const { error: assignErr } = await supabase.from('chats').update({ admin_id: user.id }).eq('id', chatId).is('admin_id', null);
+      if (assignErr) console.warn('[chat-detail] assign admin failed:', assignErr.message);
 
       const { error } = await supabase.from('messages').insert({
         chat_id: chatId,

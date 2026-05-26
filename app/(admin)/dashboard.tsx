@@ -387,8 +387,19 @@ export default function AdminDashboard() {
       if (countryEq) {
         clientsQ = (clientsQ as any).eq('country', countryEq);
         activeJQ = (activeJQ as any).eq('country', countryEq);
-        // documents table doesn't have country — filter pending by joining via user existence in country
-        // For simplicity, pending count is global (not filtered by country)
+
+        // documents table has no country column — filter by provider IDs from that country
+        const [compRes, indepRes] = await Promise.all([
+          supabase.from('companies').select('user_id').eq('country', countryEq),
+          supabase.from('independents').select('user_id').eq('country', countryEq),
+        ]);
+        const provIds = [
+          ...(compRes.data ?? []).map((c: any) => c.user_id as string),
+          ...(indepRes.data ?? []).map((i: any) => i.user_id as string),
+        ];
+        pendingDocsQ = provIds.length > 0
+          ? (pendingDocsQ as any).in('user_id', provIds)
+          : (pendingDocsQ as any).eq('user_id', '00000000-0000-0000-0000-000000000000');
       }
 
       // Revenue: sum bid_amounts of accepted applications

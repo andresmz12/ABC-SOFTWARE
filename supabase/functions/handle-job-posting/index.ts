@@ -27,27 +27,42 @@ serve(async (req) => {
       .update({ expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString() })
       .eq('id', job.id);
 
-    // Find matching approved providers
-    const { data: providers } = await supabase
+    // Find matching providers in the same city and state
+    const { data: areas } = await supabase
       .from('service_areas')
-      .select('provider_id, users!inner(push_token, preferred_language, status, role)')
+      .select('provider_id')
       .eq('city', job.city)
-      .filter('users.status', 'eq', 'approved')
-      .filter('users.role', 'in', '("company","independent")');
+      .eq('state', job.state);
 
-    if (!providers || providers.length === 0) {
+    if (!areas || areas.length === 0) {
       return new Response(JSON.stringify({ message: 'No matching providers' }), { status: 200 });
+    }
+
+    const allProviderIds = [...new Set(areas.map((a: any) => a.provider_id as string))];
+
+    // Fetch approved+available provider info from profile tables
+    const [companiesRes, indepRes] = await Promise.all([
+      supabase.from('companies').select('user_id, push_token, preferred_language').in('user_id', allProviderIds).eq('status', 'approved').eq('available', true),
+      supabase.from('independents').select('user_id, push_token, preferred_language').in('user_id', allProviderIds).eq('status', 'approved').eq('available', true),
+    ]);
+    const providerMap: Record<string, { push_token: string | null; preferred_language: string }> = {};
+    for (const c of companiesRes.data ?? []) providerMap[c.user_id] = c;
+    for (const i of indepRes.data ?? []) providerMap[i.user_id] = i;
+
+    const matchedIds = allProviderIds.filter((id) => providerMap[id]);
+    if (!matchedIds.length) {
+      return new Response(JSON.stringify({ message: 'No approved providers' }), { status: 200 });
     }
 
     const notifications = [];
     const pushMessages = [];
 
-    for (const p of providers as any[]) {
-      const user = p.users;
-      const lang = user.preferred_language ?? 'en';
+    for (const providerId of matchedIds) {
+      const provider = providerMap[providerId];
+      const lang = provider.preferred_language ?? 'en';
 
       notifications.push({
-        user_id: p.provider_id,
+        user_id: providerId,
         title_en: 'New Job Available!',
         title_es: '¡Nuevo Trabajo Disponible!',
         body_en: `A ${job.service_type} cleaning job in ${job.city} is available.`,
@@ -56,9 +71,9 @@ serve(async (req) => {
         data: { job_id: job.id },
       });
 
-      if (user.push_token) {
+      if (provider.push_token) {
         pushMessages.push({
-          to: user.push_token,
+          to: provider.push_token,
           title: lang === 'es' ? '¡Nuevo Trabajo Disponible!' : 'New Job Available!',
           body: lang === 'es'
             ? `Trabajo de limpieza en ${job.city}`
