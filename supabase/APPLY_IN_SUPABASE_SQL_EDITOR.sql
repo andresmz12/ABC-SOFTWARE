@@ -336,6 +336,60 @@ CREATE TRIGGER email_on_offer_rejected
   FOR EACH ROW
   EXECUTE FUNCTION trg_email_offer_rejected();
 
+-- ── Missing RLS policies (safe to re-run) ────────────────────────────────────
+
+-- service_areas: allow providers to insert their own rows during registration
+DROP POLICY IF EXISTS "service_areas_insert" ON service_areas;
+CREATE POLICY "service_areas_insert" ON service_areas
+  FOR INSERT WITH CHECK (provider_id = auth.uid());
+
+-- notifications table + policies
+CREATE TABLE IF NOT EXISTS notifications (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  title_en   TEXT NOT NULL,
+  title_es   TEXT NOT NULL,
+  body_en    TEXT NOT NULL,
+  body_es    TEXT NOT NULL,
+  type       TEXT NOT NULL,
+  data       JSONB,
+  read       BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "notifications_owner_all" ON notifications;
+DROP POLICY IF EXISTS "notifications_admin_all" ON notifications;
+CREATE POLICY "notifications_owner_all" ON notifications FOR ALL USING (user_id = auth.uid());
+CREATE POLICY "notifications_admin_all" ON notifications FOR ALL USING (is_admin());
+
+-- documents: users can insert/read their own; admins can do everything
+ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "documents_owner_insert" ON documents;
+DROP POLICY IF EXISTS "documents_owner_select" ON documents;
+DROP POLICY IF EXISTS "documents_admin_all"    ON documents;
+CREATE POLICY "documents_owner_insert" ON documents FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "documents_owner_select" ON documents FOR SELECT USING (user_id = auth.uid() OR is_admin());
+CREATE POLICY "documents_admin_all"    ON documents FOR ALL    USING (is_admin());
+
+-- job_requests: clients own their requests; providers can read all; admins do everything
+ALTER TABLE job_requests ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "job_requests_client_crud"   ON job_requests;
+DROP POLICY IF EXISTS "job_requests_provider_read" ON job_requests;
+DROP POLICY IF EXISTS "job_requests_admin_all"     ON job_requests;
+CREATE POLICY "job_requests_client_crud"   ON job_requests FOR ALL    USING (client_id = auth.uid());
+CREATE POLICY "job_requests_provider_read" ON job_requests FOR SELECT USING (auth.uid() IS NOT NULL);
+CREATE POLICY "job_requests_admin_all"     ON job_requests FOR ALL    USING (is_admin());
+
+-- job_applications: providers own their applications; clients read apps for their jobs; admins do everything
+ALTER TABLE job_applications ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "applications_provider_crud" ON job_applications;
+DROP POLICY IF EXISTS "applications_client_read"   ON job_applications;
+DROP POLICY IF EXISTS "applications_admin_all"     ON job_applications;
+CREATE POLICY "applications_provider_crud" ON job_applications FOR ALL    USING (provider_id = auth.uid());
+CREATE POLICY "applications_client_read"   ON job_applications FOR SELECT
+  USING (EXISTS (SELECT 1 FROM job_requests jr WHERE jr.id = job_request_id AND jr.client_id = auth.uid()));
+CREATE POLICY "applications_admin_all"     ON job_applications FOR ALL    USING (is_admin());
+
 -- ── Schema reload ─────────────────────────────────────────────────────────────
 NOTIFY pgrst, 'reload schema';
 

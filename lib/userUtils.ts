@@ -61,11 +61,12 @@ const PROFILE_TABLES = [
  */
 export async function getUserProfile(userId: string): Promise<UnifiedUser | null> {
   // ── 1. Check admins FIRST ────────────────────────────────────────────────
-  const { data: admin } = await supabase
+  const { data: admin, error: adminError } = await supabase
     .from('admins')
     .select('id, email, created_at')
     .eq('id', userId)
     .maybeSingle();
+  if (adminError) console.warn('[getUserProfile] admins query error:', adminError.message);
   if (admin) {
     return {
       id: userId,
@@ -157,14 +158,14 @@ export async function getUserPushTokens(
 export async function getAllUsers(): Promise<UnifiedUser[]> {
   const [clientsRes, companiesRes, independentsRes] = await Promise.all([
     supabase.from('clients').select('user_id, full_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
-    supabase.from('companies').select('user_id, company_name, country, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
-    supabase.from('independents').select('user_id, full_name, country, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
+    supabase.from('companies').select('user_id, company_name, country, preferred_language, push_token, status, created_at').order('created_at', { ascending: false }),
+    supabase.from('independents').select('user_id, full_name, country, preferred_language, push_token, status, created_at').order('created_at', { ascending: false }),
   ]);
 
   const users: UnifiedUser[] = [
     ...(clientsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'client' as UserRole, status: r.status ?? 'approved', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
-    ...(companiesRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'company' as UserRole, status: 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.company_name, created_at: r.created_at })),
-    ...(independentsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'independent' as UserRole, status: 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
+    ...(companiesRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'company' as UserRole, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.company_name, created_at: r.created_at })),
+    ...(independentsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'independent' as UserRole, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
   ];
 
   users.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
