@@ -162,6 +162,7 @@ export default function BrowseProviders() {
   const { user } = useAuthStore();
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const [serviceFilter, setServiceFilter] = useState<'all' | 'commercial' | 'residential'>('all');
   const [providers, setProviders] = useState<Provider[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -293,9 +294,13 @@ export default function BrowseProviders() {
 
   useEffect(() => { loadProviders(); }, [loadProviders]);
 
-  // Apply radius filter + text search, then sort by distance
+  // Apply service type, radius, and text filters, then sort by distance
   const filtered = (() => {
     let list = providers;
+
+    if (serviceFilter !== 'all') {
+      list = list.filter((p) => p.serviceType === serviceFilter || p.serviceType === 'both');
+    }
 
     if (query.length > 0) {
       list = list.filter((p) =>
@@ -367,6 +372,36 @@ export default function BrowseProviders() {
             <Feather name="x" size={16} color={C.textMuted} />
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Service type filter chips */}
+      <View style={{ flexDirection: 'row', paddingHorizontal: 24, gap: 8, marginBottom: 12 }}>
+        {([
+          { key: 'all', label: es ? 'Todos' : 'All' },
+          { key: 'residential', label: es ? 'Residencial' : 'Residential' },
+          { key: 'commercial', label: es ? 'Comercial' : 'Commercial' },
+        ] as const).map(({ key, label }) => {
+          const active = serviceFilter === key;
+          return (
+            <TouchableOpacity
+              key={key}
+              onPress={() => setServiceFilter(key)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 6,
+                borderRadius: 999,
+                backgroundColor: active ? C.accent : C.surface,
+                borderWidth: 1,
+                borderColor: active ? C.accent : C.line,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: active ? '#000' : C.textMuted, fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Distance radius filter (only when location is available) */}
