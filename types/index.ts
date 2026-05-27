@@ -113,6 +113,10 @@ export interface JobRequest {
   expires_at?: string;
   frequency?: string;
   min_staff?: number;
+  start_photo_url?: string | null;
+  completion_photo_url?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
   created_at: string;
 }
 

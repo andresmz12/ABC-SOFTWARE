@@ -17,6 +17,7 @@ interface RatingModalProps {
   clientId: string;
   providerId: string;
   es: boolean;
+  mandatory?: boolean;
   onClose: () => void;
   onSubmitted?: () => void;
 }
@@ -27,6 +28,7 @@ export default function RatingModal({
   clientId,
   providerId,
   es,
+  mandatory = false,
   onClose,
   onSubmitted,
 }: RatingModalProps) {
@@ -75,7 +77,7 @@ export default function RatingModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={mandatory ? undefined : onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.55)', alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 }}>
         <View style={{
           backgroundColor: C.surface,
@@ -158,14 +160,16 @@ export default function RatingModal({
 
           {/* Buttons */}
           <View style={{ flexDirection: 'row', gap: 12 }}>
-            <TouchableOpacity
-              onPress={onClose}
-              style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
-            >
-              <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
-                {es ? 'Omitir' : 'Skip'}
-              </Text>
-            </TouchableOpacity>
+            {!mandatory && (
+              <TouchableOpacity
+                onPress={onClose}
+                style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
+                  {es ? 'Omitir' : 'Skip'}
+                </Text>
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={saving}

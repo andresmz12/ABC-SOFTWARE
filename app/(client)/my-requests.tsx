@@ -527,11 +527,34 @@ export default function MyRequests() {
       const allJobs = (data ?? []) as JobRequest[];
       setJobs({
         open:        allJobs.filter((j) => j.status === 'open'),
-        // 'accepted' = client chose a provider; 'in_progress' = work underway
         in_progress: allJobs.filter((j) => j.status === 'accepted' || j.status === 'in_progress'),
         completed:   allJobs.filter((j) => j.status === 'completed' || j.status === 'cancelled'),
         expired:     allJobs.filter((j) => j.status === 'expired'),
       });
+
+      // Auto-trigger mandatory rating for first unrated completed job
+      const completedJobs = allJobs.filter((j) => j.status === 'completed');
+      if (completedJobs.length > 0) {
+        const completedIds = completedJobs.map((j) => j.id);
+        const { data: ratedData } = await supabase
+          .from('reviews')
+          .select('job_id')
+          .in('job_id', completedIds)
+          .eq('client_id', user.id);
+        const ratedIds = new Set((ratedData ?? []).map((r: any) => r.job_id as string));
+        const unratedJob = completedJobs.find((j) => !ratedIds.has(j.id));
+        if (unratedJob) {
+          const { data: app } = await supabase
+            .from('job_applications')
+            .select('provider_id')
+            .eq('job_request_id', unratedJob.id)
+            .eq('status', 'accepted')
+            .maybeSingle();
+          if (app?.provider_id) {
+            setRatingJob({ jobId: unratedJob.id, providerId: app.provider_id });
+          }
+        }
+      }
     } catch (e: any) {
       setFetchError(e.message ?? (es ? 'Error al cargar solicitudes.' : 'Failed to load requests.'));
     } finally {
@@ -713,6 +736,7 @@ export default function MyRequests() {
           clientId={user.id}
           providerId={ratingJob.providerId}
           es={es}
+          mandatory
           onClose={() => setRatingJob(null)}
           onSubmitted={() => {
             setRatingJob(null);

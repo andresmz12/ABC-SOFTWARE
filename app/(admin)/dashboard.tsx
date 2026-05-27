@@ -52,6 +52,8 @@ interface DashProvider {
   status: ProvStatus;
   country: string;
   state: string;
+  avgRating?: number | null;
+  reviewCount?: number;
 }
 
 interface DashClient {
@@ -284,11 +286,21 @@ function ProviderRow({
           <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }} numberOfLines={1}>
             {provider.name || (es ? 'Sin nombre' : 'No name')}
           </Text>
-          <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
-            {isCompany ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')}
-            {' · '}{provider.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
-            {provider.state ? ` ${provider.state}` : ''}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
+              {isCompany ? (es ? 'Empresa' : 'Company') : (es ? 'Independiente' : 'Independent')}
+              {' · '}{provider.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
+              {provider.state ? ` ${provider.state}` : ''}
+            </Text>
+            {provider.reviewCount ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                <Feather name="star" size={10} color="#F59E0B" />
+                <Text style={{ color: '#F59E0B', fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
+                  {provider.avgRating?.toFixed(1)}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
         <StatusBadge status={provider.status} es={es} />
       </View>
@@ -457,6 +469,29 @@ export default function AdminDashboard() {
         ...(compRes.data  ?? []).map((r: any) => ({ id: r.user_id, name: r.company_name ?? '', role: 'company'     as const, status: (docStatusMap[r.user_id] ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
         ...(indepRes.data ?? []).map((r: any) => ({ id: r.user_id, name: r.full_name    ?? '', role: 'independent' as const, status: (docStatusMap[r.user_id] ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
       ];
+
+      // Fetch avg ratings per provider
+      if (provRows.length > 0) {
+        const provIds = provRows.map((p) => p.id);
+        const { data: ratingsData } = await supabase
+          .from('reviews')
+          .select('provider_id, rating')
+          .in('provider_id', provIds);
+        const ratingMap: Record<string, { sum: number; count: number }> = {};
+        for (const r of (ratingsData ?? [])) {
+          if (!ratingMap[r.provider_id]) ratingMap[r.provider_id] = { sum: 0, count: 0 };
+          ratingMap[r.provider_id].sum += r.rating;
+          ratingMap[r.provider_id].count += 1;
+        }
+        for (const p of provRows) {
+          const entry = ratingMap[p.id];
+          if (entry) {
+            p.avgRating = entry.sum / entry.count;
+            p.reviewCount = entry.count;
+          }
+        }
+      }
+
       // Pending first, then alphabetical
       provRows.sort((a, b) => {
         if (a.status === 'pending' && b.status !== 'pending') return -1;

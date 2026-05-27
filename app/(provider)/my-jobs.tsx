@@ -3,7 +3,7 @@
  * Shows the provider's job history with tabs: Applied, Active, Completed
  * Includes: mark as completed (with photo requirement), trigger rating modal for client
  */
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Alert, Modal,
   ScrollView, ActivityIndicator, Image, TextInput,
@@ -42,6 +42,171 @@ interface CompleteModalProps {
   onCompleted: () => void;
 }
 
+// ─── Start Modal ──────────────────────────────────────────────────────────────
+
+interface StartModalProps {
+  job: JobRequest | null;
+  visible: boolean;
+  es: boolean;
+  onClose: () => void;
+  onStarted: () => void;
+}
+
+function StartModal({ job, visible, es, onClose, onStarted }: StartModalProps) {
+  const [photo, setPhoto] = useState<{ uri: string; name: string } | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (!visible) setPhoto(null); }, [visible]);
+
+  const pickPhoto = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.7,
+      allowsMultipleSelection: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setPhoto({ uri: asset.uri, name: asset.fileName ?? `start_${Date.now()}.jpg` });
+    }
+  };
+
+  const handleStart = async () => {
+    if (!job) return;
+    if (!photo) {
+      Alert.alert(
+        es ? 'Foto requerida' : 'Photo required',
+        es
+          ? 'Sube una foto del sitio antes de iniciar el trabajo.'
+          : 'Please upload a before photo before starting the job.',
+      );
+      return;
+    }
+    setSaving(true);
+    try {
+      const ext = photo.name.split('.').pop() ?? 'jpg';
+      const path = `${job.id}/start/${Date.now()}.${ext}`;
+      const response = await fetch(photo.uri);
+      const blob = await response.blob();
+      const { error: uploadErr } = await supabase.storage
+        .from('job-photos')
+        .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
+      if (uploadErr) throw uploadErr;
+
+      const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+
+      const { error } = await supabase
+        .from('job_requests')
+        .update({
+          status: 'in_progress',
+          start_photo_url: urlData.publicUrl,
+          started_at: new Date().toISOString(),
+        })
+        .eq('id', job.id);
+      if (error) throw error;
+
+      setPhoto(null);
+      onStarted();
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.55)', justifyContent: 'flex-end' }}>
+        <View style={{
+          backgroundColor: C.surface,
+          borderTopLeftRadius: 24, borderTopRightRadius: 24,
+          padding: 24, paddingBottom: 40,
+          borderTopWidth: 1, borderTopColor: C.line,
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
+              {es ? 'Iniciar Trabajo' : 'Start Job'}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="x" size={18} color={C.textSecondary} />
+            </TouchableOpacity>
+          </View>
+
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 20, lineHeight: 21 }}>
+            {es
+              ? 'Sube una foto del lugar antes de comenzar el trabajo.'
+              : 'Upload a before photo of the site to start the job.'}
+          </Text>
+
+          {photo ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <Image source={{ uri: photo.uri }} style={{ width: 80, height: 80, borderRadius: 10 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_500Medium' }} numberOfLines={1}>
+                  {photo.name}
+                </Text>
+                <TouchableOpacity onPress={() => setPhoto(null)} style={{ marginTop: 6 }}>
+                  <Text style={{ color: C.danger, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                    {es ? 'Eliminar' : 'Remove'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : (
+            <>
+              <TouchableOpacity
+                onPress={pickPhoto}
+                style={{
+                  height: 100, borderRadius: 12,
+                  borderWidth: 2, borderColor: C.line, borderStyle: 'dashed',
+                  alignItems: 'center', justifyContent: 'center',
+                  backgroundColor: C.surface2, marginBottom: 16,
+                }}
+              >
+                <Feather name="camera" size={26} color={C.textMuted} />
+                <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_500Medium', marginTop: 8 }}>
+                  {es ? 'Seleccionar foto' : 'Select photo'}
+                </Text>
+              </TouchableOpacity>
+              <View style={{ backgroundColor: '#FEF3C7', borderRadius: 10, padding: 12, marginBottom: 16, flexDirection: 'row', alignItems: 'flex-start' }}>
+                <Feather name="alert-triangle" size={16} color={C.warning} style={{ marginRight: 8, marginTop: 1 }} />
+                <Text style={{ color: '#92400E', fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1, lineHeight: 19 }}>
+                  {es ? 'Se requiere una foto antes de iniciar.' : 'A before photo is required to start.'}
+                </Text>
+              </View>
+            </>
+          )}
+
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+            >
+              <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>
+                {es ? 'Cancelar' : 'Cancel'}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleStart}
+              disabled={saving}
+              style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: '#3B82F6', alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.7 : 1 }}
+              activeOpacity={0.85}
+            >
+              {saving ? <ActivityIndicator color="#FFF" /> : (
+                <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                  {es ? 'Iniciar Trabajo' : 'Start Job'}
+                </Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+// ─── Complete Modal ────────────────────────────────────────────────────────────
+
 function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModalProps) {
   const [photos, setPhotos] = useState<{ uri: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
@@ -72,6 +237,8 @@ function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModal
     setSaving(true);
     try {
       const afterUrls: string[] = [];
+      let completionPhotoUrl: string | null = null;
+
       for (const photo of photos) {
         const ext = photo.name.split('.').pop() ?? 'jpg';
         const path = `${job.id}/after/${Date.now()}.${ext}`;
@@ -80,12 +247,21 @@ function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModal
         const { error: uploadErr } = await supabase.storage
           .from('job-photos')
           .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
-        if (!uploadErr) afterUrls.push(path);
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
+          afterUrls.push(urlData.publicUrl);
+          if (!completionPhotoUrl) completionPhotoUrl = urlData.publicUrl;
+        }
       }
 
       const { error } = await supabase
         .from('job_requests')
-        .update({ status: 'completed', photos_after: afterUrls })
+        .update({
+          status: 'completed',
+          photos_after: afterUrls,
+          completion_photo_url: completionPhotoUrl,
+          completed_at: new Date().toISOString(),
+        })
         .eq('id', job.id);
       if (error) throw error;
 
@@ -472,6 +648,7 @@ export default function MyJobsScreen() {
   const [rejectedIds, setRejectedIds] = useState<Set<string>>(new Set());
   const [appStatuses, setAppStatuses] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [startJob, setStartJob] = useState<JobRequest | null>(null);
   const [completeJob, setCompleteJob] = useState<JobRequest | null>(null);
   const [ratingJob, setRatingJob] = useState<JobRequest | null>(null);
 
@@ -535,27 +712,6 @@ export default function MyJobsScreen() {
 
   useFocusEffect(useCallback(() => { loadJobs(); }, [loadJobs]));
 
-  const handleStartJob = async (jobId: string) => {
-    Alert.alert(
-      es ? 'Iniciar Trabajo' : 'Start Job',
-      es ? '¿Confirmas que estás comenzando este trabajo?' : 'Confirm you are starting this job?',
-      [
-        { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-        {
-          text: es ? 'Iniciar' : 'Start',
-          onPress: async () => {
-            const { error } = await supabase
-              .from('job_requests')
-              .update({ status: 'in_progress' })
-              .eq('id', jobId);
-            if (error) { Alert.alert('Error', error.message); return; }
-            // Optimistic update
-            setActive((prev) => prev.map((j) => j.id === jobId ? { ...j, status: 'in_progress' } : j));
-          },
-        },
-      ],
-    );
-  };
 
   const current = activeTab === 'applied' ? applied : activeTab === 'active' ? active : completed;
   const counts: Record<Tab, number> = { applied: applied.length, active: active.length, completed: completed.length };
@@ -567,7 +723,7 @@ export default function MyJobsScreen() {
       isRejected={rejectedIds.has(item.id)}
       es={es}
       onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
-      onStart={activeTab === 'active' ? () => handleStartJob(item.id) : undefined}
+      onStart={activeTab === 'active' ? () => setStartJob(item) : undefined}
       onComplete={activeTab === 'active' ? () => setCompleteJob(item) : undefined}
     />
   ), [appStatuses, rejectedIds, es, activeTab, router]);
@@ -664,6 +820,16 @@ export default function MyJobsScreen() {
         />
       )}
 
+      <StartModal
+        job={startJob}
+        visible={!!startJob}
+        es={es}
+        onClose={() => setStartJob(null)}
+        onStarted={() => {
+          setStartJob(null);
+          loadJobs();
+        }}
+      />
       <CompleteModal
         job={completeJob}
         visible={!!completeJob}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -9,6 +9,13 @@ import { C } from '@/constants/theme';
 
 type ProviderStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 type DocStatus = 'pending' | 'approved' | 'rejected';
+
+interface ProviderReview {
+  id: string;
+  rating: number;
+  comment?: string | null;
+  created_at: string;
+}
 
 interface ProviderData {
   id: string;
@@ -33,6 +40,8 @@ interface ProviderData {
     file_name?: string;
     file_url?: string;
   }>;
+  reviews?: ProviderReview[];
+  avgRating?: number | null;
 }
 
 function buildStatusConfig(es: boolean): Record<ProviderStatus, { bg: string; border: string; color: string; label: string }> {
@@ -92,10 +101,16 @@ export default function ProviderDetail() {
         if (ind) profile = { name: ind.full_name, phone: ind.phone, address: ind.address, city: ind.city, state: ind.state, service_type: ind.service_type };
       }
 
-      const [docsRes, areasRes] = await Promise.all([
+      const [docsRes, areasRes, reviewsRes] = await Promise.all([
         supabase.from('documents').select('id, doc_type, status, file_name, file_url').eq('user_id', id),
         supabase.from('service_areas').select('state, city').eq('provider_id', id),
+        supabase.from('reviews').select('id, rating, comment, created_at').eq('provider_id', id).order('created_at', { ascending: false }),
       ]);
+
+      const reviewsList = (reviewsRes.data ?? []) as ProviderReview[];
+      const avgRating = reviewsList.length > 0
+        ? reviewsList.reduce((sum, r) => sum + r.rating, 0) / reviewsList.length
+        : null;
 
       setProvider({
         ...unifiedUser,
@@ -104,6 +119,8 @@ export default function ProviderDetail() {
         profile,
         documents: docsRes.data ?? [],
         service_areas: areasRes.data ?? [],
+        reviews: reviewsList,
+        avgRating,
       });
     } finally {
       setLoading(false);
@@ -226,8 +243,8 @@ export default function ProviderDetail() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ color: C.textPrimary, fontSize: 17, fontFamily: 'Inter_600SemiBold' }} numberOfLines={1}>{displayName}</Text>
-              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2, textTransform: 'capitalize' }}>
-                {provider.role} · {provider.country === 'colombia' ? '🇨🇴 Colombia' : '🇺🇸 USA'}
+              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                {provider.role.charAt(0).toUpperCase() + provider.role.slice(1)} · {provider.country === 'colombia' ? '🇨🇴 Colombia' : '🇺🇸 USA'}
               </Text>
             </View>
           </View>
@@ -327,6 +344,48 @@ export default function ProviderDetail() {
                 </View>
               );
             })}
+          </View>
+        )}
+
+        {/* Reviews */}
+        {(provider.reviews?.length ?? 0) > 0 && (
+          <View style={{ backgroundColor: C.surface, borderRadius: 16, padding: 16, marginBottom: 12, borderWidth: 1, borderColor: C.line }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Calificaciones' : 'Reviews'} ({provider.reviews?.length})
+              </Text>
+              {provider.avgRating != null && (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Feather name="star" size={13} color="#F59E0B" />
+                  <Text style={{ color: '#F59E0B', fontSize: 13, fontFamily: 'Inter_700Bold' }}>
+                    {provider.avgRating.toFixed(1)}
+                  </Text>
+                </View>
+              )}
+            </View>
+            {provider.reviews?.map((review, idx) => (
+              <View key={review.id} style={{ paddingVertical: 10, borderBottomWidth: idx < (provider.reviews?.length ?? 0) - 1 ? 1 : 0, borderBottomColor: C.line }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Feather key={star} name="star" size={12} color={star <= review.rating ? '#F59E0B' : C.line} />
+                    ))}
+                  </View>
+                  <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
+                    {new Date(review.created_at).toLocaleDateString(es ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                  </Text>
+                </View>
+                {review.comment ? (
+                  <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular', lineHeight: 18 }}>
+                    {review.comment}
+                  </Text>
+                ) : (
+                  <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', fontStyle: 'italic' }}>
+                    {es ? 'Sin comentario' : 'No comment'}
+                  </Text>
+                )}
+              </View>
+            ))}
           </View>
         )}
 
