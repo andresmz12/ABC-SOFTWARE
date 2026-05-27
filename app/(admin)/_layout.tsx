@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 
 export default function AdminLayout() {
+  const rootNavState = useRootNavigationState();
+  const router = useRouter();
   const { user } = useAuthStore();
   const [totalUnread, setTotalUnread] = useState(0);
 
@@ -19,6 +21,14 @@ export default function AdminLayout() {
     setTotalUnread(count ?? 0);
   }, [user?.id]);
 
+  // Security guard: redirect any non-admin user out of the admin area
+  useEffect(() => {
+    if (!rootNavState?.key) return;
+    if (user !== undefined && user?.role !== 'admin') {
+      router.replace('/(auth)/welcome' as any);
+    }
+  }, [rootNavState?.key, user?.role, user?.id]);
+
   useEffect(() => {
     fetchTotalUnread();
     const ch = supabase
@@ -28,6 +38,9 @@ export default function AdminLayout() {
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [fetchTotalUnread]);
+
+  if (!rootNavState?.key) return <Slot />;
+  if (!user || user.role !== 'admin') return <Slot />;
 
   return (
     <Tabs

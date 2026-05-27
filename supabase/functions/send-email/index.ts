@@ -564,6 +564,16 @@ serve(async (req) => {
     });
   }
 
+  // Require a Bearer token — blocks unauthenticated external callers.
+  // Valid callers: Supabase DB triggers (service role key) or app clients (user JWT).
+  const authHeader = req.headers.get('authorization') ?? '';
+  if (!authHeader.startsWith('Bearer ')) {
+    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+      status: 401,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
   try {
     const { type, data } = await req.json();
 

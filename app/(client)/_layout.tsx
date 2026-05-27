@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Tabs } from 'expo-router';
+import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 
 export default function ClientLayout() {
+  const rootNavState = useRootNavigationState();
+  const router = useRouter();
   const { user } = useAuthStore();
   const [unread, setUnread] = useState(0);
 
@@ -36,6 +38,17 @@ export default function ClientLayout() {
 
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
+
+  // Security guard: redirect non-clients out of client area
+  useEffect(() => {
+    if (!rootNavState?.key) return;
+    if (user !== undefined && user?.role !== 'client') {
+      router.replace('/(auth)/welcome' as any);
+    }
+  }, [rootNavState?.key, user?.role, user?.id]);
+
+  if (!rootNavState?.key) return <Slot />;
+  if (!user || user.role !== 'client') return <Slot />;
 
   return (
     <Tabs

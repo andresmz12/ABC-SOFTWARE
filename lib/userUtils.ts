@@ -3,14 +3,13 @@
  *
  * The DB has no central `users` table. Identity lives in:
  *   clients(user_id = auth.uid(), ...)
- *   companies(user_id = auth.uid(), ...)   — NO status column
- *   independents(user_id = auth.uid(), ...) — NO status column
+ *   companies(user_id = auth.uid(), ...)
+ *   independents(user_id = auth.uid(), ...)
  *   admins(id = auth.uid(), ...)
  *
+ * All profile tables have a `status` column (added in migration 014).
  * Lookup priority: admins → companies → independents → clients
  * Admins are checked FIRST so an account in both tables gets the admin role.
- *
- * companies/independents have no status column — approval lives in documents.
  */
 import { supabase } from '@/lib/supabase';
 import type { UserRole } from '@/types';
@@ -30,7 +29,6 @@ export interface UnifiedUser {
 
 // Ordered by priority: companies → independents → clients
 // (admins checked separately and first in getUserProfile)
-// NOTE: companies/independents intentionally omit 'status' — column does not exist.
 const PROFILE_TABLES = [
   {
     table: 'companies',
@@ -153,9 +151,7 @@ export async function getUserPushTokens(
   return result;
 }
 
-/** Get all registered users for admin panels (name, role, status).
- *  NOTE: companies/independents have no status column — omitted from SELECT.
- */
+/** Get all registered users for admin panels (name, role, status). */
 export async function getAllUsers(): Promise<UnifiedUser[]> {
   const [clientsRes, companiesRes, independentsRes] = await Promise.all([
     supabase.from('clients').select('user_id, full_name, country, status, preferred_language, push_token, created_at').order('created_at', { ascending: false }),
@@ -209,11 +205,18 @@ export async function saveUserLocation(
 
 /** Update status for a provider or client (admin action).
  *  Writes to the correct profile table (companies/independents/clients) and documents table.
+ *  Caller must be an admin — verified server-side via the admins table.
  */
 export async function updateProviderStatus(
   userId: string,
   status: 'approved' | 'rejected' | 'pending' | 'suspended',
 ): Promise<{ error: string | null }> {
+  // Verify the calling user is an admin
+  const { data: { user: caller } } = await supabase.auth.getUser();
+  if (!caller) return { error: 'Not authenticated' };
+  const { data: adminRow } = await supabase.from('admins').select('id').eq('id', caller.id).maybeSingle();
+  if (!adminRow) return { error: 'Admin access required' };
+
   // Determine which profile table this user belongs to
   const { data: comp } = await supabase.from('companies').select('user_id').eq('user_id', userId).maybeSingle();
   const { data: client } = comp

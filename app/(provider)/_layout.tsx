@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Tabs, Slot, useRootNavigationState } from 'expo-router';
+import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
 import { supabase } from '@/lib/supabase';
@@ -8,6 +8,7 @@ import { useAuthStore } from '@/store/authStore';
 export default function ProviderLayout() {
   // ── ALL hooks must be called unconditionally before any early return ──────
   const rootNavState = useRootNavigationState();
+  const router = useRouter();
   const { user } = useAuthStore();
   const [unread, setUnread] = useState(0);
 
@@ -39,10 +40,17 @@ export default function ProviderLayout() {
     return () => { supabase.removeChannel(ch); };
   }, [user?.id]);
 
+  // Security guard: redirect non-providers out of provider area
+  useEffect(() => {
+    if (!rootNavState?.key) return;
+    if (user !== undefined && user?.role !== 'company' && user?.role !== 'independent') {
+      router.replace('/(auth)/welcome' as any);
+    }
+  }, [rootNavState?.key, user?.role, user?.id]);
+
   // ── Guard: AFTER all hooks — wait for Root Layout to mount ────────────────
-  // Prevents "Attempted to navigate before mounting the Root Layout" error.
-  // Returning <Slot /> here is safe because all hooks above already ran.
   if (!rootNavState?.key) return <Slot />;
+  if (!user || (user.role !== 'company' && user.role !== 'independent')) return <Slot />;
 
   return (
     <Tabs

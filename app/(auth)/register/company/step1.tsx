@@ -18,7 +18,10 @@ const schema = z.object({
   taxId:       z.string().min(5, 'Required'),
   phone:       z.string().min(7, 'Required'),
   email:       z.string().email('Enter a valid email'),
-  password:    z.string().min(8, 'Min 8 characters'),
+  password:    z.string()
+    .min(8, 'Min 8 characters')
+    .regex(/[A-Z]/, 'Must include an uppercase letter')
+    .regex(/[0-9]/, 'Must include a number'),
   address:     z.string().min(5, 'Required'),
   city:        z.string().min(2, 'Required'),
   stateOrDept: z.string().min(2, 'Required'),
