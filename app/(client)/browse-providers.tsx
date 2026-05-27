@@ -138,16 +138,18 @@ const ProviderCard = React.memo(function ProviderCard({ provider, es, onPress }:
         )}
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <View style={{
-          backgroundColor: `${C.success}15`,
-          borderRadius: 8,
-          paddingHorizontal: 8,
-          paddingVertical: 4,
-        }}>
-          <Text style={{ color: C.success, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
-            {es ? 'DISPONIBLE' : 'AVAILABLE'}
-          </Text>
-        </View>
+        {provider.available && (
+          <View style={{
+            backgroundColor: `${C.success}15`,
+            borderRadius: 8,
+            paddingHorizontal: 8,
+            paddingVertical: 4,
+          }}>
+            <Text style={{ color: C.success, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? 'DISPONIBLE' : 'AVAILABLE'}
+            </Text>
+          </View>
+        )}
         <Feather name="chevron-right" size={16} color={C.textMuted} />
       </View>
     </TouchableOpacity>
