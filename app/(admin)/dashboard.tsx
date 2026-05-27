@@ -767,6 +767,7 @@ export default function AdminDashboard() {
             title={es ? 'Clientes' : 'Clients'}
             icon="user"
             es={es}
+            onSeeAll={() => router.push('/(admin)/clients' as any)}
           />
 
           {clients.length === 0 ? (

@@ -62,6 +62,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="documents"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail" options={{ href: null }} />
       <Tabs.Screen name="client-detail"   options={{ href: null }} />
+      <Tabs.Screen name="clients"         options={{ href: null }} />
       <Tabs.Screen name="chat-detail"     options={{ href: null }} />
       <Tabs.Screen name="new-chat"        options={{ href: null }} />
     </Tabs>
