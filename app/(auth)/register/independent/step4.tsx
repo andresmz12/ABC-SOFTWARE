@@ -25,10 +25,12 @@ export default function IndependentStep4() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
+      const appUrl = process.env.EXPO_PUBLIC_APP_URL ?? '';
       const { data: authData, error: signUpError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: appUrl || undefined,
           data: {
             role: 'independent',
             country: country ?? 'usa',

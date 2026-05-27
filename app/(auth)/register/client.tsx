@@ -84,10 +84,12 @@ export default function ClientRegister() {
 
   const onSubmit = async (data: FormData) => {
     setLoading(true);
+    const appUrl = process.env.EXPO_PUBLIC_APP_URL ?? '';
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: data.email,
       password: data.password,
       options: {
+        emailRedirectTo: appUrl || undefined,
         data: {
           role: 'client',
           country: data.country,

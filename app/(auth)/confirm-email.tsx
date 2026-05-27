@@ -20,7 +20,12 @@ export default function ConfirmEmail() {
     if (!email) return;
     setResending(true);
     try {
-      const { error } = await supabase.auth.resend({ type: 'signup', email });
+      const appUrl = process.env.EXPO_PUBLIC_APP_URL ?? '';
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: { emailRedirectTo: appUrl || undefined },
+      });
       if (error) throw error;
       setResent(true);
     } catch (e: any) {
