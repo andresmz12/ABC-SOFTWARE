@@ -61,7 +61,7 @@ export default function AdminClients() {
         id: r.user_id,
         name: r.full_name ?? '',
         country: r.country ?? 'usa',
-        status: r.status ?? 'approved',
+        status: r.status ?? 'pending',
         created_at: r.created_at ?? '',
       })));
     } catch (e: any) {
@@ -87,7 +87,7 @@ export default function AdminClients() {
 
   const renderItem = ({ item }: { item: ClientRow }) => {
     const isColombia = item.country === 'colombia';
-    const meta = STATUS_META[item.status] ?? STATUS_META.approved;
+    const meta = STATUS_META[item.status] ?? STATUS_META['pending'];
     return (
       <TouchableOpacity
         onPress={() => router.push({ pathname: '/(admin)/client-detail', params: { id: item.id } } as any)}
