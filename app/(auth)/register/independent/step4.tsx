@@ -107,12 +107,8 @@ export default function IndependentStep4() {
       }
 
       reset();
-      if (authData.session) {
-        await initialize();
-        router.replace('/(provider)/home' as any);
-      } else {
-        router.replace({ pathname: '/(auth)/confirm-email', params: { email: formData.email } } as any);
-      }
+      await initialize();
+      router.replace('/(provider)/home' as any);
     } catch (e: any) {
       Alert.alert(
         isUSA ? 'Registration Error' : 'Error de Registro',

@@ -147,12 +147,8 @@ export default function ClientRegister() {
     }
 
     setLoading(false);
-    if (authData.session) {
-      await initialize();
-      router.replace('/(client)/home' as any);
-    } else {
-      router.replace({ pathname: '/(auth)/confirm-email', params: { email: data.email } } as any);
-    }
+    await initialize();
+    router.replace('/(client)/home' as any);
   };
 
   return (
