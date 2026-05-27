@@ -165,6 +165,16 @@ export async function getAllUsers(): Promise<UnifiedUser[]> {
     ...(independentsRes.data ?? []).map((r: any) => ({ id: r.user_id, email: '', role: 'independent' as UserRole, status: r.status ?? 'pending', country: r.country ?? 'usa', preferred_language: r.preferred_language ?? 'en', push_token: r.push_token, name: r.full_name, created_at: r.created_at })),
   ];
 
+  // Enrich with emails from the public.users bridge table
+  if (users.length > 0) {
+    const ids = users.map((u) => u.id);
+    const { data: emailRows } = await supabase.from('users').select('id, email').in('id', ids);
+    if (emailRows?.length) {
+      const emailMap = Object.fromEntries(emailRows.map((r: any) => [r.id, r.email as string]));
+      users.forEach((u) => { u.email = emailMap[u.id] ?? ''; });
+    }
+  }
+
   users.sort((a, b) => new Date(b.created_at ?? 0).getTime() - new Date(a.created_at ?? 0).getTime());
   return users;
 }

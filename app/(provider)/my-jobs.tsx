@@ -38,6 +38,7 @@ interface CompleteModalProps {
   job: JobRequest | null;
   visible: boolean;
   es: boolean;
+  userId: string;
   onClose: () => void;
   onCompleted: () => void;
 }
@@ -48,11 +49,12 @@ interface StartModalProps {
   job: JobRequest | null;
   visible: boolean;
   es: boolean;
+  userId: string;
   onClose: () => void;
   onStarted: () => void;
 }
 
-function StartModal({ job, visible, es, onClose, onStarted }: StartModalProps) {
+function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModalProps) {
   const [photo, setPhoto] = useState<{ uri: string; name: string } | null>(null);
   const [saving, setSaving] = useState(false);
 
@@ -84,7 +86,7 @@ function StartModal({ job, visible, es, onClose, onStarted }: StartModalProps) {
     setSaving(true);
     try {
       const ext = photo.name.split('.').pop() ?? 'jpg';
-      const path = `${job.id}/start/${Date.now()}.${ext}`;
+      const path = `${userId}/${job.id}/start/${Date.now()}.${ext}`;
       const response = await fetch(photo.uri);
       const blob = await response.blob();
       const { error: uploadErr } = await supabase.storage
@@ -207,7 +209,7 @@ function StartModal({ job, visible, es, onClose, onStarted }: StartModalProps) {
 
 // ─── Complete Modal ────────────────────────────────────────────────────────────
 
-function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModalProps) {
+function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: CompleteModalProps) {
   const [photos, setPhotos] = useState<{ uri: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -241,7 +243,7 @@ function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModal
 
       for (const photo of photos) {
         const ext = photo.name.split('.').pop() ?? 'jpg';
-        const path = `${job.id}/after/${Date.now()}.${ext}`;
+        const path = `${userId}/${job.id}/after/${Date.now()}.${ext}`;
         const response = await fetch(photo.uri);
         const blob = await response.blob();
         const { error: uploadErr } = await supabase.storage
@@ -867,6 +869,7 @@ export default function MyJobsScreen() {
         job={startJob}
         visible={!!startJob}
         es={es}
+        userId={user?.id ?? ''}
         onClose={() => setStartJob(null)}
         onStarted={() => {
           setStartJob(null);
@@ -877,6 +880,7 @@ export default function MyJobsScreen() {
         job={completeJob}
         visible={!!completeJob}
         es={es}
+        userId={user?.id ?? ''}
         onClose={() => setCompleteJob(null)}
         onCompleted={() => {
           setRatingJob(completeJob);

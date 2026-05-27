@@ -25,7 +25,7 @@ export async function fetchOpenJobsForProvider(
     // Select the `state` column (= department in Colombia, state in USA).
     // We deliberately do NOT filter by city — department-level matching only.
     supabase.from('service_areas').select('state').eq('provider_id', providerId),
-    supabase.from(profileTable).select('service_type').eq('user_id', providerId).single(),
+    supabase.from(profileTable).select('service_type').eq('user_id', providerId).maybeSingle(),
   ]);
 
   if (areasRes.error) console.warn('[fetchOpenJobsForProvider] service_areas error:', areasRes.error.message);
@@ -318,7 +318,10 @@ export async function fetchProviderJobs(providerId: string): Promise<{
     .map((a) => jobMap[a.job_request_id])
     .filter(Boolean) as JobRequest[];
 
-  const completed = (jobs ?? []).filter((j) => j.status === 'completed');
+  const completed = apps
+    .filter((a) => a.status === 'accepted')
+    .map((a) => jobMap[a.job_request_id])
+    .filter((j): j is JobRequest => !!j && j.status === 'completed');
 
   return { applied, active, completed, rejectedJobIds };
 }

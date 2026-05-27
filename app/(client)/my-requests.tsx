@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView, Image } from 'react-native';
 import RatingModal from '@/components/ui/RatingModal';
 import { SkeletonList } from '@/components/ui/Skeleton';
@@ -526,6 +526,7 @@ export default function MyRequests() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [editJob, setEditJob] = useState<JobRequest | null>(null);
   const [ratingJob, setRatingJob] = useState<{ jobId: string; providerId: string } | null>(null);
+  const dismissedRatingRef = useRef<Set<string>>(new Set());
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
@@ -556,7 +557,9 @@ export default function MyRequests() {
           .in('job_id', completedIds)
           .eq('client_id', user.id);
         const ratedIds = new Set((ratedData ?? []).map((r: any) => r.job_id as string));
-        const unratedJob = completedJobs.find((j) => !ratedIds.has(j.id));
+        const unratedJob = completedJobs.find(
+          (j) => !ratedIds.has(j.id) && !dismissedRatingRef.current.has(j.id),
+        );
         if (unratedJob) {
           const { data: app } = await supabase
             .from('job_applications')
@@ -617,13 +620,12 @@ export default function MyRequests() {
       onEdit={() => setEditJob(item)}
       onCancel={() => handleCancel(item)}
       onRate={item.status === 'completed' ? async () => {
-        // Look up the accepted provider for this job
         const { data: app } = await supabase
           .from('job_applications')
           .select('provider_id')
           .eq('job_request_id', item.id)
           .eq('status', 'accepted')
-          .single();
+          .maybeSingle();
         if (app?.provider_id) {
           setRatingJob({ jobId: item.id, providerId: app.provider_id });
         }
@@ -751,7 +753,10 @@ export default function MyRequests() {
           providerId={ratingJob.providerId}
           es={es}
           mandatory
-          onClose={() => setRatingJob(null)}
+          onClose={() => {
+            if (ratingJob) dismissedRatingRef.current.add(ratingJob.jobId);
+            setRatingJob(null);
+          }}
           onSubmitted={() => {
             setRatingJob(null);
             loadJobs();
