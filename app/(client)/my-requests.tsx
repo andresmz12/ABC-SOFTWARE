@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Modal, Alert, ScrollView, Image } from 'react-native';
 import RatingModal from '@/components/ui/RatingModal';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { useRouter, useFocusEffect } from 'expo-router';
@@ -390,6 +390,20 @@ const RequestCard = React.memo(function RequestCard({
             {timeAgo(req.created_at, es)}
           </Text>
         </View>
+
+        {/* Completion photo — shown when provider has finished the job */}
+        {req.status === 'completed' && (req as any).completion_photo_url ? (
+          <View style={{ marginTop: 12 }}>
+            <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 6 }}>
+              {es ? 'Foto del trabajo terminado' : 'Completed work photo'}
+            </Text>
+            <Image
+              source={{ uri: (req as any).completion_photo_url }}
+              style={{ width: '100%', height: 140, borderRadius: 10, backgroundColor: C.surface2 }}
+              resizeMode="cover"
+            />
+          </View>
+        ) : null}
       </View>
 
       {/* Footer */}
