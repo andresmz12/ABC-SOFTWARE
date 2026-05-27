@@ -29,6 +29,7 @@ export default function CompanyStep4() {
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: 'https://abc-software-nine.vercel.app',
           data: {
             role: 'company',
             country: country ?? 'usa',

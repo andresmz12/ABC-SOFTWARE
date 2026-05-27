@@ -29,6 +29,7 @@ export default function IndependentStep4() {
         email: formData.email,
         password: formData.password,
         options: {
+          emailRedirectTo: 'https://abc-software-nine.vercel.app',
           data: {
             role: 'independent',
             country: country ?? 'usa',

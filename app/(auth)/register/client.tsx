@@ -88,6 +88,7 @@ export default function ClientRegister() {
       email: data.email,
       password: data.password,
       options: {
+        emailRedirectTo: 'https://abc-software-nine.vercel.app',
         data: {
           role: 'client',
           country: data.country,
