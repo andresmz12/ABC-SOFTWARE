@@ -3,8 +3,7 @@ import {
   View, Text, TouchableOpacity, FlatList,
   ActivityIndicator, TextInput, RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useLang } from '@/context/LanguageContext';
 import { supabase } from '@/lib/supabase';
