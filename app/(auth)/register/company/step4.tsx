@@ -51,6 +51,7 @@ export default function CompanyStep4() {
       const { error: companyError } = await supabase.from('companies').insert({
         user_id: userId,
         company_name: formData.companyName,
+        email: formData.email,
         ein: formData.taxId,
         phone: formData.phone,
         address: street,
@@ -61,7 +62,11 @@ export default function CompanyStep4() {
         country: country ?? 'usa',
         preferred_language: country === 'colombia' ? 'es' : 'en',
       });
-      if (companyError) throw companyError;
+      if (companyError) {
+        // Clean up the orphaned auth account so the user can retry registration
+        await supabase.auth.signOut();
+        throw companyError;
+      }
 
       const serviceAreas: string[] = formData.serviceAreas ?? [];
       if (serviceAreas.length > 0) {
@@ -86,11 +91,12 @@ export default function CompanyStep4() {
             .from('documents')
             .upload(storagePath, arrayBuffer, { contentType: docFile.mimeType, upsert: true });
           if (!storErr) {
+            const { data: urlData } = supabase.storage.from('documents').getPublicUrl(storagePath);
             await supabase.from('documents').insert({
               user_id: userId,
               doc_type: docKey,
               file_name: docFile.name,
-              file_url: storagePath,
+              file_url: urlData.publicUrl,
               status: 'pending',
             });
           }
@@ -196,20 +202,28 @@ export default function CompanyStep4() {
           <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
             {isUSA ? 'Documents Checklist' : 'Lista de Documentos'}
           </Text>
-          {docs.map((doc, idx) => (
-            <View key={doc.key} style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              paddingVertical: 10,
-              borderBottomWidth: idx < docs.length - 1 ? 1 : 0,
-              borderBottomColor: C.line,
-            }}>
-              <Feather name="check-circle" size={16} color={C.success} style={{ marginRight: 10 }} />
-              <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
-                {doc.label}
-              </Text>
-            </View>
-          ))}
+          {docs.map((doc, idx) => {
+            const uploaded = !!(formData.docFiles ?? {})[doc.key];
+            return (
+              <View key={doc.key} style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingVertical: 10,
+                borderBottomWidth: idx < docs.length - 1 ? 1 : 0,
+                borderBottomColor: C.line,
+              }}>
+                <Feather
+                  name={uploaded ? 'check-circle' : 'circle'}
+                  size={16}
+                  color={uploaded ? C.success : C.textMuted}
+                  style={{ marginRight: 10 }}
+                />
+                <Text style={{ color: uploaded ? C.textSecondary : C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
+                  {doc.label}
+                </Text>
+              </View>
+            );
+          })}
         </View>
 
         <TouchableOpacity

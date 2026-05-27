@@ -89,13 +89,13 @@ function CompleteModal({ job, visible, es, onClose, onCompleted }: CompleteModal
         .eq('id', job.id);
       if (error) throw error;
 
+      setPhotos([]);
       onCompleted();
       onClose();
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
       setSaving(false);
-      setPhotos([]);
     }
   };
 
@@ -217,13 +217,13 @@ function RatingModal({ job, visible, es, onClose, providerId }: RatingModalProps
         rating,
         comment: comment.trim() || null,
       });
-    } catch (e: any) {
-      console.warn('[RatingModal] insert error:', e.message);
-    } finally {
-      setSaving(false);
       setRating(5);
       setComment('');
       onClose();
+    } catch (e: any) {
+      Alert.alert('Error', es ? 'No se pudo enviar la calificación. Inténtalo de nuevo.' : 'Failed to submit rating. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 

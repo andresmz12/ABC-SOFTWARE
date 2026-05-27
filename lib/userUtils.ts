@@ -36,21 +36,21 @@ const PROFILE_TABLES = [
     table: 'companies',
     role: 'company' as UserRole,
     nameField: 'company_name',
-    select: 'user_id, company_name, country, preferred_language, push_token, available, status, created_at',
+    select: 'user_id, company_name, email, country, preferred_language, push_token, available, status, created_at',
     defaultStatus: 'pending',
   },
   {
     table: 'independents',
     role: 'independent' as UserRole,
     nameField: 'full_name',
-    select: 'user_id, full_name, country, preferred_language, push_token, available, status, created_at',
+    select: 'user_id, full_name, email, country, preferred_language, push_token, available, status, created_at',
     defaultStatus: 'pending',
   },
   {
     table: 'clients',
     role: 'client' as UserRole,
     nameField: 'full_name',
-    select: 'user_id, full_name, country, status, preferred_language, push_token, created_at',
+    select: 'user_id, full_name, email, country, status, preferred_language, push_token, created_at',
     defaultStatus: 'approved',
   },
 ] as const;
@@ -95,7 +95,7 @@ export async function getUserProfile(userId: string): Promise<UnifiedUser | null
     if (data) {
       return {
         id: userId,
-        email: '',
+        email: data.email ?? '',
         role,
         // clients have a status column; companies/independents default to 'pending'
         status: data.status ?? defaultStatus,
@@ -207,16 +207,19 @@ export async function saveUserLocation(
   }
 }
 
-/** Update status for a provider (admin action).
- *  Writes to both the profile table (companies/independents) and documents table.
+/** Update status for a provider or client (admin action).
+ *  Writes to the correct profile table (companies/independents/clients) and documents table.
  */
 export async function updateProviderStatus(
   userId: string,
   status: 'approved' | 'rejected' | 'pending' | 'suspended',
 ): Promise<{ error: string | null }> {
-  // Determine which profile table this provider belongs to
+  // Determine which profile table this user belongs to
   const { data: comp } = await supabase.from('companies').select('user_id').eq('user_id', userId).maybeSingle();
-  const profileTable = comp ? 'companies' : 'independents';
+  const { data: client } = comp
+    ? { data: null }
+    : await supabase.from('clients').select('user_id').eq('user_id', userId).maybeSingle();
+  const profileTable = comp ? 'companies' : client ? 'clients' : 'independents';
 
   const [profileRes, docsRes] = await Promise.all([
     (supabase as any).from(profileTable).update({ status }).eq('user_id', userId),

@@ -140,6 +140,7 @@ export default function JobDetail() {
 
   const isCommercial = job.service_type === 'commercial';
   const isNotEligible = job.service_type === 'commercial' && user?.role === 'independent';
+  const isJobClosed = job.status !== 'open';
   const accentColor = isCommercial ? C.accent2 : C.accent;
   const timer = job.expires_at ? countdown(job.expires_at, es) : null;
   const location = isColombia
@@ -308,7 +309,23 @@ export default function JobDetail() {
         borderTopWidth: 1,
         borderTopColor: C.line,
       }}>
-        {isNotEligible ? (
+        {isJobClosed ? (
+          <View style={{
+            backgroundColor: C.surface2,
+            borderRadius: 12,
+            paddingVertical: 16,
+            alignItems: 'center',
+            borderWidth: 1,
+            borderColor: C.line,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="lock" size={16} color={C.textMuted} style={{ marginRight: 8 }} />
+              <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Este trabajo ya no está disponible' : 'This job is no longer available'}
+              </Text>
+            </View>
+          </View>
+        ) : isNotEligible ? (
           <View style={{
             backgroundColor: '#FFE4E6',
             borderRadius: 12,

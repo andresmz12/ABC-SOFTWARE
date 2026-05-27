@@ -99,6 +99,20 @@ export default function PostJob() {
   const isColombia = user?.country === 'colombia';
   const es = lang === 'es';
 
+  // All hooks must be declared unconditionally before any early return
+  const [scheduledDate, setScheduledDate] = useState('');
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
+  const [dateError, setDateError] = useState('');
+  const [timeError, setTimeError] = useState('');
+  const [county, setCounty] = useState('');
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // Commercial-only fields
+  const [frequency, setFrequency] = useState<string>('one_time');
+  const [customDays, setCustomDays] = useState<string[]>([]);
+  const [minStaff, setMinStaff] = useState<string>('1');
+
   // Block if client is not yet approved
   if (user?.status !== 'approved') {
     return (
@@ -115,19 +129,6 @@ export default function PostJob() {
       </View>
     );
   }
-
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('');
-  const [ampm, setAmpm] = useState<'AM' | 'PM'>('AM');
-  const [dateError, setDateError] = useState('');
-  const [timeError, setTimeError] = useState('');
-  const [county, setCounty] = useState('');
-  const [photos, setPhotos] = useState<string[]>([]);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
-  // Commercial-only fields
-  const [frequency, setFrequency] = useState<string>('one_time');
-  const [customDays, setCustomDays] = useState<string[]>([]);
-  const [minStaff, setMinStaff] = useState<string>('1');
 
   const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
