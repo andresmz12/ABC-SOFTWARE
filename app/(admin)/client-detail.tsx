@@ -194,7 +194,7 @@ export default function ClientDetail() {
     );
   }
 
-  const statusMeta      = ACCOUNT_STATUS[client.status];
+  const statusMeta      = ACCOUNT_STATUS[client.status] ?? ACCOUNT_STATUS['pending'];
   const isColombia      = client.country === 'colombia';
   const totalJobs       = jobs.length;
   const completedJobs   = jobs.filter((j) => j.status === 'completed').length;
