@@ -1,5 +1,5 @@
 export type UserRole = 'company' | 'independent' | 'client' | 'admin';
-export type UserStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
+export type UserStatus = 'active' | 'pending' | 'approved' | 'rejected' | 'suspended';
 export type Country = 'usa' | 'colombia';
 export type Language = 'en' | 'es';
 export type ServiceType = 'commercial' | 'residential' | 'both';

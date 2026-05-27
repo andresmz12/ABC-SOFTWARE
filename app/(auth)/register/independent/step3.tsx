@@ -18,11 +18,13 @@ const US_DOCS = [
 ];
 
 const CO_DOCS = [
-  { key: 'cedula_front',         label: 'Cédula — Frente',            desc: 'Documento de identidad (parte frontal)' },
-  { key: 'cedula_back',          label: 'Cédula — Reverso',           desc: 'Documento de identidad (parte trasera)' },
-  { key: 'rut',                  label: 'RUT',                        desc: 'Registro Único Tributario' },
-  { key: 'background_check',     label: 'Consentimiento Verificación', desc: 'Autorización para verificación de antecedentes' },
-  { key: 'contractor_agreement', label: 'Contrato de Servicios',      desc: 'Contrato de prestación de servicios' },
+  { key: 'cedula_front',                label: 'Cédula — Frente',                             desc: 'Documento de identidad (parte frontal)' },
+  { key: 'cedula_back',                 label: 'Cédula — Reverso',                            desc: 'Documento de identidad (parte trasera)' },
+  { key: 'rut_personal',                label: 'RUT personal',                                desc: 'Expedido por la DIAN' },
+  { key: 'antecedentes_judiciales',     label: 'Antecedentes Judiciales',                     desc: 'Expedido por la Policía Nacional (policia.gov.co)' },
+  { key: 'antecedentes_disciplinarios', label: 'Antecedentes Disciplinarios',                 desc: 'Expedido por la Procuraduría General' },
+  { key: 'antecedentes_fiscales',       label: 'Antecedentes Fiscales',                       desc: 'Expedido por la Contraloría General' },
+  { key: 'contrato_prestacion',         label: 'Contrato de Prestación de Servicios firmado', desc: 'Descarga la plantilla, firma y sube' },
 ];
 
 type DocFile = { name: string; uri: string; mimeType: string; size?: number };

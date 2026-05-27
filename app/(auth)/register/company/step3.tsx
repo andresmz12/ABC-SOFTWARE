@@ -18,11 +18,13 @@ const US_DOCS = [
 ];
 
 const CO_DOCS = [
-  { key: 'rut',               label: 'RUT',                       desc: 'Registro Único Tributario' },
-  { key: 'insurance',         label: 'Póliza de Responsabilidad', desc: 'Cobertura de responsabilidad civil' },
-  { key: 'camara',            label: 'Cámara de Comercio',        desc: 'Registro mercantil de la empresa' },
-  { key: 'nit_cert',          label: 'Certificado NIT',           desc: 'Número de identificación tributaria' },
-  { key: 'service_agreement', label: 'Acuerdo de Servicio',       desc: 'Términos y condiciones de la plataforma' },
+  { key: 'rut',               label: 'RUT — Registro Único Tributario',               desc: 'Expedido por la DIAN, debe estar vigente' },
+  { key: 'camara_comercio',   label: 'Cámara de Comercio',                            desc: 'Vigencia no mayor a 90 días' },
+  { key: 'cedula_rep_front',  label: 'Cédula Representante Legal — Frente',           desc: 'Documento de identidad del representante (frente)' },
+  { key: 'cedula_rep_back',   label: 'Cédula Representante Legal — Reverso',          desc: 'Documento de identidad del representante (reverso)' },
+  { key: 'cert_existencia',   label: 'Certificado de Existencia y Representación',    desc: 'Expedido por Cámara de Comercio' },
+  { key: 'poliza_rc',         label: 'Póliza de Responsabilidad Civil',               desc: 'Mínimo 50 SMMLV de cobertura' },
+  { key: 'contrato_servicios',label: 'Contrato de Prestación de Servicios firmado',   desc: 'Descarga la plantilla, firma y sube' },
 ];
 
 type DocFile = { name: string; uri: string; mimeType: string; size?: number };

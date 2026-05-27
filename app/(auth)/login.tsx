@@ -45,8 +45,11 @@ export default function Login() {
       setLoading(false);
       return;
     }
-    await initialize();
-    setLoading(false);
+    try {
+      await initialize();
+    } finally {
+      setLoading(false);
+    }
     const { user: loggedInUser } = useAuthStore.getState();
     if (loggedInUser?.id) {
       // Register push notifications in background after login — never block the UI

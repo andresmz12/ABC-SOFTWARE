@@ -105,7 +105,8 @@ export default function ClientRegister() {
 
     const clientResult = await supabase.from('clients').insert({
       user_id: userId, full_name: data.fullName, phone: data.phone,
-      address: data.address, city: data.city, state: clientState, zip: data.zip, country: data.country,
+      address: data.address, city: data.city, state: clientState, zip: data.zip,
+      country: data.country, preferred_language: data.country === 'colombia' ? 'es' : 'en',
     });
     if (clientResult.error) {
       await supabase.auth.signOut();
