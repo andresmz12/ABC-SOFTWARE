@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { emailService } from '@/lib/emailService';
 import { View, Text, TouchableOpacity, Alert, ScrollView, KeyboardAvoidingView, Platform, Image, ActivityIndicator } from 'react-native';
 import LocationSelector from '@/components/ui/LocationSelector';
 import { useRouter, useLocalSearchParams } from 'expo-router';
@@ -147,6 +148,12 @@ export default function ClientRegister() {
       }
     }
 
+    emailService.sendWelcome({
+      email: data.email,
+      role: 'client',
+      preferred_language: data.country === 'colombia' ? 'es' : 'en',
+      name: data.fullName,
+    });
     setLoading(false);
     await initialize();
     router.replace('/(client)/home' as any);

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { emailService } from '@/lib/emailService';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -107,6 +108,12 @@ export default function IndependentStep4() {
         }
       }
 
+      emailService.sendWelcome({
+        email: formData.email,
+        role: 'independent',
+        preferred_language: country === 'colombia' ? 'es' : 'en',
+        name: formData.fullName,
+      });
       reset();
       await initialize();
       router.replace('/(provider)/home' as any);
