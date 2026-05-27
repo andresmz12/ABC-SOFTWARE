@@ -495,6 +495,7 @@ function JobCard({
   onPress,
   onStart,
   onComplete,
+  onWithdraw,
 }: {
   job: JobRequest;
   appStatus?: string;
@@ -503,6 +504,7 @@ function JobCard({
   onPress?: () => void;
   onStart?: () => void;
   onComplete?: () => void;
+  onWithdraw?: () => void;
 }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -591,8 +593,8 @@ function JobCard({
         )}
       </View>
 
-      {/* Action buttons — Start Job / Complete Job */}
-      {(job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) ? (
+      {/* Action buttons — Start Job / Complete Job / Withdraw */}
+      {((job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) || (appStatus === 'pending' && onWithdraw)) ? (
         <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
           {job.status === 'accepted' && onStart && (
             <TouchableOpacity
@@ -615,6 +617,18 @@ function JobCard({
               <Feather name="check-circle" size={15} color={C.success} />
               <Text style={{ color: C.success, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
                 {es ? 'Completar Trabajo' : 'Complete Job'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {appStatus === 'pending' && onWithdraw && (
+            <TouchableOpacity
+              onPress={onWithdraw}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 }}
+              activeOpacity={0.8}
+            >
+              <Feather name="x-circle" size={15} color={C.danger} />
+              <Text style={{ color: C.danger, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Retirar Aplicación' : 'Withdraw Application'}
               </Text>
             </TouchableOpacity>
           )}
@@ -712,6 +726,34 @@ export default function MyJobsScreen() {
 
   useFocusEffect(useCallback(() => { loadJobs(); }, [loadJobs]));
 
+  const handleWithdraw = useCallback((job: JobRequest) => {
+    Alert.alert(
+      es ? 'Retirar Aplicación' : 'Withdraw Application',
+      es
+        ? '¿Estás seguro que deseas retirar tu aplicación para este trabajo?'
+        : 'Are you sure you want to withdraw your application for this job?',
+      [
+        { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+        {
+          text: es ? 'Retirar' : 'Withdraw',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { error } = await supabase
+                .from('job_applications')
+                .delete()
+                .eq('provider_id', user!.id)
+                .eq('job_request_id', job.id);
+              if (error) throw error;
+              await loadJobs();
+            } catch (e: any) {
+              Alert.alert('Error', e.message);
+            }
+          },
+        },
+      ],
+    );
+  }, [es, user, loadJobs]);
 
   const current = activeTab === 'applied' ? applied : activeTab === 'active' ? active : completed;
   const counts: Record<Tab, number> = { applied: applied.length, active: active.length, completed: completed.length };
@@ -725,8 +767,9 @@ export default function MyJobsScreen() {
       onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
       onStart={activeTab === 'active' ? () => setStartJob(item) : undefined}
       onComplete={activeTab === 'active' ? () => setCompleteJob(item) : undefined}
+      onWithdraw={activeTab === 'applied' && appStatuses[item.id] === 'pending' ? () => handleWithdraw(item) : undefined}
     />
-  ), [appStatuses, rejectedIds, es, activeTab, router]);
+  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
