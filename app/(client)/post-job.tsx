@@ -221,7 +221,6 @@ export default function PostJob() {
         estimated_hours: parseFloat(data.estimatedHours),
         description: data.description ?? null,
         status: 'open',
-        expires_at: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
         photos: photos.length > 0 ? photos : null,
       };
 

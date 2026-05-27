@@ -23,15 +23,6 @@ function formatBidInput(val: string, isColombia: boolean): string {
     : num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-function countdown(iso: string, es: boolean): { text: string; urgent: boolean } {
-  const ms = new Date(iso).getTime() - Date.now();
-  if (ms <= 0) return { text: es ? 'Expirado' : 'Expired', urgent: true };
-  const totalMins = Math.floor(ms / 60000);
-  const h = Math.floor(totalMins / 60);
-  const m = totalMins % 60;
-  const left = es ? 'restantes' : 'left';
-  return { text: h > 0 ? `${h}h ${m}m ${left}` : `${m}m ${left}`, urgent: totalMins < 30 };
-}
 
 export default function JobDetail() {
   const { jobId } = useLocalSearchParams<{ jobId: string }>();
@@ -142,7 +133,6 @@ export default function JobDetail() {
   const isNotEligible = job.service_type === 'commercial' && user?.role === 'independent';
   const isJobClosed = job.status !== 'open';
   const accentColor = isCommercial ? C.accent2 : C.accent;
-  const timer = job.expires_at ? countdown(job.expires_at, es) : null;
   const location = isColombia
     ? `${(job as any).county ? (job as any).county + ', ' : ''}${job.city}`
     : `${job.city}, ${job.state}`;
@@ -187,20 +177,6 @@ export default function JobDetail() {
               <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', flex: 1, marginRight: 8 }}>
                 {(job as any).title ?? (isCommercial ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning') : (es ? 'Limpieza Residencial' : 'Residential Cleaning'))}
               </Text>
-              {timer && (
-                <View style={{
-                  backgroundColor: timer.urgent ? '#FFE4E6' : C.surface2,
-                  paddingHorizontal: 8,
-                  paddingVertical: 4,
-                  borderRadius: 8,
-                  borderWidth: 1,
-                  borderColor: timer.urgent ? C.danger : C.line,
-                }}>
-                  <Text style={{ color: timer.urgent ? C.danger : C.textSecondary, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
-                    {timer.text}
-                  </Text>
-                </View>
-              )}
             </View>
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>

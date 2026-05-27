@@ -106,22 +106,26 @@ function StatusBadge({ status, es }: { status: string; es: boolean }) {
 // ─── Stat card ────────────────────────────────────────────────────────────────
 
 function StatCard({
-  icon, label, value, color, loading,
+  icon, label, value, color, loading, onPress,
 }: {
   icon: keyof typeof Feather.glyphMap;
   label: string;
   value: string | number;
   color: string;
   loading?: boolean;
+  onPress?: () => void;
 }) {
   return (
-    <View style={{
-      flex: 1, minWidth: '45%',
-      backgroundColor: C.surface,
-      borderWidth: 1, borderColor: C.line,
-      borderLeftWidth: 3, borderLeftColor: color,
-      borderRadius: 16, padding: 16,
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={onPress ? 0.8 : 1}
+      style={{
+        flex: 1, minWidth: '45%',
+        backgroundColor: C.surface,
+        borderWidth: 1, borderColor: C.line,
+        borderLeftWidth: 3, borderLeftColor: color,
+        borderRadius: 16, padding: 16,
+      }}>
       <View style={{ width: 32, height: 32, borderRadius: 9, backgroundColor: `${color}18`, alignItems: 'center', justifyContent: 'center', marginBottom: 10 }}>
         <Feather name={icon} size={15} color={color} />
       </View>
@@ -133,7 +137,7 @@ function StatCard({
         </Text>
       )}
       <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular', lineHeight: 15 }}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -396,27 +400,16 @@ export default function AdminDashboard() {
       const countryEq = tab !== 'global' ? tab : null;
 
       // ── Stats counts ──────────────────────────────────────────────────────
-      // companies/independents have NO status column — pending count comes from documents
-      let pendingDocsQ = supabase.from('documents').select('user_id', { count: 'exact', head: true }).eq('status', 'pending');
-      let clientsQ     = supabase.from('clients').select('user_id',   { count: 'exact', head: true });
-      let activeJQ     = supabase.from('job_requests').select('id',   { count: 'exact', head: true }).in('status', ['open', 'in_progress', 'accepted']);
+      let pendingCompQ  = supabase.from('companies').select('user_id',    { count: 'exact', head: true }).eq('status', 'pending');
+      let pendingIndepQ = supabase.from('independents').select('user_id', { count: 'exact', head: true }).eq('status', 'pending');
+      let clientsQ      = supabase.from('clients').select('user_id',      { count: 'exact', head: true });
+      let activeJQ      = supabase.from('job_requests').select('id',      { count: 'exact', head: true }).in('status', ['open', 'in_progress', 'accepted']);
 
       if (countryEq) {
-        clientsQ = (clientsQ as any).eq('country', countryEq);
-        activeJQ = (activeJQ as any).eq('country', countryEq);
-
-        // documents table has no country column — filter by provider IDs from that country
-        const [compRes, indepRes] = await Promise.all([
-          supabase.from('companies').select('user_id').eq('country', countryEq),
-          supabase.from('independents').select('user_id').eq('country', countryEq),
-        ]);
-        const provIds = [
-          ...(compRes.data ?? []).map((c: any) => c.user_id as string),
-          ...(indepRes.data ?? []).map((i: any) => i.user_id as string),
-        ];
-        pendingDocsQ = provIds.length > 0
-          ? (pendingDocsQ as any).in('user_id', provIds)
-          : (pendingDocsQ as any).eq('user_id', '00000000-0000-0000-0000-000000000000');
+        pendingCompQ  = (pendingCompQ  as any).eq('country', countryEq);
+        pendingIndepQ = (pendingIndepQ as any).eq('country', countryEq);
+        clientsQ      = (clientsQ      as any).eq('country', countryEq);
+        activeJQ      = (activeJQ      as any).eq('country', countryEq);
       }
 
       // Revenue: sum bid_amounts of accepted applications
@@ -425,15 +418,15 @@ export default function AdminDashboard() {
         .select('bid_amount_usd, bid_amount_cop')
         .eq('status', 'accepted');
 
-      const [pendingDocsRes, clientsCountRes, activeJobsRes, revenueRes] = await Promise.all([
-        pendingDocsQ, clientsQ, activeJQ, revenueQ,
+      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes] = await Promise.all([
+        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ,
       ]);
 
       const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount_usd ?? r.bid_amount_cop ?? 0), 0);
 
       setStats({
         activeJobs:       activeJobsRes.count ?? 0,
-        pendingProviders: pendingDocsRes.count ?? 0,
+        pendingProviders: (pendingCompRes.count ?? 0) + (pendingIndepRes.count ?? 0),
         clients:          clientsCountRes.count ?? 0,
         revenue,
       });
@@ -449,30 +442,20 @@ export default function AdminDashboard() {
       if (jobsErr) console.warn('[Dashboard] jobs error:', jobsErr.message);
       setJobs((jobsData ?? []) as DashJob[]);
 
-      // ── Providers ───────────────────────────────────────────────────────────────────────────
-      // companies/independents have NO status column — approval lives in documents
-      let compQ: any  = supabase.from('companies').select('user_id, company_name, country, state').order('created_at', { ascending: false }).limit(60);
-      let indepQ: any = supabase.from('independents').select('user_id, full_name, country, state').order('created_at', { ascending: false }).limit(60);
+      // ── Providers ─────────────────────────────────────────────────────────────
+      let compQ: any  = supabase.from('companies').select('user_id, company_name, country, state, status').order('created_at', { ascending: false }).limit(60);
+      let indepQ: any = supabase.from('independents').select('user_id, full_name, country, state, status').order('created_at', { ascending: false }).limit(60);
       if (countryEq) {
         compQ  = compQ.eq('country', countryEq);
         indepQ = indepQ.eq('country', countryEq);
       }
-      const [compRes, indepRes, docsRes] = await Promise.all([
-        compQ, indepQ,
-        supabase.from('documents').select('user_id, status'),
-      ]);
+      const [compRes, indepRes] = await Promise.all([compQ, indepQ]);
       if (compRes.error)  console.warn('[Dashboard] companies error:', compRes.error.message);
       if (indepRes.error) console.warn('[Dashboard] independents error:', indepRes.error.message);
 
-      // Build status map from documents table (source of truth for provider approval)
-      const docStatusMap: Record<string, string> = {};
-      for (const doc of (docsRes.data ?? [])) {
-        if (!docStatusMap[doc.user_id]) docStatusMap[doc.user_id] = doc.status;
-      }
-
       const provRows: DashProvider[] = [
-        ...(compRes.data  ?? []).map((r: any) => ({ id: r.user_id, name: r.company_name ?? '', role: 'company'     as const, status: (docStatusMap[r.user_id] ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
-        ...(indepRes.data ?? []).map((r: any) => ({ id: r.user_id, name: r.full_name    ?? '', role: 'independent' as const, status: (docStatusMap[r.user_id] ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
+        ...(compRes.data  ?? []).map((r: any) => ({ id: r.user_id, name: r.company_name ?? '', role: 'company'     as const, status: (r.status ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
+        ...(indepRes.data ?? []).map((r: any) => ({ id: r.user_id, name: r.full_name    ?? '', role: 'independent' as const, status: (r.status ?? 'pending') as ProvStatus, country: r.country ?? 'usa', state: r.state ?? '' })),
       ];
 
       // Fetch avg ratings per provider
@@ -668,24 +651,28 @@ export default function AdminDashboard() {
               label={es ? 'Trabajos activos' : 'Active Jobs'}
               value={stats.activeJobs}
               color="#3B82F6"
+              onPress={() => router.push('/(admin)/jobs' as any)}
             />
             <StatCard
               icon="clock"
               label={es ? 'Prov. pendientes' : 'Pending Providers'}
               value={stats.pendingProviders}
               color={C.warning}
+              onPress={() => router.push('/(admin)/providers' as any)}
             />
             <StatCard
               icon="users"
               label={es ? 'Clientes registrados' : 'Registered Clients'}
               value={stats.clients}
               color={C.accent}
+              onPress={() => router.push('/(admin)/clients' as any)}
             />
             <StatCard
               icon="trending-up"
               label={es ? 'Ingresos estimados' : 'Est. Revenue'}
               value={revenueDisplay}
               color={C.success}
+              onPress={() => router.push('/(admin)/jobs' as any)}
             />
           </View>
 

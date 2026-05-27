@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Alert, Modal, ActivityIndicator, TextInput, Linking } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useLang } from '@/context/LanguageContext';
@@ -306,7 +306,7 @@ export default function ProviderDetail() {
               const isDocLoading = docLoading === doc.id;
               return (
                 <View key={doc.id} style={{ paddingVertical: 10, borderBottomWidth: idx < (provider.documents?.length ?? 0) - 1 ? 1 : 0, borderBottomColor: C.line }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: doc.status === 'pending' ? 8 : 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                     <Feather name={iconName as any} size={15} color={docColor} style={{ marginRight: 10 }} />
                     <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
                       {doc.file_name ?? doc.doc_type}
@@ -321,6 +321,20 @@ export default function ProviderDetail() {
                       </Text>
                     )}
                   </View>
+                  {!isDocLoading && (
+                    <View style={{ flexDirection: 'row', gap: 8, marginBottom: doc.status === 'pending' ? 8 : 0 }}>
+                      {doc.file_url ? (
+                        <TouchableOpacity
+                          onPress={() => Linking.openURL(doc.file_url!).catch(() => Alert.alert('Error', es ? 'No se pudo abrir el documento.' : 'Could not open document.'))}
+                          style={{ flex: 1, height: 32, backgroundColor: `${C.accent}15`, borderWidth: 1, borderColor: `${C.accent}40`, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' }}
+                          activeOpacity={0.85}
+                        >
+                          <Feather name="eye" size={12} color={C.accent} style={{ marginRight: 4 }} />
+                          <Text style={{ color: C.accent, fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Ver' : 'View'}</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </View>
+                  )}
                   {doc.status === 'pending' && !isDocLoading && (
                     <View style={{ flexDirection: 'row', gap: 8 }}>
                       <TouchableOpacity
