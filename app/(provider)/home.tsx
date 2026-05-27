@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useShallow } from 'zustand/react/shallow';
 import JobCard from '@/components/cards/JobCard';
@@ -15,7 +15,7 @@ export default function ProviderHome() {
   const { lang } = useLang();
   const es = lang === 'es';
   const router = useRouter();
-  const { user } = useAuthStore(useShallow((s) => ({ user: s.user })));
+  const { user, refreshProfile } = useAuthStore(useShallow((s) => ({ user: s.user, refreshProfile: s.refreshProfile })));
   const { openJobs, loading, fetchOpenJobs, appliedJobs, activeJobs, fetchMyJobs } = useJobStore(
     useShallow((s) => ({
       openJobs: s.openJobs,
@@ -29,6 +29,11 @@ export default function ProviderHome() {
   const isPending = user?.status === 'pending';
   const isColombia = user?.country === 'colombia';
   const [refreshing, setRefreshing] = useState(false);
+
+  // Re-check approval status each time the screen comes into focus while pending
+  useFocusEffect(useCallback(() => {
+    if (isPending) refreshProfile();
+  }, [isPending, refreshProfile]));
 
   const loadAll = async () => {
     if (!user?.country) return;

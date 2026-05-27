@@ -12,6 +12,7 @@ interface AuthState {
   setLoading: (loading: boolean) => void;
   signOut: () => Promise<void>;
   initialize: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
 }
 
 let authListenerStarted = false;
@@ -96,6 +97,30 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch (err) {
       console.warn('[authStore] initialize() error:', err);
       settle({ loading: false });
+    }
+  },
+
+  // Lightweight re-fetch of just the user profile (status, role, etc.)
+  // Used to sync approval status without a full re-auth round-trip.
+  refreshProfile: async () => {
+    const { user } = useAuthStore.getState();
+    if (!user?.id) return;
+    try {
+      const profile = await getUserProfile(user.id);
+      if (!profile) return;
+      set((state) => ({
+        user: state.user
+          ? {
+              ...state.user,
+              status: profile.status as any,
+              role: profile.role,
+              country: profile.country as any,
+              preferred_language: profile.preferred_language as any,
+            }
+          : null,
+      }));
+    } catch (err) {
+      console.warn('[authStore] refreshProfile() error:', err);
     }
   },
 }));
