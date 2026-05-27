@@ -36,14 +36,14 @@ const PROFILE_TABLES = [
     table: 'companies',
     role: 'company' as UserRole,
     nameField: 'company_name',
-    select: 'user_id, company_name, country, preferred_language, push_token, available, created_at',
+    select: 'user_id, company_name, country, preferred_language, push_token, available, status, created_at',
     defaultStatus: 'pending',
   },
   {
     table: 'independents',
     role: 'independent' as UserRole,
     nameField: 'full_name',
-    select: 'user_id, full_name, country, preferred_language, push_token, available, created_at',
+    select: 'user_id, full_name, country, preferred_language, push_token, available, status, created_at',
     defaultStatus: 'pending',
   },
   {
@@ -206,16 +206,21 @@ export async function saveUserLocation(
 }
 
 /** Update status for a provider (admin action).
- *  Approval status lives in the `documents` table — companies/independents
- *  do NOT have a status column.
+ *  Writes to both the profile table (companies/independents) and documents table.
  */
 export async function updateProviderStatus(
   userId: string,
   status: 'approved' | 'rejected' | 'pending' | 'suspended',
 ): Promise<{ error: string | null }> {
-  const { error } = await supabase
-    .from('documents')
-    .update({ status })
-    .eq('user_id', userId);
-  return { error: error?.message ?? null };
+  // Determine which profile table this provider belongs to
+  const { data: comp } = await supabase.from('companies').select('user_id').eq('user_id', userId).maybeSingle();
+  const profileTable = comp ? 'companies' : 'independents';
+
+  const [profileRes, docsRes] = await Promise.all([
+    (supabase as any).from(profileTable).update({ status }).eq('user_id', userId),
+    supabase.from('documents').update({ status }).eq('user_id', userId),
+  ]);
+
+  const err = profileRes.error ?? docsRes.error;
+  return { error: err?.message ?? null };
 }
