@@ -61,6 +61,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="profile"      options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"           focused={focused} activeColor={C.accent2} /> }} />
       <Tabs.Screen name="documents"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail" options={{ href: null }} />
+      <Tabs.Screen name="client-detail"   options={{ href: null }} />
       <Tabs.Screen name="chat-detail"     options={{ href: null }} />
       <Tabs.Screen name="new-chat"        options={{ href: null }} />
     </Tabs>

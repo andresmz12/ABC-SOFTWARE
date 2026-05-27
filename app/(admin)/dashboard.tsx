@@ -331,14 +331,18 @@ function ProviderRow({
 
 // ─── Client row ───────────────────────────────────────────────────────────────
 
-function ClientRow({ client, es }: { client: DashClient; es: boolean }) {
+function ClientRow({ client, es, onPress }: { client: DashClient; es: boolean; onPress: () => void }) {
   return (
-    <View style={{
-      backgroundColor: C.surface,
-      borderRadius: 14, borderWidth: 1, borderColor: C.line,
-      padding: 14, marginHorizontal: 20, marginBottom: 8,
-      flexDirection: 'row', alignItems: 'center',
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.8}
+      style={{
+        backgroundColor: C.surface,
+        borderRadius: 14, borderWidth: 1, borderColor: C.line,
+        padding: 14, marginHorizontal: 20, marginBottom: 8,
+        flexDirection: 'row', alignItems: 'center',
+      }}
+    >
       <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${C.accent}18`, alignItems: 'center', justifyContent: 'center', marginRight: 12 }}>
         <Feather name="user" size={15} color={C.accent} />
       </View>
@@ -350,7 +354,8 @@ function ClientRow({ client, es }: { client: DashClient; es: boolean }) {
           {client.country === 'colombia' ? '🇨🇴 Colombia' : '🇺🇸 USA'}
         </Text>
       </View>
-    </View>
+      <Feather name="chevron-right" size={14} color={C.textMuted} />
+    </TouchableOpacity>
   );
 }
 
@@ -769,7 +774,7 @@ export default function AdminDashboard() {
           ) : (
             <>
               {clients.slice(0, 6).map((client) => (
-                <ClientRow key={client.id} client={client} es={es} />
+                <ClientRow key={client.id} client={client} es={es} onPress={() => router.push({ pathname: '/(admin)/client-detail', params: { id: client.id } } as any)} />
               ))}
               {clients.length > 6 && (
                 <View style={{ marginHorizontal: 20, marginTop: 4, alignItems: 'center', paddingVertical: 10 }}>
