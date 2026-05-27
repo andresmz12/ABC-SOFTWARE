@@ -66,6 +66,7 @@ export async function getUserProfile(userId: string): Promise<UnifiedUser | null
     .select('id, email, created_at')
     .eq('id', userId)
     .maybeSingle();
+  console.log('[getUserProfile] userId:', userId, '| admin:', admin, '| adminError:', adminError);
   if (adminError) console.warn('[getUserProfile] admins query error:', adminError.message);
   if (admin) {
     return {
