@@ -132,20 +132,6 @@ export default function AnalyticsScreen() {
   const [data, setData] = useState<AnalyticsData | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Restrict to company role
-  if (user?.role !== 'company') {
-    return (
-      <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Feather name="lock" size={40} color={C.textMuted} />
-        <Text style={{ color: C.textSecondary, fontSize: 16, fontFamily: 'Inter_500Medium', marginTop: 16, textAlign: 'center' }}>
-          {es
-            ? 'Analytics está disponible solo para empresas.'
-            : 'Analytics is available for company accounts only.'}
-        </Text>
-      </View>
-    );
-  }
-
   const loadAnalytics = useCallback(async () => {
     if (!user?.id) return;
     setLoading(true);
@@ -254,10 +240,10 @@ export default function AnalyticsScreen() {
       {/* Header */}
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 24, paddingBottom: 20 }}>
         <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1 }}>
-          {es ? 'Mi empresa' : 'My Company'}
+          {user?.role === 'company' ? (es ? 'Mi empresa' : 'My Company') : (es ? 'Mi perfil' : 'My Profile')}
         </Text>
         <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', marginTop: 4 }}>
-          {es ? 'Analytics' : 'Analytics'}
+          Analytics
         </Text>
       </View>
 
