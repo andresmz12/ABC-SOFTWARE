@@ -33,6 +33,10 @@ export async function fetchOpenJobsForProvider(
 
   // Deduplicated list of departments (Colombia) / states (USA) the provider covers.
   const departments = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string).filter(Boolean))];
+
+  // No service areas configured → show nothing until the provider sets them up.
+  if (departments.length === 0) return [];
+
   const providerServiceType = (profileRes.data as any)?.service_type ?? 'both';
 
   let query = supabase
@@ -49,11 +53,7 @@ export async function fetchOpenJobsForProvider(
     query = query.eq('service_type', providerServiceType);
   }
 
-  // Filter by department (job_requests.state) when the provider has service areas.
-  // Falls back to all open jobs in the country when none are configured yet.
-  if (departments.length > 0) {
-    query = query.in('state', departments);
-  }
+  query = query.in('state', departments);
 
   const { data, error } = await query;
   if (error) {
