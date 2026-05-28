@@ -425,10 +425,11 @@ export default function AdminDashboard() {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'open');
 
-      const pendingWOsQ = supabase
+      let pendingWOsQ = supabase
         .from('work_orders')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'pending_signatures');
+      if (countryEq) pendingWOsQ = (pendingWOsQ as any).eq('country', countryEq);
 
       const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes, disputesRes, pendingWOsRes] = await Promise.all([
         pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ, disputesQ, pendingWOsQ,

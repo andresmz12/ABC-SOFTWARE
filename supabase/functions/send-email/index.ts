@@ -556,6 +556,10 @@ async function handleNewMessage(message: any): Promise<void> {
 
 async function handleWOCreated(data: any): Promise<void> {
   const { wo_number, job_request_id, client_id, provider_id } = data;
+  if (!wo_number || !job_request_id || !client_id || !provider_id) {
+    console.error('[send-email] wo_created: missing required fields', data);
+    return;
+  }
 
   const { data: job } = await supabase
     .from('job_requests')
@@ -632,6 +636,10 @@ async function handleWOCreated(data: any): Promise<void> {
 
 async function handleWOClientSigned(data: any): Promise<void> {
   const { wo_number, provider_id } = data;
+  if (!wo_number || !provider_id) {
+    console.error('[send-email] wo_client_signed: missing required fields', data);
+    return;
+  }
 
   const [provAuth, compProf, indProf] = await Promise.all([
     supabase.auth.admin.getUserById(provider_id),
@@ -661,10 +669,50 @@ async function handleWOClientSigned(data: any): Promise<void> {
   await sendEmail(providerEmail, subject, html);
 }
 
+// ─── Handler: provider signed WO → email client ──────────────────────────────
+
+async function handleWOProviderSigned(data: any): Promise<void> {
+  const { wo_number, client_id } = data;
+  if (!wo_number || !client_id) {
+    console.error('[send-email] wo_provider_signed: missing required fields', data);
+    return;
+  }
+
+  const [clientAuth, clientProfile] = await Promise.all([
+    supabase.auth.admin.getUserById(client_id),
+    supabase.from('clients').select('preferred_language, full_name').eq('user_id', client_id).maybeSingle(),
+  ]);
+
+  const clientEmail = clientAuth.data?.user?.email;
+  if (!clientEmail) return;
+
+  const es = (clientProfile.data?.preferred_language ?? 'en') === 'es';
+  const name = clientProfile.data?.full_name ?? '';
+  const subject = es
+    ? `✍️ El proveedor firmó — Orden ${wo_number}`
+    : `✍️ Provider signed — Work Order ${wo_number}`;
+
+  const html = wrap(subject, `
+    <div class="badge">✍️ ${es ? 'Acción Completada' : 'Action Completed'}</div>
+    <h1>${es ? `Hola${name ? ` ${name}` : ''}, el proveedor firmó` : `Hi${name ? ` ${name}` : ''}, the provider has signed`}</h1>
+    <p>${es
+      ? `El proveedor firmó la Orden de Trabajo <span class="teal">${wo_number}</span>. El trabajo comenzará según la fecha acordada.`
+      : `The provider signed Work Order <span class="teal">${wo_number}</span>. The job will begin on the scheduled date.`}</p>
+    <hr/>
+    <div class="info-box"><p>${es ? '👆 Abre la app ProVendor para ver el estado del trabajo.' : '👆 Open the ProVendor app to track the job status.'}</p></div>
+  `);
+
+  await sendEmail(clientEmail, subject, html);
+}
+
 // ─── Handler: both signed WO → confirmation email to both ────────────────────
 
 async function handleWOBothSigned(data: any): Promise<void> {
   const { wo_number, client_id, provider_id } = data;
+  if (!wo_number || !client_id || !provider_id) {
+    console.error('[send-email] wo_both_signed: missing required fields', data);
+    return;
+  }
 
   const [clientAuth, clientProfile, provAuth, compProf, indProf] = await Promise.all([
     supabase.auth.admin.getUserById(client_id),
@@ -753,9 +801,10 @@ serve(async (req) => {
       case 'job_completed':    await handleJobCompleted(data);     return new Response(JSON.stringify({ ok: true }), { status: 200 });
       case 'job_started':      await handleJobStarted(data);       return new Response(JSON.stringify({ ok: true }), { status: 200 });
       case 'new_message':      await handleNewMessage(data);       return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      case 'wo_created':       await handleWOCreated(data);        return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      case 'wo_client_signed': await handleWOClientSigned(data);   return new Response(JSON.stringify({ ok: true }), { status: 200 });
-      case 'wo_both_signed':   await handleWOBothSigned(data);     return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_created':         await handleWOCreated(data);          return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_client_signed':   await handleWOClientSigned(data);     return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_provider_signed': await handleWOProviderSigned(data);   return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_both_signed':     await handleWOBothSigned(data);       return new Response(JSON.stringify({ ok: true }), { status: 200 });
       default:
         return new Response(JSON.stringify({ error: `Unknown type: ${type}` }), { status: 400 });
     }

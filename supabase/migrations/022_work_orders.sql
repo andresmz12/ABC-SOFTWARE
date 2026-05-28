@@ -12,18 +12,21 @@ CREATE TABLE IF NOT EXISTS work_orders (
   client_signed_at TIMESTAMPTZ,
   provider_signed_at TIMESTAMPTZ,
   pdf_url TEXT,
+  country TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Per-year sequence approach: atomic, no race conditions under concurrent inserts
 CREATE OR REPLACE FUNCTION generate_wo_number()
 RETURNS TEXT AS $$
 DECLARE
-  year TEXT := EXTRACT(YEAR FROM now())::TEXT;
-  seq INTEGER;
+  year_str TEXT := EXTRACT(YEAR FROM now())::TEXT;
+  seq_name TEXT := 'wo_seq_' || year_str;
+  seq_val  BIGINT;
 BEGIN
-  SELECT COUNT(*) + 1 INTO seq FROM work_orders
-  WHERE EXTRACT(YEAR FROM created_at) = EXTRACT(YEAR FROM now());
-  RETURN 'PV-' || year || '-' || LPAD(seq::TEXT, 4, '0');
+  EXECUTE format('CREATE SEQUENCE IF NOT EXISTS %I START WITH 1', seq_name);
+  seq_val := nextval(seq_name);
+  RETURN 'PV-' || year_str || '-' || LPAD(seq_val::TEXT, 4, '0');
 END;
 $$ LANGUAGE plpgsql;
 
@@ -31,6 +34,7 @@ ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "wo_client" ON work_orders FOR ALL USING (client_id = auth.uid());
 CREATE POLICY "wo_provider" ON work_orders FOR ALL USING (provider_id = auth.uid());
+-- admins table uses user_id column (not id)
 CREATE POLICY "wo_admin" ON work_orders FOR ALL USING (
-  EXISTS (SELECT 1 FROM admins WHERE id = auth.uid())
+  EXISTS (SELECT 1 FROM admins WHERE user_id = auth.uid())
 );

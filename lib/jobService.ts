@@ -137,7 +137,7 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
   // Fetch application + job details + losing applicants concurrently
   const [appRes, jobDetailsRes, losingAppsRes] = await Promise.all([
     supabase.from('job_applications').select('provider_id').eq('id', applicationId).single(),
-    supabase.from('job_requests').select('service_type, city, client_id').eq('id', jobRequestId).single(),
+    supabase.from('job_requests').select('service_type, city, country, client_id').eq('id', jobRequestId).single(),
     supabase.from('job_applications').select('provider_id').eq('job_request_id', jobRequestId).neq('id', applicationId),
   ]);
 
@@ -153,7 +153,7 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
   if (!appRes.data?.provider_id || !jobDetailsRes.data) return;
 
   const { provider_id } = appRes.data;
-  const { service_type, city, client_id } = jobDetailsRes.data;
+  const { service_type, city, country, client_id } = jobDetailsRes.data;
 
   // ── Create Work Order ────────────────────────────────────────────────────────
   if (client_id) {
@@ -167,6 +167,7 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
             job_request_id: jobRequestId,
             client_id,
             provider_id,
+            country: country ?? null,
             status: 'pending_signatures',
           })
           .select('id, wo_number')

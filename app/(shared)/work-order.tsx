@@ -363,11 +363,42 @@ export default function WorkOrderScreen() {
         });
         // Email provider
         const { data: sessionData } = await supabase.auth.getSession();
-        const token = sessionData?.session?.access_token;
-        if (token) {
+        const sToken = sessionData?.session?.access_token;
+        if (sToken) {
           supabase.functions.invoke('send-email', {
             body: { type: 'wo_client_signed', data: { work_order_id: wo.id, wo_number: wo.wo_number, provider_id: wo.provider_id } },
           }).catch((e: unknown) => console.warn('[work-order] wo_client_signed email failed:', e));
+        }
+      } else if (isProvider) {
+        // Provider just signed — notify client
+        const tokenMap = await getUserPushTokens([wo.client_id]);
+        const t = tokenMap[wo.client_id];
+        if (t?.token) {
+          await sendPushNotification(
+            t.token,
+            t.es ? '✍️ El proveedor firmó' : '✍️ Provider Signed',
+            t.es
+              ? `El proveedor firmó la Orden ${wo.wo_number}. El trabajo comenzará en la fecha acordada.`
+              : `The provider signed Work Order ${wo.wo_number}. The job will begin on the scheduled date.`,
+            { type: 'wo_provider_signed', workOrderId: wo.id },
+          );
+        }
+        await supabase.from('notifications').insert({
+          user_id: wo.client_id,
+          title_en: 'Provider Signed the Work Order',
+          title_es: 'El Proveedor Firmó la Orden',
+          body_en: `The provider signed Work Order ${wo.wo_number}.`,
+          body_es: `El proveedor firmó la Orden ${wo.wo_number}.`,
+          type: 'wo_provider_signed',
+          data: { work_order_id: wo.id },
+        });
+        // Email client
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sToken = sessionData?.session?.access_token;
+        if (sToken) {
+          supabase.functions.invoke('send-email', {
+            body: { type: 'wo_provider_signed', data: { work_order_id: wo.id, wo_number: wo.wo_number, client_id: wo.client_id } },
+          }).catch((e: unknown) => console.warn('[work-order] wo_provider_signed email failed:', e));
         }
       }
 
