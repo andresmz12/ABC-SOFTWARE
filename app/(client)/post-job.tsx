@@ -112,6 +112,10 @@ export default function PostJob() {
   const [frequency, setFrequency] = useState<string>('one_time');
   const [customDays, setCustomDays] = useState<string[]>([]);
   const [minStaff, setMinStaff] = useState<string>('1');
+  // Property detail fields (optional)
+  const [bedrooms, setBedrooms] = useState<string>('');
+  const [bathrooms, setBathrooms] = useState<string>('');
+  const [squareMeters, setSquareMeters] = useState<string>('');
 
   // Block if client is not yet approved
   if (user?.status !== 'approved') {
@@ -147,7 +151,7 @@ export default function PostJob() {
       Alert.alert(es ? 'Permiso requerido' : 'Permission required', es ? 'Se necesita acceso a la galería.' : 'Gallery access is required.');
       return;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.7, allowsEditing: true });
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'] as any, quality: 0.7, allowsEditing: true });
     if (result.canceled || !result.assets[0]) return;
     setUploadingPhoto(true);
     const url = await uploadJobPhoto(user!.id, result.assets[0].uri, photos.length);
@@ -239,6 +243,16 @@ export default function PostJob() {
         if (!isNaN(staffNum) && staffNum > 0) insertData.min_staff = staffNum;
       }
 
+      // Optional property details
+      if (data.serviceType === 'residential') {
+        const bedroomsNum = parseInt(bedrooms, 10);
+        const bathroomsNum = parseFloat(bathrooms);
+        if (!isNaN(bedroomsNum) && bedroomsNum > 0) insertData.bedrooms = bedroomsNum;
+        if (!isNaN(bathroomsNum) && bathroomsNum > 0) insertData.bathrooms = bathroomsNum;
+      }
+      const sqm = parseFloat(squareMeters.replace(/[^0-9.]/g, ''));
+      if (!isNaN(sqm) && sqm > 0) insertData.square_meters = sqm;
+
       const { data: newJob, error } = await supabase
         .from('job_requests')
         .insert(insertData)
@@ -266,6 +280,9 @@ export default function PostJob() {
             setFrequency('one_time');
             setCustomDays([]);
             setMinStaff('1');
+            setBedrooms('');
+            setBathrooms('');
+            setSquareMeters('');
             router.replace('/(client)/my-requests' as any);
           },
         }],
@@ -324,6 +341,79 @@ export default function PostJob() {
               );
             })}
           </View>
+
+          {/* Residential property details (optional) */}
+          {serviceType === 'residential' && (
+            <>
+              <SectionLabel text={es ? 'Detalles de la Propiedad (opcional)' : 'Property Details (optional)'} />
+
+              {/* Bedrooms */}
+              <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 8 }}>
+                {es ? 'Habitaciones' : 'Bedrooms'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {['1', '2', '3', '4', '5', '6+'].map((n) => {
+                  const isActive = bedrooms === n;
+                  return (
+                    <TouchableOpacity
+                      key={n}
+                      onPress={() => setBedrooms(isActive ? '' : n)}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: isActive ? C.accent : C.line,
+                        backgroundColor: isActive ? '#E0F7FA' : C.surface,
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ fontSize: 13, fontFamily: isActive ? 'Inter_700Bold' : 'Inter_400Regular', color: isActive ? C.accent : C.textSecondary }}>
+                        {n}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Bathrooms */}
+              <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 8 }}>
+                {es ? 'Baños' : 'Bathrooms'}
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14 }}>
+                {['1', '1.5', '2', '2.5', '3', '3+'].map((n) => {
+                  const isActive = bathrooms === n;
+                  return (
+                    <TouchableOpacity
+                      key={n}
+                      onPress={() => setBathrooms(isActive ? '' : n)}
+                      style={{
+                        flex: 1, paddingVertical: 10, borderRadius: 10,
+                        borderWidth: 1.5,
+                        borderColor: isActive ? C.accent : C.line,
+                        backgroundColor: isActive ? '#E0F7FA' : C.surface,
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={{ fontSize: 13, fontFamily: isActive ? 'Inter_700Bold' : 'Inter_400Regular', color: isActive ? C.accent : C.textSecondary }}>
+                        {n}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Square meters */}
+              <Input
+                label={es ? 'Metros cuadrados (m²)' : 'Square meters (m²)'}
+                placeholder={es ? 'Ej: 85' : 'e.g. 85'}
+                value={squareMeters}
+                onChangeText={setSquareMeters}
+                keyboardType="decimal-pad"
+                iconName="maximize"
+              />
+            </>
+          )}
 
           {/* Commercial-only fields */}
           {serviceType === 'commercial' && (
@@ -414,6 +504,16 @@ export default function PostJob() {
                   );
                 })}
               </View>
+
+              {/* Commercial square meters */}
+              <Input
+                label={es ? 'Metros cuadrados (m²) — opcional' : 'Square meters (m²) — optional'}
+                placeholder={es ? 'Ej: 500' : 'e.g. 500'}
+                value={squareMeters}
+                onChangeText={setSquareMeters}
+                keyboardType="decimal-pad"
+                iconName="maximize"
+              />
             </>
           )}
 

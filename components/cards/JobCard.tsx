@@ -123,6 +123,36 @@ const JobCard = React.memo(function JobCard({ job, onPress, applied }: Props) {
           </View>
         </View>
 
+        {/* Property details row */}
+        {(job.bedrooms || job.bathrooms || job.square_meters) ? (
+          <View style={{ flexDirection: 'row', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
+            {job.bedrooms ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="home" size={11} color={C.textMuted} style={{ marginRight: 3 }} />
+                <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                  {job.bedrooms} {es ? 'hab.' : 'bed.'}
+                </Text>
+              </View>
+            ) : null}
+            {job.bathrooms ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="droplet" size={11} color={C.textMuted} style={{ marginRight: 3 }} />
+                <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                  {job.bathrooms} {es ? 'baños' : 'bath.'}
+                </Text>
+              </View>
+            ) : null}
+            {job.square_meters ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Feather name="maximize" size={11} color={C.textMuted} style={{ marginRight: 3 }} />
+                <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                  {job.square_meters} m²
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {budgetText && (
