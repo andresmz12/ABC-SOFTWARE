@@ -224,6 +224,8 @@ export default function ProviderDetail() {
   const initials = displayName.split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   const joinedDate = new Date(provider.created_at).toLocaleDateString(es ? 'es-ES' : 'en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   const allDocsApproved = (provider.documents?.length ?? 0) > 0 && provider.documents?.every((d) => d.status === 'approved');
+  const identitySelfie = provider.documents?.find((d) => d.doc_type === 'identity_selfie');
+  const identitySelfieApproved = identitySelfie?.status === 'approved';
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -300,17 +302,32 @@ export default function ProviderDetail() {
             <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }}>
               {es ? 'Documentos' : 'Documents'} ({provider.documents?.length})
             </Text>
-            {provider.documents?.map((doc, idx) => {
+            {provider.documents
+              ?.slice()
+              .sort((a, b) => (a.doc_type === 'identity_selfie' ? -1 : b.doc_type === 'identity_selfie' ? 1 : 0))
+              .map((doc, idx) => {
               const docColor = doc.status === 'approved' ? C.success : doc.status === 'rejected' ? C.danger : C.warning;
               const iconName = doc.status === 'approved' ? 'check-circle' : doc.status === 'rejected' ? 'x-circle' : 'clock';
               const isDocLoading = docLoading === doc.id;
+              const isSelfie = doc.doc_type === 'identity_selfie';
               return (
                 <View key={doc.id} style={{ paddingVertical: 10, borderBottomWidth: idx < (provider.documents?.length ?? 0) - 1 ? 1 : 0, borderBottomColor: C.line }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: isSelfie ? 6 : 8 }}>
                     <Feather name={iconName as any} size={15} color={docColor} style={{ marginRight: 10 }} />
-                    <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
-                      {doc.file_name ?? doc.doc_type}
-                    </Text>
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                        <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular' }}>
+                          {doc.file_name ?? doc.doc_type}
+                        </Text>
+                        {isSelfie && (
+                          <View style={{ backgroundColor: '#FFF7ED', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#F97316' }}>
+                            <Text style={{ color: '#C2410C', fontSize: 10, fontFamily: 'Inter_700Bold' }}>
+                              {es ? 'VERIFICACIÓN IDENTIDAD' : 'IDENTITY CHECK'}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
+                    </View>
                     {isDocLoading ? (
                       <ActivityIndicator size="small" color={C.accent} />
                     ) : (
@@ -408,31 +425,45 @@ export default function ProviderDetail() {
 
         {/* Action buttons */}
         {provider.status === 'pending' && (
-          <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-            <TouchableOpacity
-              onPress={() => setModalAction('approve')}
-              style={{ flex: 1, backgroundColor: C.success, borderRadius: 12, paddingVertical: 16, alignItems: 'center' }}
-              activeOpacity={0.85}
-            >
-              <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Aprobar Proveedor' : 'Approve Provider'}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setModalAction('reject')}
-              style={{ flex: 1, backgroundColor: '#FFE4E6', borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: C.danger }}
-              activeOpacity={0.85}
-            >
-              <Text style={{ color: '#9B1C1C', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Rechazar' : 'Reject'}</Text>
-            </TouchableOpacity>
-          </View>
+          <>
+            {!identitySelfieApproved && (
+              <View style={{ backgroundColor: '#FFF7ED', borderRadius: 12, padding: 14, marginBottom: 12, flexDirection: 'row', alignItems: 'center', borderWidth: 1, borderColor: '#F97316' }}>
+                <Feather name="alert-triangle" size={16} color="#F97316" style={{ marginRight: 10 }} />
+                <Text style={{ color: '#92400E', fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
+                  {!identitySelfie
+                    ? (es ? 'Falta la selfie con documento de identidad. El proveedor debe subirla para poder ser aprobado.' : 'Identity selfie is missing. Provider must upload it before approval.')
+                    : (es ? 'La selfie con documento de identidad debe ser aprobada antes de aprobar al proveedor.' : 'Identity selfie must be approved before approving the provider.')}
+                </Text>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
+              <TouchableOpacity
+                onPress={() => identitySelfieApproved ? setModalAction('approve') : null}
+                disabled={!identitySelfieApproved}
+                style={{ flex: 1, backgroundColor: identitySelfieApproved ? C.success : C.surface2, borderRadius: 12, paddingVertical: 16, alignItems: 'center', opacity: identitySelfieApproved ? 1 : 0.6, borderWidth: identitySelfieApproved ? 0 : 1, borderColor: C.line }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: identitySelfieApproved ? '#FFFFFF' : C.textMuted, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Aprobar Proveedor' : 'Approve Provider'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => setModalAction('reject')}
+                style={{ flex: 1, backgroundColor: '#FFE4E6', borderRadius: 12, paddingVertical: 16, alignItems: 'center', borderWidth: 1, borderColor: C.danger }}
+                activeOpacity={0.85}
+              >
+                <Text style={{ color: '#9B1C1C', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Rechazar' : 'Reject'}</Text>
+              </TouchableOpacity>
+            </View>
+          </>
         )}
 
         {allDocsApproved && provider.status !== 'approved' && (
           <TouchableOpacity
-            onPress={() => setModalAction('approve')}
-            style={{ backgroundColor: C.success, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 12 }}
+            onPress={() => identitySelfieApproved ? setModalAction('approve') : null}
+            disabled={!identitySelfieApproved}
+            style={{ backgroundColor: identitySelfieApproved ? C.success : C.surface2, borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginBottom: 12, opacity: identitySelfieApproved ? 1 : 0.6 }}
             activeOpacity={0.85}
           >
-            <Text style={{ color: '#FFFFFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+            <Text style={{ color: identitySelfieApproved ? '#FFFFFF' : C.textMuted, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
               {es ? 'Todos los docs aprobados — Aprobar Proveedor' : 'All docs approved — Approve Provider'}
             </Text>
           </TouchableOpacity>

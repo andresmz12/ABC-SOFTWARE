@@ -10,6 +10,7 @@ import { C } from '@/constants/theme';
 import { useRegistrationStore } from '@/store/registrationStore';
 
 const US_DOCS = [
+  { key: 'identity_selfie',      label: '🤳 Selfie with Government ID',  desc: 'Photo of you holding your ID next to your face — required for identity verification', required: true },
   { key: 'w9',                   label: 'W-9 Tax Form',              desc: 'Required for US tax reporting' },
   { key: 'gov_id_front',         label: 'Government ID — Front',     desc: "Driver's license or passport front" },
   { key: 'gov_id_back',          label: 'Government ID — Back',      desc: "Driver's license or passport back" },
@@ -18,6 +19,7 @@ const US_DOCS = [
 ];
 
 const CO_DOCS = [
+  { key: 'identity_selfie',             label: '🤳 Selfie con Documento de Identidad',          desc: 'Foto sosteniendo tu cédula o ID junto a tu rostro — requerida para verificación de identidad', required: true },
   { key: 'cedula_front',                label: 'Cédula — Frente',                             desc: 'Documento de identidad (parte frontal)' },
   { key: 'cedula_back',                 label: 'Cédula — Reverso',                            desc: 'Documento de identidad (parte trasera)' },
   { key: 'rut_personal',                label: 'RUT personal',                                desc: 'Expedido por la DIAN' },
@@ -27,6 +29,7 @@ const CO_DOCS = [
   { key: 'contrato_prestacion',         label: 'Contrato de Prestación de Servicios firmado', desc: 'Descarga la plantilla, firma y sube' },
 ];
 
+type DocDef = { key: string; label: string; desc: string; required?: boolean };
 type DocFile = { name: string; uri: string; mimeType: string; size?: number };
 
 export default function IndependentStep3() {
@@ -120,18 +123,19 @@ export default function IndependentStep3() {
           </View>
         </View>
 
-        {DOCS.map((doc) => {
+        {(DOCS as DocDef[]).map((doc) => {
           const docFile = uploaded[doc.key];
           const isUploaded = !!docFile;
           const isThisUploading = uploading === doc.key;
+          const isRequired = doc.required;
 
           return (
             <View
               key={doc.key}
               style={{
                 backgroundColor: C.surface,
-                borderWidth: 1,
-                borderColor: isUploaded ? `${C.success}50` : C.line,
+                borderWidth: isRequired ? 2 : 1,
+                borderColor: isUploaded ? `${C.success}50` : isRequired ? '#F97316' : C.line,
                 borderRadius: 16,
                 padding: 18,
                 marginBottom: 12,
@@ -152,9 +156,18 @@ export default function IndependentStep3() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
-                    {doc.label}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 2 }}>
+                    <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                      {doc.label}
+                    </Text>
+                    {isRequired && (
+                      <View style={{ backgroundColor: '#FFF7ED', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#F97316' }}>
+                        <Text style={{ color: '#C2410C', fontSize: 10, fontFamily: 'Inter_700Bold' }}>
+                          {isColombia ? 'REQUERIDO' : 'REQUIRED'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
                     {doc.desc}
                   </Text>
@@ -218,11 +231,13 @@ export default function IndependentStep3() {
           <Button
             label={isColombia ? 'Continuar' : 'Continue'}
             onPress={handleContinue}
-            disabled={uploadedCount === 0}
+            disabled={!uploaded['identity_selfie']}
           />
-          {uploadedCount === 0 && (
-            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 8 }}>
-              {isColombia ? 'Sube al menos un documento para continuar' : 'Upload at least one document to continue'}
+          {!uploaded['identity_selfie'] && (
+            <Text style={{ color: '#C2410C', fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 8 }}>
+              {isColombia
+                ? '📸 La selfie con tu documento de identidad es obligatoria para continuar'
+                : '📸 The selfie with your ID is required to continue'}
             </Text>
           )}
         </View>

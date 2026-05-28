@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Alert, Modal,
-  ScrollView, ActivityIndicator, Image, TextInput,
+  ScrollView, ActivityIndicator, Image, TextInput, Platform,
 } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -521,6 +521,101 @@ function RatingModal({ job, visible, es, onClose, providerId }: RatingModalProps
   );
 }
 
+// ─── Dispute Modal ────────────────────────────────────────────────────────────
+
+function DisputeModal({ job, visible, es, userId, onClose, onSubmitted }: {
+  job: JobRequest | null;
+  visible: boolean;
+  es: boolean;
+  userId: string;
+  onClose: () => void;
+  onSubmitted: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { if (!visible) { setReason(''); setDescription(''); } }, [visible]);
+
+  const handleSubmit = async () => {
+    if (!job) return;
+    if (!reason.trim()) {
+      Alert.alert(es ? 'Requerido' : 'Required', es ? 'Escribe la razón de la disputa.' : 'Please enter a reason for the dispute.');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { error } = await supabase.from('disputes').insert({
+        job_request_id: job.id,
+        opened_by: userId,
+        reason: reason.trim(),
+        description: description.trim() || null,
+        status: 'open',
+      });
+      if (error) throw error;
+      onSubmitted();
+      onClose();
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.55)', justifyContent: 'flex-end' }}>
+        <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, paddingBottom: 40, borderTopWidth: 1, borderTopColor: C.line }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold' }}>
+              {es ? 'Abrir Disputa' : 'Open Dispute'}
+            </Text>
+            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+              <Feather name="x" size={18} color={C.textSecondary} />
+            </TouchableOpacity>
+          </View>
+          <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 16, lineHeight: 20 }}>
+            {es
+              ? 'Describe el problema con este trabajo. El equipo de soporte revisará tu disputa.'
+              : 'Describe the issue with this job. Our support team will review your dispute.'}
+          </Text>
+          <TextInput
+            value={reason}
+            onChangeText={setReason}
+            placeholder={es ? 'Razón de la disputa *' : 'Reason for dispute *'}
+            placeholderTextColor={C.textMuted}
+            style={{ backgroundColor: C.surface2, borderRadius: 10, padding: 14, color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 12, borderWidth: 1, borderColor: C.line }}
+          />
+          <TextInput
+            value={description}
+            onChangeText={setDescription}
+            placeholder={es ? 'Descripción adicional (opcional)' : 'Additional description (optional)'}
+            placeholderTextColor={C.textMuted}
+            multiline
+            numberOfLines={3}
+            style={{ backgroundColor: C.surface2, borderRadius: 10, padding: 14, color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_400Regular', marginBottom: 20, minHeight: 80, textAlignVertical: 'top', borderWidth: 1, borderColor: C.line }}
+          />
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity onPress={onClose} style={{ flex: 1, height: 52, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ color: C.textSecondary, fontSize: 15, fontFamily: 'Inter_500Medium' }}>{es ? 'Cancelar' : 'Cancel'}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={handleSubmit}
+              disabled={saving}
+              style={{ flex: 2, height: 52, borderRadius: 12, backgroundColor: C.danger, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.7 : 1 }}
+              activeOpacity={0.85}
+            >
+              {saving ? <ActivityIndicator color="#FFF" /> : (
+                <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Enviar Disputa' : 'Submit Dispute'}</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 // ─── Job Card ─────────────────────────────────────────────────────────────────
 
 function JobCard({
@@ -532,6 +627,7 @@ function JobCard({
   onStart,
   onComplete,
   onWithdraw,
+  onDispute,
 }: {
   job: JobRequest;
   appStatus?: string;
@@ -541,6 +637,7 @@ function JobCard({
   onStart?: () => void;
   onComplete?: () => void;
   onWithdraw?: () => void;
+  onDispute?: () => void;
 }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -629,8 +726,8 @@ function JobCard({
         )}
       </View>
 
-      {/* Action buttons — Start Job / Complete Job / Withdraw */}
-      {((job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) || (appStatus === 'pending' && onWithdraw)) ? (
+      {/* Action buttons — Start Job / Complete Job / Withdraw / Dispute */}
+      {((job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) || (appStatus === 'pending' && onWithdraw) || ((job.status === 'in_progress' || job.status === 'completed') && onDispute)) ? (
         <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
           {job.status === 'accepted' && onStart && (
             <TouchableOpacity
@@ -668,6 +765,18 @@ function JobCard({
               </Text>
             </TouchableOpacity>
           )}
+          {(job.status === 'in_progress' || job.status === 'completed') && onDispute && (
+            <TouchableOpacity
+              onPress={onDispute}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10, gap: 6, borderTopWidth: 1, borderTopColor: C.line }}
+              activeOpacity={0.8}
+            >
+              <Feather name="alert-triangle" size={13} color={C.danger} />
+              <Text style={{ color: C.danger, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+                {es ? 'Abrir Disputa' : 'Open Dispute'}
+              </Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : null}
     </View>
@@ -701,6 +810,7 @@ export default function MyJobsScreen() {
   const [startJob, setStartJob] = useState<JobRequest | null>(null);
   const [completeJob, setCompleteJob] = useState<JobRequest | null>(null);
   const [ratingJob, setRatingJob] = useState<JobRequest | null>(null);
+  const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
 
   const TAB_LABELS: Record<Tab, string> = {
     applied:   es ? 'Aplicados' : 'Applied',
@@ -804,6 +914,7 @@ export default function MyJobsScreen() {
       onStart={activeTab === 'active' ? () => setStartJob(item) : undefined}
       onComplete={activeTab === 'active' ? () => setCompleteJob(item) : undefined}
       onWithdraw={activeTab === 'applied' && appStatuses[item.id] === 'pending' ? () => handleWithdraw(item) : undefined}
+      onDispute={(activeTab === 'active' || activeTab === 'completed') ? () => setDisputeJob(item) : undefined}
     />
   ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw]);
 
@@ -927,6 +1038,19 @@ export default function MyJobsScreen() {
         es={es}
         onClose={() => setRatingJob(null)}
         providerId={user?.id ?? ''}
+      />
+      <DisputeModal
+        job={disputeJob}
+        visible={!!disputeJob}
+        es={es}
+        userId={user?.id ?? ''}
+        onClose={() => setDisputeJob(null)}
+        onSubmitted={() => {
+          Alert.alert(
+            es ? 'Disputa enviada' : 'Dispute submitted',
+            es ? 'Tu disputa fue enviada al equipo de soporte.' : 'Your dispute has been sent to our support team.',
+          );
+        }}
       />
     </View>
   );

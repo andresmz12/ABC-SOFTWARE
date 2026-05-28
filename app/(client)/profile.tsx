@@ -223,6 +223,29 @@ export default function ClientProfile() {
           <LanguageToggle />
         </View>
 
+        {/* Payments */}
+        <TouchableOpacity
+          onPress={() => router.push('/(client)/payments' as any)}
+          style={{
+            backgroundColor: C.surface,
+            borderWidth: 1,
+            borderColor: C.line,
+            borderRadius: 16,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 12,
+            flexDirection: 'row',
+          }}
+          activeOpacity={0.85}
+        >
+          <Feather name="credit-card" size={16} color={C.accent} style={{ marginRight: 8 }} />
+          <Text style={{ color: C.accent, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+            {es ? 'Historial de Pagos' : 'Payment History'}
+          </Text>
+          <Feather name="chevron-right" size={16} color={C.textMuted} style={{ position: 'absolute', right: 16 }} />
+        </TouchableOpacity>
+
         {/* Sign out */}
         <TouchableOpacity
           onPress={async () => {

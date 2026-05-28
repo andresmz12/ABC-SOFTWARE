@@ -483,6 +483,29 @@ export default function ProviderProfile() {
           <LanguageToggle />
         </View>
 
+        {/* Payments */}
+        <TouchableOpacity
+          onPress={() => router.push('/(provider)/payments' as any)}
+          style={{
+            backgroundColor: C.surface,
+            borderWidth: 1,
+            borderColor: C.line,
+            borderRadius: 16,
+            height: 56,
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginBottom: 12,
+            flexDirection: 'row',
+          }}
+          activeOpacity={0.85}
+        >
+          <Feather name="trending-up" size={16} color={C.success} style={{ marginRight: 8 }} />
+          <Text style={{ color: C.success, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+            {es ? 'Mis Ganancias' : 'My Earnings'}
+          </Text>
+          <Feather name="chevron-right" size={16} color={C.textMuted} style={{ position: 'absolute', right: 16 }} />
+        </TouchableOpacity>
+
         {/* Sign out */}
         <TouchableOpacity
           onPress={async () => {

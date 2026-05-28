@@ -31,6 +31,7 @@ interface DashStats {
   pendingProviders: number;
   clients: number;
   revenue: number;
+  openDisputes: number;
 }
 
 interface DashJob {
@@ -385,7 +386,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]     = useState<CountryTab>('global');
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
-  const [stats, setStats]             = useState<DashStats>({ activeJobs: 0, pendingProviders: 0, clients: 0, revenue: 0 });
+  const [stats, setStats]             = useState<DashStats>({ activeJobs: 0, pendingProviders: 0, clients: 0, revenue: 0, openDisputes: 0 });
   const [jobs, setJobs]               = useState<DashJob[]>([]);
   const [providers, setProviders]     = useState<DashProvider[]>([]);
   const [clients, setClients]         = useState<DashClient[]>([]);
@@ -418,8 +419,13 @@ export default function AdminDashboard() {
         .select('bid_amount_usd, bid_amount_cop')
         .eq('status', 'accepted');
 
-      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes] = await Promise.all([
-        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ,
+      const disputesQ = supabase
+        .from('disputes')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'open');
+
+      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes, disputesRes] = await Promise.all([
+        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ, disputesQ,
       ]);
 
       const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount_usd ?? r.bid_amount_cop ?? 0), 0);
@@ -429,6 +435,7 @@ export default function AdminDashboard() {
         pendingProviders: (pendingCompRes.count ?? 0) + (pendingIndepRes.count ?? 0),
         clients:          clientsCountRes.count ?? 0,
         revenue,
+        openDisputes:     disputesRes.count ?? 0,
       });
 
       // ── Jobs ──────────────────────────────────────────────────────────────
@@ -673,6 +680,13 @@ export default function AdminDashboard() {
               value={revenueDisplay}
               color={C.success}
               onPress={() => router.push('/(admin)/jobs' as any)}
+            />
+            <StatCard
+              icon="alert-triangle"
+              label={es ? 'Disputas abiertas' : 'Open Disputes'}
+              value={stats.openDisputes}
+              color={C.danger}
+              onPress={() => router.push('/(admin)/disputes' as any)}
             />
           </View>
 

@@ -10,6 +10,7 @@ import { C } from '@/constants/theme';
 import { useRegistrationStore } from '@/store/registrationStore';
 
 const US_DOCS = [
+  { key: 'identity_selfie',   label: '🤳 Selfie with Representative ID', desc: 'Photo of the legal representative holding their ID — required for identity verification', required: true },
   { key: 'w9',                label: 'W-9 Tax Form',             desc: 'Required for US tax reporting' },
   { key: 'insurance',         label: 'Certificate of Insurance', desc: 'Liability coverage documentation' },
   { key: 'business_license',  label: 'Business License',         desc: 'State or local business registration' },
@@ -18,6 +19,7 @@ const US_DOCS = [
 ];
 
 const CO_DOCS = [
+  { key: 'identity_selfie',    label: '🤳 Selfie del Representante Legal con Cédula', desc: 'Foto del representante sosteniendo su cédula junto al rostro — requerida para verificación', required: true },
   { key: 'rut',               label: 'RUT — Registro Único Tributario',               desc: 'Expedido por la DIAN, debe estar vigente' },
   { key: 'camara_comercio',   label: 'Cámara de Comercio',                            desc: 'Vigencia no mayor a 90 días' },
   { key: 'cedula_rep_front',  label: 'Cédula Representante Legal — Frente',           desc: 'Documento de identidad del representante (frente)' },
@@ -27,6 +29,7 @@ const CO_DOCS = [
   { key: 'contrato_servicios',label: 'Contrato de Prestación de Servicios firmado',   desc: 'Descarga la plantilla, firma y sube' },
 ];
 
+type DocDef = { key: string; label: string; desc: string; required?: boolean };
 type DocFile = { name: string; uri: string; mimeType: string; size?: number };
 
 export default function CompanyStep3() {
@@ -121,18 +124,19 @@ export default function CompanyStep3() {
           </View>
         </View>
 
-        {DOCS.map((doc) => {
+        {(DOCS as DocDef[]).map((doc) => {
           const docFile = uploaded[doc.key];
           const isUploaded = !!docFile;
           const isThisUploading = uploading === doc.key;
+          const isRequired = doc.required;
 
           return (
             <View
               key={doc.key}
               style={{
                 backgroundColor: C.surface,
-                borderWidth: 1,
-                borderColor: isUploaded ? `${C.success}50` : C.line,
+                borderWidth: isRequired ? 2 : 1,
+                borderColor: isUploaded ? `${C.success}50` : isRequired ? '#F97316' : C.line,
                 borderRadius: 16,
                 padding: 18,
                 marginBottom: 12,
@@ -153,9 +157,18 @@ export default function CompanyStep3() {
                   />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
-                    {doc.label}
-                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 2 }}>
+                    <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                      {doc.label}
+                    </Text>
+                    {isRequired && (
+                      <View style={{ backgroundColor: '#FFF7ED', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: '#F97316' }}>
+                        <Text style={{ color: '#C2410C', fontSize: 10, fontFamily: 'Inter_700Bold' }}>
+                          {isColombia ? 'REQUERIDO' : 'REQUIRED'}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
                   <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
                     {doc.desc}
                   </Text>
@@ -219,11 +232,13 @@ export default function CompanyStep3() {
           <Button
             label={isColombia ? 'Continuar' : 'Continue'}
             onPress={handleContinue}
-            disabled={uploadedCount === 0}
+            disabled={!uploaded['identity_selfie']}
           />
-          {uploadedCount === 0 && (
-            <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 8 }}>
-              {isColombia ? 'Sube al menos un documento para continuar' : 'Upload at least one document to continue'}
+          {!uploaded['identity_selfie'] && (
+            <Text style={{ color: '#C2410C', fontSize: 12, fontFamily: 'Inter_400Regular', textAlign: 'center', marginTop: 8 }}>
+              {isColombia
+                ? '📸 La selfie con el documento del representante legal es obligatoria para continuar'
+                : '📸 The selfie with the representative\'s ID is required to continue'}
             </Text>
           )}
         </View>
