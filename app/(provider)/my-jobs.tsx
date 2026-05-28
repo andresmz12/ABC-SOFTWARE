@@ -628,6 +628,7 @@ function JobCard({
   onComplete,
   onWithdraw,
   onDispute,
+  onSignWO,
 }: {
   job: JobRequest;
   appStatus?: string;
@@ -638,6 +639,7 @@ function JobCard({
   onComplete?: () => void;
   onWithdraw?: () => void;
   onDispute?: () => void;
+  onSignWO?: () => void;
 }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -726,6 +728,28 @@ function JobCard({
         )}
       </View>
 
+      {/* WO signature banner */}
+      {onSignWO && (
+        <TouchableOpacity
+          onPress={onSignWO}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FEF3C7', padding: 10, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: '#F59E0B40' }}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Feather name="alert-triangle" size={13} color="#D97706" />
+            <Text style={{ color: '#92400E', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? '⚠️ Firma requerida' : '⚠️ Signature Required'}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Text style={{ color: '#D97706', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? 'Firmar' : 'Sign Now'}
+            </Text>
+            <Feather name="chevron-right" size={13} color="#D97706" />
+          </View>
+        </TouchableOpacity>
+      )}
+
       {/* Action buttons — Start Job / Complete Job / Withdraw / Dispute */}
       {((job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) || (appStatus === 'pending' && onWithdraw) || ((job.status === 'in_progress' || job.status === 'completed') && onDispute)) ? (
         <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
@@ -811,6 +835,8 @@ export default function MyJobsScreen() {
   const [completeJob, setCompleteJob] = useState<JobRequest | null>(null);
   const [ratingJob, setRatingJob] = useState<JobRequest | null>(null);
   const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
+  // jobId → workOrderId for jobs needing provider signature
+  const [pendingWOMap, setPendingWOMap] = useState<Record<string, string>>({});
 
   const TAB_LABELS: Record<Tab, string> = {
     applied:   es ? 'Aplicados' : 'Applied',
@@ -863,6 +889,24 @@ export default function MyJobsScreen() {
         .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
       setActive(activeList);
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
+
+      // Fetch work orders needing provider signature
+      const acceptedJobIds = allJobs.filter((j) => j.status === 'accepted').map((j) => j.id);
+      if (acceptedJobIds.length > 0) {
+        const { data: woRows } = await supabase
+          .from('work_orders')
+          .select('id, job_request_id, status, provider_signature')
+          .in('job_request_id', acceptedJobIds)
+          .eq('status', 'pending_signatures')
+          .is('provider_signature', null);
+        const map: Record<string, string> = {};
+        for (const wo of (woRows ?? [])) {
+          map[wo.job_request_id] = wo.id;
+        }
+        setPendingWOMap(map);
+      } else {
+        setPendingWOMap({});
+      }
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -915,8 +959,9 @@ export default function MyJobsScreen() {
       onComplete={activeTab === 'active' ? () => setCompleteJob(item) : undefined}
       onWithdraw={activeTab === 'applied' && appStatuses[item.id] === 'pending' ? () => handleWithdraw(item) : undefined}
       onDispute={(activeTab === 'active' || activeTab === 'completed') ? () => setDisputeJob(item) : undefined}
+      onSignWO={activeTab === 'active' && pendingWOMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { workOrderId: pendingWOMap[item.id] } } as any) : undefined}
     />
-  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw]);
+  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, pendingWOMap]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>

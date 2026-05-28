@@ -162,3 +162,35 @@ export const notifyChatMessage = (token: string, senderName: string, es: boolean
     es ? `${senderName} te envió un mensaje.` : `${senderName} sent you a message.`,
     { type: 'chat_message' },
   );
+
+// ─── Work Order notification helpers ─────────────────────────────────────────
+
+export const notifyWOSignatureRequired = (token: string, woNumber: string, es: boolean) =>
+  sendPushNotification(
+    token,
+    es ? '✍️ Firma Requerida' : '✍️ Signature Required',
+    es
+      ? `Se requiere tu firma para la Orden de Trabajo ${woNumber}.`
+      : `Your signature is required for Work Order ${woNumber}.`,
+    { type: 'wo_signature_required' },
+  );
+
+export const notifyWOClientSigned = (token: string, woNumber: string, es: boolean) =>
+  sendPushNotification(
+    token,
+    es ? '✍️ El Cliente Firmó' : '✍️ Client Signed',
+    es
+      ? `El cliente ya firmó la Orden ${woNumber}. Ahora es tu turno.`
+      : `The client signed Work Order ${woNumber}. Now it's your turn.`,
+    { type: 'wo_client_signed' },
+  );
+
+export const notifyWOBothSigned = (token: string, woNumber: string, es: boolean) =>
+  sendPushNotification(
+    token,
+    es ? '✅ Trabajo Confirmado' : '✅ Job Confirmed',
+    es
+      ? `Ambas partes firmaron la Orden ${woNumber}. ¡El trabajo puede comenzar!`
+      : `Both parties signed Work Order ${woNumber}. The job can begin!`,
+    { type: 'wo_both_signed' },
+  );

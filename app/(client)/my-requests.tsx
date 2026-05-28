@@ -380,6 +380,7 @@ const RequestCard = React.memo(function RequestCard({
   onCancel,
   onRate,
   onDispute,
+  onSignWO,
 }: {
   req: JobRequest;
   isColombia: boolean;
@@ -389,6 +390,7 @@ const RequestCard = React.memo(function RequestCard({
   onCancel: () => void;
   onRate?: () => void;
   onDispute?: () => void;
+  onSignWO?: () => void;
 }) {
   const isCommercial = req.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -468,6 +470,28 @@ const RequestCard = React.memo(function RequestCard({
           </View>
         ) : null}
       </View>
+
+      {/* WO signature banner */}
+      {onSignWO && (
+        <TouchableOpacity
+          onPress={onSignWO}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FEF3C7', padding: 10, paddingHorizontal: 14, borderTopWidth: 1, borderTopColor: '#F59E0B40' }}
+          activeOpacity={0.8}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Feather name="alert-triangle" size={13} color="#D97706" />
+            <Text style={{ color: '#92400E', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? '⚠️ Firma requerida' : '⚠️ Signature Required'}
+            </Text>
+          </View>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+            <Text style={{ color: '#D97706', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? 'Firmar' : 'Sign Now'}
+            </Text>
+            <Feather name="chevron-right" size={13} color="#D97706" />
+          </View>
+        </TouchableOpacity>
+      )}
 
       {/* Footer */}
       <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
@@ -599,6 +623,8 @@ export default function MyRequests() {
   const [ratingJob, setRatingJob] = useState<{ jobId: string; providerId: string } | null>(null);
   const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
   const dismissedRatingRef = useRef<Set<string>>(new Set());
+  // jobId → workOrderId for jobs needing client signature
+  const [pendingWOMap, setPendingWOMap] = useState<Record<string, string>>({});
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
@@ -618,6 +644,24 @@ export default function MyRequests() {
         completed:   allJobs.filter((j) => j.status === 'completed' || j.status === 'cancelled'),
         expired:     allJobs.filter((j) => j.status === 'expired'),
       });
+
+      // Fetch work orders needing client signature
+      const acceptedJobIds = allJobs.filter((j) => j.status === 'accepted').map((j) => j.id);
+      if (acceptedJobIds.length > 0) {
+        const { data: woRows } = await supabase
+          .from('work_orders')
+          .select('id, job_request_id, status, client_signature')
+          .in('job_request_id', acceptedJobIds)
+          .eq('status', 'pending_signatures')
+          .is('client_signature', null);
+        const map: Record<string, string> = {};
+        for (const wo of (woRows ?? [])) {
+          map[wo.job_request_id] = wo.id;
+        }
+        setPendingWOMap(map);
+      } else {
+        setPendingWOMap({});
+      }
 
       // Auto-trigger mandatory rating for first unrated completed job
       const completedJobs = allJobs.filter((j) => j.status === 'completed');
@@ -703,8 +747,9 @@ export default function MyRequests() {
         }
       } : undefined}
       onDispute={(item.status === 'in_progress' || item.status === 'completed') ? () => setDisputeJob(item) : undefined}
+      onSignWO={pendingWOMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { workOrderId: pendingWOMap[item.id] } } as any) : undefined}
     />
-  ), [isColombia, es, router, handleCancel]);
+  ), [isColombia, es, router, handleCancel, pendingWOMap]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>

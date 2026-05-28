@@ -154,6 +154,49 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
 
   const { provider_id } = appRes.data;
   const { service_type, city, client_id } = jobDetailsRes.data;
+
+  // ── Create Work Order ────────────────────────────────────────────────────────
+  if (client_id) {
+    try {
+      const { data: woNumberData, error: rpcErr } = await supabase.rpc('generate_wo_number');
+      if (!rpcErr && woNumberData) {
+        const { data: woData, error: woErr } = await supabase
+          .from('work_orders')
+          .insert({
+            wo_number: woNumberData,
+            job_request_id: jobRequestId,
+            client_id,
+            provider_id,
+            status: 'pending_signatures',
+          })
+          .select('id, wo_number')
+          .single();
+        if (woErr) {
+          console.error('[acceptBid] work_order insert failed:', woErr);
+        } else if (woData) {
+          // Notify both parties to sign (fire-and-forget)
+          const { data: sessionData } = await supabase.auth.getSession();
+          const token = sessionData?.session?.access_token;
+          if (token) {
+            supabase.functions.invoke('send-email', {
+              body: {
+                type: 'wo_created',
+                data: {
+                  work_order_id: woData.id,
+                  wo_number: woData.wo_number,
+                  job_request_id: jobRequestId,
+                  client_id,
+                  provider_id,
+                },
+              },
+            }).catch((e: unknown) => console.warn('[acceptBid] wo_created email failed:', e));
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[acceptBid] work_order creation error:', e);
+    }
+  }
   const cityEn = city ? ` in ${city}` : '';
   const cityEs = city ? ` en ${city}` : '';
   const serviceEn = service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning';

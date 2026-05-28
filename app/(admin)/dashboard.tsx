@@ -32,6 +32,7 @@ interface DashStats {
   clients: number;
   revenue: number;
   openDisputes: number;
+  pendingWOs: number;
 }
 
 interface DashJob {
@@ -386,7 +387,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]     = useState<CountryTab>('global');
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
-  const [stats, setStats]             = useState<DashStats>({ activeJobs: 0, pendingProviders: 0, clients: 0, revenue: 0, openDisputes: 0 });
+  const [stats, setStats]             = useState<DashStats>({ activeJobs: 0, pendingProviders: 0, clients: 0, revenue: 0, openDisputes: 0, pendingWOs: 0 });
   const [jobs, setJobs]               = useState<DashJob[]>([]);
   const [providers, setProviders]     = useState<DashProvider[]>([]);
   const [clients, setClients]         = useState<DashClient[]>([]);
@@ -424,8 +425,13 @@ export default function AdminDashboard() {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'open');
 
-      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes, disputesRes] = await Promise.all([
-        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ, disputesQ,
+      const pendingWOsQ = supabase
+        .from('work_orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_signatures');
+
+      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes, disputesRes, pendingWOsRes] = await Promise.all([
+        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ, disputesQ, pendingWOsQ,
       ]);
 
       const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount_usd ?? r.bid_amount_cop ?? 0), 0);
@@ -436,6 +442,7 @@ export default function AdminDashboard() {
         clients:          clientsCountRes.count ?? 0,
         revenue,
         openDisputes:     disputesRes.count ?? 0,
+        pendingWOs:       pendingWOsRes.count ?? 0,
       });
 
       // ── Jobs ──────────────────────────────────────────────────────────────
@@ -687,6 +694,13 @@ export default function AdminDashboard() {
               value={stats.openDisputes}
               color={C.danger}
               onPress={() => router.push('/(admin)/disputes' as any)}
+            />
+            <StatCard
+              icon="file-text"
+              label={es ? 'OTs pendientes firma' : 'WOs Pending Signature'}
+              value={stats.pendingWOs}
+              color="#D97706"
+              onPress={() => router.push('/(admin)/work-orders' as any)}
             />
           </View>
 

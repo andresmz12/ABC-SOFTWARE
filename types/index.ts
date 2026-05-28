@@ -233,3 +233,22 @@ export interface JobRequestWithPhotos extends JobRequest {
   photos_before?: string[] | null;
   photos_after?: string[] | null;
 }
+
+// ─── Work Orders ──────────────────────────────────────────────────────────────
+
+export type WorkOrderStatus = 'pending_signatures' | 'signed' | 'cancelled';
+
+export interface WorkOrder {
+  id: string;
+  wo_number: string;
+  job_request_id: string;
+  client_id: string;
+  provider_id: string;
+  status: WorkOrderStatus;
+  client_signature?: string | null;
+  provider_signature?: string | null;
+  client_signed_at?: string | null;
+  provider_signed_at?: string | null;
+  pdf_url?: string | null;
+  created_at: string;
+}

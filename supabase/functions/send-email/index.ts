@@ -552,6 +552,171 @@ async function handleNewMessage(message: any): Promise<void> {
   }
 }
 
+// ─── Handler: work order created → email both parties ────────────────────────
+
+async function handleWOCreated(data: any): Promise<void> {
+  const { wo_number, job_request_id, client_id, provider_id } = data;
+
+  const { data: job } = await supabase
+    .from('job_requests')
+    .select('city, service_type, scheduled_date, estimated_hours')
+    .eq('id', job_request_id)
+    .single();
+
+  const isCom = job?.service_type === 'commercial';
+
+  const [clientAuth, clientProfile, provAuth, compProf, indProf] = await Promise.all([
+    supabase.auth.admin.getUserById(client_id),
+    supabase.from('clients').select('preferred_language, full_name').eq('user_id', client_id).maybeSingle(),
+    supabase.auth.admin.getUserById(provider_id),
+    supabase.from('companies').select('preferred_language, company_name').eq('user_id', provider_id).maybeSingle(),
+    supabase.from('independents').select('preferred_language, full_name').eq('user_id', provider_id).maybeSingle(),
+  ]);
+
+  const clientEmail = clientAuth.data?.user?.email;
+  const providerEmail = provAuth.data?.user?.email;
+
+  // Email client
+  if (clientEmail) {
+    const es = (clientProfile.data?.preferred_language ?? 'en') === 'es';
+    const kind = isCom ? (es ? 'limpieza comercial' : 'commercial cleaning') : (es ? 'limpieza residencial' : 'residential cleaning');
+    const subject = es
+      ? `✍️ Firma requerida — Orden de Trabajo ${wo_number}`
+      : `✍️ Signature Required — Work Order ${wo_number}`;
+    const html = wrap(subject, `
+      <div class="badge">✍️ ${es ? 'Firma Requerida' : 'Signature Required'}</div>
+      <h1>${es ? `Se creó la Orden ${wo_number}` : `Work Order ${wo_number} Created`}</h1>
+      <p>${es
+        ? `Se generó una orden de trabajo para el servicio de <span class="teal">${kind}</span>. Necesitas firmarla digitalmente para confirmar el trabajo.`
+        : `A work order was created for your <span class="teal">${kind}</span> service. You need to sign it digitally to confirm the job.`}</p>
+      <hr/>
+      <div class="row"><span class="lbl">${es ? 'Número de Orden' : 'WO Number'}</span><span class="val">${wo_number}</span></div>
+      ${job ? `<div class="row"><span class="lbl">${es ? 'Ciudad' : 'City'}</span><span class="val">${job.city}</span></div>
+      <div class="row"><span class="lbl">${es ? 'Fecha' : 'Date'}</span><span class="val">${job.scheduled_date}</span></div>` : ''}
+      <hr/>
+      <div class="info-box"><p>${es ? '👆 Abre la app ProVendor para revisar y firmar la Orden de Trabajo.' : '👆 Open the ProVendor app to review and sign the Work Order.'}</p></div>
+    `);
+    try { await sendEmail(clientEmail, subject, html); } catch (e) {
+      console.error('[send-email] wo_created client', client_id, e);
+    }
+  }
+
+  // Email provider
+  if (providerEmail) {
+    const provName = compProf.data?.company_name ?? indProf.data?.full_name ?? '';
+    const es = ((compProf.data ?? indProf.data)?.preferred_language ?? 'en') === 'es';
+    const kind = isCom ? (es ? 'limpieza comercial' : 'commercial cleaning') : (es ? 'limpieza residencial' : 'residential cleaning');
+    const subject = es
+      ? `✍️ Firma requerida — Orden de Trabajo ${wo_number}`
+      : `✍️ Signature Required — Work Order ${wo_number}`;
+    const html = wrap(subject, `
+      <div class="badge">✍️ ${es ? 'Firma Requerida' : 'Signature Required'}</div>
+      <h1>${es ? `Hola${provName ? ` ${provName}` : ''}, tienes una Orden de Trabajo` : `Hi${provName ? ` ${provName}` : ''}, you have a Work Order`}</h1>
+      <p>${es
+        ? `Se generó la Orden <span class="teal">${wo_number}</span> para el servicio de ${kind}. Necesitas firmarla para confirmar tu participación.`
+        : `Work Order <span class="teal">${wo_number}</span> was generated for the ${kind} service. Sign it to confirm your participation.`}</p>
+      <hr/>
+      <div class="row"><span class="lbl">${es ? 'Número de Orden' : 'WO Number'}</span><span class="val">${wo_number}</span></div>
+      ${job ? `<div class="row"><span class="lbl">${es ? 'Ciudad' : 'City'}</span><span class="val">${job.city}</span></div>
+      <div class="row"><span class="lbl">${es ? 'Fecha' : 'Date'}</span><span class="val">${job.scheduled_date}</span></div>` : ''}
+      <hr/>
+      <div class="info-box"><p>${es ? '👆 Abre la app ProVendor para revisar y firmar la Orden de Trabajo.' : '👆 Open the ProVendor app to review and sign the Work Order.'}</p></div>
+    `);
+    try { await sendEmail(providerEmail, subject, html); } catch (e) {
+      console.error('[send-email] wo_created provider', provider_id, e);
+    }
+  }
+}
+
+// ─── Handler: client signed WO → email provider ──────────────────────────────
+
+async function handleWOClientSigned(data: any): Promise<void> {
+  const { wo_number, provider_id } = data;
+
+  const [provAuth, compProf, indProf] = await Promise.all([
+    supabase.auth.admin.getUserById(provider_id),
+    supabase.from('companies').select('preferred_language, company_name').eq('user_id', provider_id).maybeSingle(),
+    supabase.from('independents').select('preferred_language, full_name').eq('user_id', provider_id).maybeSingle(),
+  ]);
+
+  const providerEmail = provAuth.data?.user?.email;
+  if (!providerEmail) return;
+
+  const es = ((compProf.data ?? indProf.data)?.preferred_language ?? 'en') === 'es';
+  const provName = compProf.data?.company_name ?? indProf.data?.full_name ?? '';
+  const subject = es
+    ? `✍️ El cliente firmó — Orden ${wo_number}, tu turno`
+    : `✍️ Client signed — Work Order ${wo_number}, your turn`;
+
+  const html = wrap(subject, `
+    <div class="badge">✍️ ${es ? 'Acción Requerida' : 'Action Required'}</div>
+    <h1>${es ? `Hola${provName ? ` ${provName}` : ''}, el cliente ya firmó` : `Hi${provName ? ` ${provName}` : ''}, the client has signed`}</h1>
+    <p>${es
+      ? `El cliente firmó la Orden de Trabajo <span class="teal">${wo_number}</span>. Ahora solo falta tu firma para confirmar el trabajo.`
+      : `The client signed Work Order <span class="teal">${wo_number}</span>. Only your signature is needed to confirm the job.`}</p>
+    <hr/>
+    <div class="info-box"><p>${es ? '👆 Abre la app ProVendor para revisar la Orden y añadir tu firma.' : '👆 Open the ProVendor app to review the Work Order and add your signature.'}</p></div>
+  `);
+
+  await sendEmail(providerEmail, subject, html);
+}
+
+// ─── Handler: both signed WO → confirmation email to both ────────────────────
+
+async function handleWOBothSigned(data: any): Promise<void> {
+  const { wo_number, client_id, provider_id } = data;
+
+  const [clientAuth, clientProfile, provAuth, compProf, indProf] = await Promise.all([
+    supabase.auth.admin.getUserById(client_id),
+    supabase.from('clients').select('preferred_language, full_name').eq('user_id', client_id).maybeSingle(),
+    supabase.auth.admin.getUserById(provider_id),
+    supabase.from('companies').select('preferred_language, company_name').eq('user_id', provider_id).maybeSingle(),
+    supabase.from('independents').select('preferred_language, full_name').eq('user_id', provider_id).maybeSingle(),
+  ]);
+
+  const clientEmail = clientAuth.data?.user?.email;
+  const providerEmail = provAuth.data?.user?.email;
+
+  if (clientEmail) {
+    const es = (clientProfile.data?.preferred_language ?? 'en') === 'es';
+    const subject = es
+      ? `🎉 Trabajo Confirmado — Orden ${wo_number}`
+      : `🎉 Job Confirmed — Work Order ${wo_number}`;
+    const html = wrap(subject, `
+      <div class="badge">🎉 ${es ? 'Trabajo Confirmado' : 'Job Confirmed'}</div>
+      <h1>${es ? '¡Ambas partes firmaron!' : 'Both parties signed!'}</h1>
+      <p>${es
+        ? `La Orden <span class="teal">${wo_number}</span> fue firmada por ambas partes. El trabajo está oficialmente confirmado y comenzará en la fecha acordada.`
+        : `Work Order <span class="teal">${wo_number}</span> has been signed by both parties. The job is officially confirmed and will begin on the scheduled date.`}</p>
+      <hr/>
+      <div class="info-box"><p>${es ? '👆 Puedes seguir el progreso de tu trabajo en la app ProVendor.' : '👆 You can track the progress of your job in the ProVendor app.'}</p></div>
+    `);
+    try { await sendEmail(clientEmail, subject, html); } catch (e) {
+      console.error('[send-email] wo_both_signed client', client_id, e);
+    }
+  }
+
+  if (providerEmail) {
+    const es = ((compProf.data ?? indProf.data)?.preferred_language ?? 'en') === 'es';
+    const provName = compProf.data?.company_name ?? indProf.data?.full_name ?? '';
+    const subject = es
+      ? `🎉 Trabajo Confirmado — Orden ${wo_number}`
+      : `🎉 Job Confirmed — Work Order ${wo_number}`;
+    const html = wrap(subject, `
+      <div class="badge">🎉 ${es ? 'Trabajo Confirmado' : 'Job Confirmed'}</div>
+      <h1>${es ? `¡Excelente${provName ? ` ${provName}` : ''}! El trabajo está confirmado` : `Great${provName ? ` ${provName}` : ''}! The job is confirmed`}</h1>
+      <p>${es
+        ? `La Orden <span class="teal">${wo_number}</span> fue firmada por ambas partes. Prepárate para comenzar el trabajo en la fecha acordada.`
+        : `Work Order <span class="teal">${wo_number}</span> has been signed by both parties. Get ready to start on the scheduled date.`}</p>
+      <hr/>
+      <div class="info-box"><p>${es ? '👆 Revisa los detalles del trabajo en tu app ProVendor.' : '👆 Review the job details in your ProVendor app.'}</p></div>
+    `);
+    try { await sendEmail(providerEmail, subject, html); } catch (e) {
+      console.error('[send-email] wo_both_signed provider', provider_id, e);
+    }
+  }
+}
+
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
 serve(async (req) => {
@@ -588,6 +753,9 @@ serve(async (req) => {
       case 'job_completed':    await handleJobCompleted(data);     return new Response(JSON.stringify({ ok: true }), { status: 200 });
       case 'job_started':      await handleJobStarted(data);       return new Response(JSON.stringify({ ok: true }), { status: 200 });
       case 'new_message':      await handleNewMessage(data);       return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_created':       await handleWOCreated(data);        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_client_signed': await handleWOClientSigned(data);   return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      case 'wo_both_signed':   await handleWOBothSigned(data);     return new Response(JSON.stringify({ ok: true }), { status: 200 });
       default:
         return new Response(JSON.stringify({ error: `Unknown type: ${type}` }), { status: 400 });
     }
