@@ -239,6 +239,9 @@ export default function JobDetail() {
             [es ? 'Duración estimada' : 'Duration', `${job.estimated_hours}h`],
             [es ? 'Código postal' : 'ZIP', job.zip || '—'],
             ...(((job as any).address) ? [[es ? 'Dirección' : 'Address', (job as any).address] as [string, string]] : []),
+            ...(job.bedrooms ? [[es ? 'Habitaciones' : 'Bedrooms', String(job.bedrooms)] as [string, string]] : []),
+            ...(job.bathrooms ? [[es ? 'Baños' : 'Bathrooms', String(job.bathrooms)] as [string, string]] : []),
+            ...(job.square_meters ? [[es ? 'Metros cuadrados' : 'Square meters', `${job.square_meters} m²`] as [string, string]] : []),
           ] as [string, string][]).map(([label, value], idx, arr) => (
             <View key={label} style={{
               flexDirection: 'row',

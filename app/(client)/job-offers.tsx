@@ -220,18 +220,47 @@ export default function JobOffers() {
                 ) : null}
 
                 {isAccepted && (
-                  <View style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    backgroundColor: `${C.success}15`,
-                    borderRadius: 10,
-                    padding: 12,
-                  }}>
-                    <Feather name="check-circle" size={15} color={C.success} style={{ marginRight: 8 }} />
-                    <Text style={{ color: C.success, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
-                      {es ? 'Oferta aceptada' : 'Bid accepted'}
-                    </Text>
-                  </View>
+                  <>
+                    <View style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      backgroundColor: `${C.success}15`,
+                      borderRadius: 10,
+                      padding: 12,
+                      marginBottom: job?.address || job?.city ? 10 : 0,
+                    }}>
+                      <Feather name="check-circle" size={15} color={C.success} style={{ marginRight: 8 }} />
+                      <Text style={{ color: C.success, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                        {es ? 'Oferta aceptada' : 'Bid accepted'}
+                      </Text>
+                    </View>
+
+                    {/* Service address — shown to client after accepting so they can coordinate */}
+                    {(job?.address || job?.city) && (
+                      <View style={{
+                        backgroundColor: C.surface2,
+                        borderRadius: 10,
+                        padding: 12,
+                        borderWidth: 1,
+                        borderColor: C.line,
+                      }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                          <Feather name="map-pin" size={13} color={C.accent} style={{ marginRight: 6 }} />
+                          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                            {es ? 'Dirección del servicio' : 'Service address'}
+                          </Text>
+                        </View>
+                        {job?.address ? (
+                          <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginBottom: 2 }}>
+                            {job.address}
+                          </Text>
+                        ) : null}
+                        <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
+                          {[job?.city, job?.state, job?.zip].filter(Boolean).join(', ')}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
 
                 {canAccept && (

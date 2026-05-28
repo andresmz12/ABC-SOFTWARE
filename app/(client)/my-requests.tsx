@@ -95,6 +95,9 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
   const [editState, setEditState] = useState('');
   const [editCity, setEditCity] = useState('');
   const [saving, setSaving] = useState(false);
+  const [editBedrooms, setEditBedrooms] = useState('');
+  const [editBathrooms, setEditBathrooms] = useState('');
+  const [editSquareMeters, setEditSquareMeters] = useState('');
 
   useEffect(() => {
     if (!job || !visible) return;
@@ -103,6 +106,9 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
     setDescription(job.description ?? '');
     setEditState(job.state ?? '');
     setEditCity(job.city ?? '');
+    setEditBedrooms(job.bedrooms ? String(job.bedrooms) : '');
+    setEditBathrooms(job.bathrooms ? String(job.bathrooms) : '');
+    setEditSquareMeters(job.square_meters ? String(job.square_meters) : '');
     setScheduledDate(job.scheduled_date ? isoDateToDisplay(job.scheduled_date) : '');
     if (job.scheduled_time) {
       const parsed = isoTimeToDisplay(job.scheduled_time);
@@ -178,6 +184,16 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
         updateData.budget_usd = budgetNum;
         updateData.budget_cop = null;
       }
+      // Property details (residential only) — null clears the value
+      if (job.service_type === 'residential') {
+        const bedsNum = parseInt(editBedrooms, 10);
+        const bathsNum = parseFloat(editBathrooms);
+        updateData.bedrooms = (!isNaN(bedsNum) && bedsNum > 0) ? bedsNum : null;
+        updateData.bathrooms = (!isNaN(bathsNum) && bathsNum > 0) ? bathsNum : null;
+      }
+      const sqm = parseFloat(editSquareMeters.replace(/[^0-9.]/g, ''));
+      updateData.square_meters = (!isNaN(sqm) && sqm > 0) ? sqm : null;
+
       const { error } = await supabase.from('job_requests').update(updateData).eq('id', job.id);
       if (error) throw error;
       onSaved();
@@ -275,6 +291,51 @@ function EditModal({ job, visible, es, isColombia, onClose, onSaved }: EditModal
               onStateChange={(s) => { setEditState(s); setEditCity(''); }}
               onCityChange={(c) => setEditCity(c)}
               es={es}
+            />
+
+            {/* Property details */}
+            {job?.service_type === 'residential' && (
+              <>
+                <Text style={{ color: C.textSecondary, fontSize: 11, fontFamily: 'Inter_600SemiBold', textTransform: 'uppercase', letterSpacing: 1, marginTop: 12, marginBottom: 8 }}>
+                  {es ? 'Detalles (opcional)' : 'Details (optional)'}
+                </Text>
+                <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 6 }}>
+                  {es ? 'Habitaciones' : 'Bedrooms'}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {['1', '2', '3', '4', '5', '6+'].map((n) => {
+                    const active = editBedrooms === n;
+                    return (
+                      <TouchableOpacity key={n} onPress={() => setEditBedrooms(active ? '' : n)}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: active ? C.accent : C.line, backgroundColor: active ? '#E0F7FA' : C.surface, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 13, fontFamily: active ? 'Inter_700Bold' : 'Inter_400Regular', color: active ? C.accent : C.textSecondary }}>{n}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+                <Text style={{ color: C.textSecondary, fontSize: 12, fontFamily: 'Inter_500Medium', marginBottom: 6 }}>
+                  {es ? 'Baños' : 'Bathrooms'}
+                </Text>
+                <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+                  {['1', '1.5', '2', '2.5', '3', '3+'].map((n) => {
+                    const active = editBathrooms === n;
+                    return (
+                      <TouchableOpacity key={n} onPress={() => setEditBathrooms(active ? '' : n)}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: 10, borderWidth: 1.5, borderColor: active ? C.accent : C.line, backgroundColor: active ? '#E0F7FA' : C.surface, alignItems: 'center' }}>
+                        <Text style={{ fontSize: 13, fontFamily: active ? 'Inter_700Bold' : 'Inter_400Regular', color: active ? C.accent : C.textSecondary }}>{n}</Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              </>
+            )}
+            <Input
+              label={es ? 'Metros cuadrados m² (opcional)' : 'Square meters m² (optional)'}
+              placeholder={es ? 'Ej: 85' : 'e.g. 85'}
+              value={editSquareMeters}
+              onChangeText={setEditSquareMeters}
+              keyboardType="decimal-pad"
+              iconName="maximize"
             />
 
             <View style={{ flexDirection: 'row', gap: 12, marginTop: 8 }}>

@@ -11,6 +11,7 @@ export default function ProviderLayout() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [unread, setUnread] = useState(0);
+  const [notifUnread, setNotifUnread] = useState(0);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -35,6 +36,29 @@ export default function ProviderLayout() {
       .channel(`provider-support-badge:${user.id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, fetchUnread)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, fetchUnread)
+      .subscribe();
+
+    return () => { supabase.removeChannel(ch); };
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const fetchNotifUnread = async () => {
+      const { count } = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('read', false);
+      setNotifUnread(count ?? 0);
+    };
+
+    fetchNotifUnread();
+
+    const ch = supabase
+      .channel(`provider-notif-badge:${user.id}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, fetchNotifUnread)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${user.id}` }, fetchNotifUnread)
       .subscribe();
 
     return () => { supabase.removeChannel(ch); };
@@ -84,7 +108,15 @@ export default function ProviderLayout() {
         }}
       />
       <Tabs.Screen name="profile"       options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"          focused={focused} /> }} />
-      <Tabs.Screen name="notifications" options={{ title: 'Alerts',    tabBarIcon: ({ focused }) => <TabIcon name="bell"          focused={focused} /> }} />
+      <Tabs.Screen
+        name="notifications"
+        options={{
+          title: 'Alerts',
+          tabBarIcon: ({ focused }) => <TabIcon name="bell" focused={focused} />,
+          tabBarBadge: notifUnread > 0 ? notifUnread : undefined,
+          tabBarBadgeStyle: { backgroundColor: C.danger, fontSize: 10, minWidth: 18, height: 18, borderRadius: 9 },
+        }}
+      />
       <Tabs.Screen name="job-detail"    options={{ href: null }} />
     </Tabs>
   );
