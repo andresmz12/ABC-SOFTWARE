@@ -625,41 +625,43 @@ export default function PostJob() {
               </Text>
             </View>
           ) : (
-          <Input
-            label={es ? 'Fecha (MM/DD/AAAA)' : 'Date (MM/DD/YYYY)'}
-            placeholder="MM/DD/YYYY"
-            value={scheduledDate}
-            onChangeText={(v) => { setScheduledDate(formatDateInput(v)); setDateError(''); }}
-            keyboardType="numeric"
-            maxLength={10}
-            iconName="calendar"
-            error={dateError || undefined}
-          />
-          <Input
-            label={es ? 'Hora' : 'Time'}
-            placeholder="HH:MM"
-            value={scheduledTime}
-            onChangeText={(v) => { setScheduledTime(formatTimeInput(v)); setTimeError(''); }}
-            keyboardType="numeric"
-            maxLength={5}
-            iconName="clock"
-            error={timeError || undefined}
-            rightElement={
-              <View style={{ flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: C.line }}>
-                {(['AM', 'PM'] as const).map((period) => (
-                  <TouchableOpacity
-                    key={period}
-                    onPress={() => setAmpm(period)}
-                    style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: ampm === period ? C.accent : 'transparent' }}
-                  >
-                    <Text style={{ color: ampm === period ? '#000' : C.textSecondary, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
-                      {period}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            }
-          />
+          <View>
+            <Input
+              label={es ? 'Fecha (MM/DD/AAAA)' : 'Date (MM/DD/YYYY)'}
+              placeholder="MM/DD/YYYY"
+              value={scheduledDate}
+              onChangeText={(v) => { setScheduledDate(formatDateInput(v)); setDateError(''); }}
+              keyboardType="numeric"
+              maxLength={10}
+              iconName="calendar"
+              error={dateError || undefined}
+            />
+            <Input
+              label={es ? 'Hora' : 'Time'}
+              placeholder="HH:MM"
+              value={scheduledTime}
+              onChangeText={(v) => { setScheduledTime(formatTimeInput(v)); setTimeError(''); }}
+              keyboardType="numeric"
+              maxLength={5}
+              iconName="clock"
+              error={timeError || undefined}
+              rightElement={
+                <View style={{ flexDirection: 'row', borderRadius: 8, overflow: 'hidden', borderWidth: 1, borderColor: C.line }}>
+                  {(['AM', 'PM'] as const).map((period) => (
+                    <TouchableOpacity
+                      key={period}
+                      onPress={() => setAmpm(period)}
+                      style={{ paddingHorizontal: 10, paddingVertical: 6, backgroundColor: ampm === period ? C.accent : 'transparent' }}
+                    >
+                      <Text style={{ color: ampm === period ? '#000' : C.textSecondary, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                        {period}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              }
+            />
+          </View>
           )}
 
           <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
