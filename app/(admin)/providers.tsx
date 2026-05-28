@@ -9,8 +9,8 @@ import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 import { updateProviderStatus } from '@/lib/userUtils';
 
-type Filter = 'all' | 'pending' | 'approved' | 'rejected';
-type ProviderStatus = 'pending' | 'approved' | 'rejected';
+type Filter = 'all' | 'pending' | 'approved' | 'rejected' | 'suspended';
+type ProviderStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 interface ProviderRow {
   id: string;
@@ -24,17 +24,19 @@ interface ProviderRow {
 }
 
 const FILTERS: { key: Filter; labelEn: string; labelEs: string }[] = [
-  { key: 'all',      labelEn: 'All',      labelEs: 'Todos' },
-  { key: 'pending',  labelEn: 'Pending',  labelEs: 'Pendientes' },
-  { key: 'approved', labelEn: 'Approved', labelEs: 'Aprobados' },
-  { key: 'rejected', labelEn: 'Rejected', labelEs: 'Rechazados' },
+  { key: 'all',       labelEn: 'All',       labelEs: 'Todos' },
+  { key: 'pending',   labelEn: 'Pending',   labelEs: 'Pendientes' },
+  { key: 'approved',  labelEn: 'Approved',  labelEs: 'Aprobados' },
+  { key: 'rejected',  labelEn: 'Rejected',  labelEs: 'Rechazados' },
+  { key: 'suspended', labelEn: 'Suspended', labelEs: 'Suspendidos' },
 ];
 
 function buildStatusColors(es: boolean): Record<ProviderStatus, { bg: string; text: string; label: string }> {
   return {
-    pending:  { bg: `${C.warning}20`,  text: C.warning,  label: es ? 'PENDIENTE' : 'PENDING' },
-    approved: { bg: `${C.success}20`,  text: C.success,  label: es ? 'APROBADO'  : 'APPROVED' },
-    rejected: { bg: `${C.danger}20`,   text: C.danger,   label: es ? 'RECHAZADO' : 'REJECTED' },
+    pending:   { bg: `${C.warning}20`,  text: C.warning,        label: es ? 'PENDIENTE'  : 'PENDING' },
+    approved:  { bg: `${C.success}20`,  text: C.success,        label: es ? 'APROBADO'   : 'APPROVED' },
+    rejected:  { bg: `${C.danger}20`,   text: C.danger,         label: es ? 'RECHAZADO'  : 'REJECTED' },
+    suspended: { bg: `${C.line}`,       text: C.textSecondary,  label: es ? 'SUSPENDIDO' : 'SUSPENDED' },
   };
 }
 
@@ -271,7 +273,7 @@ export default function AdminProviders() {
       ) : filtered.length === 0 ? (
         <EmptyState
           title={es
-            ? filter === 'all' ? 'Aún no hay proveedores' : `Sin proveedores ${filter === 'pending' ? 'pendientes' : filter === 'approved' ? 'aprobados' : 'rechazados'}`
+            ? filter === 'all' ? 'Aún no hay proveedores' : `Sin proveedores ${filter === 'pending' ? 'pendientes' : filter === 'approved' ? 'aprobados' : filter === 'suspended' ? 'suspendidos' : 'rechazados'}`
             : filter === 'all' ? 'No providers yet' : `No ${filter} providers`}
           subtitle={es ? 'Las solicitudes aparecerán aquí cuando se registren.' : 'Provider applications will appear here once they register.'}
           iconName="users"

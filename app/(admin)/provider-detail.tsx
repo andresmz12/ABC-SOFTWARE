@@ -325,7 +325,10 @@ export default function ProviderDetail() {
                     <View style={{ flexDirection: 'row', gap: 8, marginBottom: doc.status === 'pending' ? 8 : 0 }}>
                       {doc.file_url ? (
                         <TouchableOpacity
-                          onPress={() => Linking.openURL(doc.file_url!).catch(() => Alert.alert('Error', es ? 'No se pudo abrir el documento.' : 'Could not open document.'))}
+                          onPress={() => {
+                            const { data } = supabase.storage.from('documents').getPublicUrl(doc.file_url!);
+                            Linking.openURL(data.publicUrl).catch(() => Alert.alert('Error', es ? 'No se pudo abrir el documento.' : 'Could not open document.'));
+                          }}
                           style={{ flex: 1, height: 32, backgroundColor: `${C.accent}15`, borderWidth: 1, borderColor: `${C.accent}40`, borderRadius: 8, alignItems: 'center', justifyContent: 'center', flexDirection: 'row' }}
                           activeOpacity={0.85}
                         >

@@ -116,6 +116,7 @@ export interface JobRequest {
   bedrooms?: number | null;
   bathrooms?: number | null;
   square_meters?: number | null;
+  is_emergency?: boolean | null;
   start_photo_url?: string | null;
   completion_photo_url?: string | null;
   started_at?: string | null;

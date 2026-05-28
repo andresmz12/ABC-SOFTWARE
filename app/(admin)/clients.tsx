@@ -61,7 +61,7 @@ export default function AdminClients() {
         id: r.user_id,
         name: r.full_name ?? '',
         country: r.country ?? 'usa',
-        status: r.status ?? 'pending',
+        status: r.status ?? 'approved',
         created_at: r.created_at ?? '',
       })));
     } catch (e: any) {

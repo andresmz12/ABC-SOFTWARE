@@ -63,9 +63,13 @@ export default function ProviderJobs() {
     ? { all: 'Todos', commercial: 'Comercial', residential: 'Residencial' }
     : { all: 'All', commercial: 'Commercial', residential: 'Residential' };
 
-  const filtered = filter === 'all'
-    ? openJobs
-    : openJobs.filter((j) => j.service_type === filter);
+  const filtered = (filter === 'all' ? openJobs : openJobs.filter((j) => j.service_type === filter))
+    .slice()
+    .sort((a, b) => {
+      const aEmergency = (a as any).is_emergency ? 1 : 0;
+      const bEmergency = (b as any).is_emergency ? 1 : 0;
+      return bEmergency - aEmergency;
+    });
 
   const renderItem = useCallback(({ item }: { item: JobRequest }) => {
     const isApplied = appliedJobs.some((aj) => aj.id === item.id);

@@ -12,11 +12,15 @@ import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 
+type RoleFilter = 'all' | 'company' | 'independent' | 'client';
+type CountryFilter = 'all' | 'usa' | 'colombia';
+
 interface ChatItem {
   id: string;
   user_id: string;
   user_name: string;
   user_role: string;
+  user_country: string;
   last_message: string;
   last_message_at: string;
   unread_count: number;
@@ -40,6 +44,8 @@ export default function AdminChats() {
   const insets = useSafeAreaInsets();
   const [chats, setChats] = useState<ChatItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [countryFilter, setCountryFilter] = useState<CountryFilter>('all');
 
   const loadChats = useCallback(async () => {
     setLoading(true);
@@ -68,16 +74,16 @@ export default function AdminChats() {
       const companyIds = uniqueChats.filter((c) => c.user_type === 'company').map((c) => c.user_id);
       const indepIds  = uniqueChats.filter((c) => c.user_type === 'independent').map((c) => c.user_id);
 
-      // 3. Batch-fetch names from each profile table (only the IDs we need)
+      // 3. Batch-fetch names + country from each profile table (only the IDs we need)
       const [clientsRes, companiesRes, indepRes, messagesRes] = await Promise.all([
         clientIds.length
-          ? supabase.from('clients').select('user_id, full_name').in('user_id', clientIds)
+          ? supabase.from('clients').select('user_id, full_name, country').in('user_id', clientIds)
           : Promise.resolve({ data: [] as any[] }),
         companyIds.length
-          ? supabase.from('companies').select('user_id, company_name').in('user_id', companyIds)
+          ? supabase.from('companies').select('user_id, company_name, country').in('user_id', companyIds)
           : Promise.resolve({ data: [] as any[] }),
         indepIds.length
-          ? supabase.from('independents').select('user_id, full_name').in('user_id', indepIds)
+          ? supabase.from('independents').select('user_id, full_name, country').in('user_id', indepIds)
           : Promise.resolve({ data: [] as any[] }),
         supabase
           .from('messages')
@@ -86,11 +92,12 @@ export default function AdminChats() {
           .order('created_at', { ascending: false }),
       ]);
 
-      // 4. Build name map — keyed by user_id
+      // 4. Build name + country map — keyed by user_id
       const nameMap: Record<string, string> = {};
-      (clientsRes.data  ?? []).forEach((r: any) => { nameMap[r.user_id] = r.full_name   ?? ''; });
-      (companiesRes.data ?? []).forEach((r: any) => { nameMap[r.user_id] = r.company_name ?? ''; });
-      (indepRes.data    ?? []).forEach((r: any) => { nameMap[r.user_id] = r.full_name   ?? ''; });
+      const countryMap: Record<string, string> = {};
+      (clientsRes.data  ?? []).forEach((r: any) => { nameMap[r.user_id] = r.full_name   ?? ''; countryMap[r.user_id] = r.country ?? 'usa'; });
+      (companiesRes.data ?? []).forEach((r: any) => { nameMap[r.user_id] = r.company_name ?? ''; countryMap[r.user_id] = r.country ?? 'usa'; });
+      (indepRes.data    ?? []).forEach((r: any) => { nameMap[r.user_id] = r.full_name   ?? ''; countryMap[r.user_id] = r.country ?? 'usa'; });
 
       // 5. Build ChatItem list
       const allMsgs = (messagesRes.data ?? []) as any[];
@@ -103,9 +110,9 @@ export default function AdminChats() {
         return {
           id:              c.id,
           user_id:         c.user_id,
-          // Show real name; fall back to shortened UUID only when name is missing
           user_name:       name?.trim() || `ID: ${c.user_id.slice(0, 8)}…`,
           user_role:       c.user_type ?? 'client',
+          user_country:    countryMap[c.user_id] ?? 'usa',
           last_message:    last?.content ?? (es ? 'Sin mensajes aún' : 'No messages yet'),
           last_message_at: last?.created_at ?? c.created_at,
           unread_count:    unread,
@@ -211,6 +218,24 @@ export default function AdminChats() {
 
   const totalUnread = chats.reduce((s, c) => s + c.unread_count, 0);
 
+  const filteredChats = chats.filter((c) => {
+    if (roleFilter !== 'all' && c.user_role !== roleFilter) return false;
+    if (countryFilter !== 'all' && c.user_country !== countryFilter) return false;
+    return true;
+  });
+
+  const ROLE_FILTERS: { key: RoleFilter; labelEn: string; labelEs: string }[] = [
+    { key: 'all',         labelEn: 'All',            labelEs: 'Todos' },
+    { key: 'client',      labelEn: 'Clients',        labelEs: 'Clientes' },
+    { key: 'company',     labelEn: 'Companies',      labelEs: 'Empresas' },
+    { key: 'independent', labelEn: 'Independents',   labelEs: 'Independientes' },
+  ];
+  const COUNTRY_FILTERS: { key: CountryFilter; label: string }[] = [
+    { key: 'all',      label: 'All' },
+    { key: 'usa',      label: '🇺🇸 USA' },
+    { key: 'colombia', label: '🇨🇴 Colombia' },
+  ];
+
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
       <View style={{ paddingHorizontal: 20, paddingTop: insets.top + 16, paddingBottom: 16 }}>
@@ -248,25 +273,68 @@ export default function AdminChats() {
         </View>
       </View>
 
+      {/* Role filter chips */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20, marginBottom: 8 }}>
+        {ROLE_FILTERS.map((f) => {
+          const active = roleFilter === f.key;
+          const count = f.key === 'all' ? chats.length : chats.filter((c) => c.user_role === f.key).length;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setRoleFilter(f.key)}
+              style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 9999, backgroundColor: active ? C.accent2 : C.surface, borderWidth: 1, borderColor: active ? C.accent2 : C.line }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: active ? '#FFF' : C.textSecondary, fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {es ? f.labelEs : f.labelEn}{count > 0 ? ` (${count})` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Country sub-filter */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
+        {COUNTRY_FILTERS.map((f) => {
+          const active = countryFilter === f.key;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setCountryFilter(f.key)}
+              style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 9999, backgroundColor: active ? C.surface2 : 'transparent', borderWidth: 1, borderColor: active ? C.accent : C.line }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: active ? C.accent : C.textMuted, fontSize: 12, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={C.accent} />
         </View>
-      ) : chats.length === 0 ? (
+      ) : filteredChats.length === 0 ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
           <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: `${C.accent}12`, alignItems: 'center', justifyContent: 'center', marginBottom: 20 }}>
             <Feather name="message-square" size={30} color={C.accent} />
           </View>
           <Text style={{ color: C.textSecondary, fontSize: 16, fontFamily: 'Inter_600SemiBold', textAlign: 'center', marginBottom: 8 }}>
-            {es ? 'Sin conversaciones aún' : 'No conversations yet'}
+            {chats.length === 0
+              ? (es ? 'Sin conversaciones aún' : 'No conversations yet')
+              : (es ? 'Sin resultados para este filtro' : 'No results for this filter')}
           </Text>
           <Text style={{ color: C.textMuted, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', lineHeight: 20 }}>
-            {es ? 'Los usuarios iniciarán conversaciones desde la app.' : 'Users will start conversations from the app.'}
+            {chats.length === 0
+              ? (es ? 'Los usuarios iniciarán conversaciones desde la app.' : 'Users will start conversations from the app.')
+              : (es ? 'Prueba con otro filtro.' : 'Try a different filter.')}
           </Text>
         </View>
       ) : (
         <FlatList
-          data={chats}
+          data={filteredChats}
           keyExtractor={(item) => item.id}
           renderItem={renderItem}
           contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 32 }}

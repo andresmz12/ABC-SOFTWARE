@@ -116,6 +116,8 @@ export default function PostJob() {
   const [bedrooms, setBedrooms] = useState<string>('');
   const [bathrooms, setBathrooms] = useState<string>('');
   const [squareMeters, setSquareMeters] = useState<string>('');
+  // Emergency mode
+  const [isEmergency, setIsEmergency] = useState(false);
 
   // Block if client is not yet approved
   if (user?.status !== 'approved') {
@@ -166,37 +168,48 @@ export default function PostJob() {
   const onSubmit = async (data: FormData) => {
     if (!user) return;
 
-    const isoDate = parseDateInput(scheduledDate);
-    const isoTime = parseTimeInput(scheduledTime, ampm);
+    let isoDate: string | null = null;
+    let isoTime: string | null = null;
 
-    let hasError = false;
-    if (!isoDate) {
-      setDateError(es ? 'Formato inválido. Usa MM/DD/AAAA' : 'Invalid format. Use MM/DD/YYYY');
-      hasError = true;
+    if (isEmergency) {
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      isoDate = `${yyyy}-${mm}-${dd}`;
+      isoTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}:00`;
     } else {
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      if (new Date(isoDate + 'T12:00:00') < today) {
-        setDateError(es ? 'La fecha no puede ser en el pasado.' : 'Date cannot be in the past.');
+      isoDate = parseDateInput(scheduledDate);
+      isoTime = parseTimeInput(scheduledTime, ampm);
+
+      let hasError = false;
+      if (!isoDate) {
+        setDateError(es ? 'Formato inválido. Usa MM/DD/AAAA' : 'Invalid format. Use MM/DD/YYYY');
         hasError = true;
       } else {
-        setDateError('');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (new Date(isoDate + 'T12:00:00') < today) {
+          setDateError(es ? 'La fecha no puede ser en el pasado.' : 'Date cannot be in the past.');
+          hasError = true;
+        } else {
+          setDateError('');
+        }
       }
-    }
-    if (!isoTime) {
-      setTimeError(es ? 'Formato inválido. Usa HH:MM' : 'Invalid format. Use HH:MM');
-      hasError = true;
-    } else {
-      setTimeError('');
-    }
-    if (hasError) return;
+      if (!isoTime) {
+        setTimeError(es ? 'Formato inválido. Usa HH:MM' : 'Invalid format. Use HH:MM');
+        hasError = true;
+      } else {
+        setTimeError('');
+      }
+      if (hasError) return;
 
-    // If date is today, check that the combined datetime is still in the future
-    if (isoDate && isoTime) {
-      const scheduledDT = new Date(`${isoDate}T${isoTime}`);
-      if (scheduledDT <= new Date()) {
-        setTimeError(es ? 'La hora seleccionada ya pasó.' : 'The selected time has already passed.');
-        return;
+      if (isoDate && isoTime) {
+        const scheduledDT = new Date(`${isoDate}T${isoTime}`);
+        if (scheduledDT <= new Date()) {
+          setTimeError(es ? 'La hora seleccionada ya pasó.' : 'The selected time has already passed.');
+          return;
+        }
       }
     }
 
@@ -226,6 +239,7 @@ export default function PostJob() {
         description: data.description ?? null,
         status: 'open',
         photos: photos.length > 0 ? photos : null,
+        is_emergency: isEmergency,
       };
 
       if (isColombia) {
@@ -283,6 +297,7 @@ export default function PostJob() {
             setBedrooms('');
             setBathrooms('');
             setSquareMeters('');
+            setIsEmergency(false);
             router.replace('/(client)/my-requests' as any);
           },
         }],
@@ -341,6 +356,46 @@ export default function PostJob() {
               );
             })}
           </View>
+
+          {/* Emergency toggle */}
+          <TouchableOpacity
+            onPress={() => setIsEmergency((v) => !v)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              backgroundColor: isEmergency ? '#FEE2E2' : C.surface,
+              borderRadius: 14,
+              padding: 16,
+              marginBottom: 20,
+              borderWidth: 1.5,
+              borderColor: isEmergency ? '#EF4444' : C.line,
+            }}
+            activeOpacity={0.85}
+          >
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={{ color: isEmergency ? '#DC2626' : C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>
+                🚨 {es ? 'Trabajo de Emergencia' : 'Emergency Job'}
+              </Text>
+              <Text style={{ color: isEmergency ? '#DC2626' : C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
+                {es
+                  ? 'Se agendará para hoy ahora mismo y aparecerá primero para los proveedores.'
+                  : 'Will be scheduled for right now and shown first to providers.'}
+              </Text>
+            </View>
+            <View style={{
+              width: 50, height: 28, borderRadius: 14,
+              backgroundColor: isEmergency ? '#EF4444' : C.surface2,
+              borderWidth: 1, borderColor: isEmergency ? '#EF4444' : C.line,
+              justifyContent: 'center', paddingHorizontal: 3,
+            }}>
+              <View style={{
+                width: 22, height: 22, borderRadius: 11,
+                backgroundColor: '#FFFFFF',
+                alignSelf: isEmergency ? 'flex-end' : 'flex-start',
+              }} />
+            </View>
+          </TouchableOpacity>
 
           {/* Residential property details (optional) */}
           {serviceType === 'residential' && (
@@ -561,7 +616,15 @@ export default function PostJob() {
           )} />
 
           {/* Schedule */}
-          <SectionLabel text={es ? 'Fecha y Hora' : 'Schedule'} />
+          {!isEmergency && <SectionLabel text={es ? 'Fecha y Hora' : 'Schedule'} />}
+          {isEmergency ? (
+            <View style={{ backgroundColor: '#FEF3C7', borderRadius: 12, padding: 14, marginBottom: 20, flexDirection: 'row', alignItems: 'center' }}>
+              <Feather name="clock" size={16} color={C.warning} style={{ marginRight: 10 }} />
+              <Text style={{ color: '#92400E', fontSize: 13, fontFamily: 'Inter_400Regular', flex: 1 }}>
+                {es ? 'La fecha y hora se establecerán automáticamente a ahora mismo.' : 'Date and time will be set automatically to right now.'}
+              </Text>
+            </View>
+          ) : (
           <Input
             label={es ? 'Fecha (MM/DD/AAAA)' : 'Date (MM/DD/YYYY)'}
             placeholder="MM/DD/YYYY"
@@ -597,6 +660,7 @@ export default function PostJob() {
               </View>
             }
           />
+          )}
 
           <Controller control={control} name="estimatedHours" render={({ field: { onChange, value } }) => (
             <Input

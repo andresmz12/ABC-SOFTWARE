@@ -77,6 +77,19 @@ const JobCard = React.memo(function JobCard({ job, onPress, applied }: Props) {
       }}
     >
       <View style={{ padding: 16 }}>
+        {(job as any).is_emergency && (
+          <View style={{
+            flexDirection: 'row', alignItems: 'center',
+            backgroundColor: '#FEE2E2', borderRadius: 8,
+            paddingHorizontal: 10, paddingVertical: 5,
+            marginBottom: 10, alignSelf: 'flex-start',
+            borderWidth: 1, borderColor: '#EF4444',
+          }}>
+            <Text style={{ fontSize: 13, color: '#DC2626', fontFamily: 'Inter_700Bold', letterSpacing: 0.3 }}>
+              🚨 {es ? 'URGENTE' : 'URGENT'}
+            </Text>
+          </View>
+        )}
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
           <Text
             style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', flex: 1, marginRight: 8 }}
