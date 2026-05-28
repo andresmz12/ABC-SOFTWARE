@@ -4,6 +4,9 @@ import type { JobRequest, JobApplication, Country } from '@/types';
 
 interface JobState {
   openJobs: JobRequest[];
+  openJobsHasMore: boolean;
+  openJobsDbOffset: number;
+  loadingMore: boolean;
   myApplications: JobApplication[];
   appliedJobs: JobRequest[];
   activeJobs: JobRequest[];
@@ -18,11 +21,15 @@ interface JobState {
   addJob: (job: JobRequest) => void;
   updateJobStatus: (jobId: string, status: JobRequest['status']) => void;
   fetchOpenJobs: (country: Country, providerId?: string, providerRole?: 'company' | 'independent') => Promise<void>;
+  loadMoreOpenJobs: (country: Country, providerId: string, providerRole: 'company' | 'independent') => Promise<void>;
   fetchMyJobs: (providerId: string) => Promise<void>;
 }
 
-export const useJobStore = create<JobState>((set) => ({
+export const useJobStore = create<JobState>((set, get) => ({
   openJobs: [],
+  openJobsHasMore: false,
+  openJobsDbOffset: 0,
+  loadingMore: false,
   myApplications: [],
   appliedJobs: [],
   activeJobs: [],
@@ -40,17 +47,42 @@ export const useJobStore = create<JobState>((set) => ({
       openJobs: state.openJobs.map((j) => (j.id === jobId ? { ...j, status } : j)),
     })),
   fetchOpenJobs: async (country, providerId, providerRole) => {
-    set({ loading: true });
+    set({ loading: true, openJobsDbOffset: 0, openJobsHasMore: false });
     try {
-      const jobs = (providerId && providerRole)
-        ? await fetchOpenJobsForProvider(providerId, providerRole, country)
-        : await fetchOpenJobs(country);
-      set({ openJobs: jobs });
+      if (providerId && providerRole) {
+        const { jobs, hasMore } = await fetchOpenJobsForProvider(providerId, providerRole, country, 0);
+        set({ openJobs: jobs, openJobsHasMore: hasMore, openJobsDbOffset: 25 });
+      } else {
+        const jobs = await fetchOpenJobs(country);
+        set({ openJobs: jobs, openJobsHasMore: false });
+      }
     } catch (e: any) {
       console.error('[jobStore] fetchOpenJobs failed:', e?.message ?? e);
-      set({ openJobs: [] });
+      set({ openJobs: [], openJobsHasMore: false });
     } finally {
       set({ loading: false });
+    }
+  },
+  loadMoreOpenJobs: async (country, providerId, providerRole) => {
+    const { openJobs, openJobsDbOffset, loadingMore } = get();
+    if (loadingMore) return;
+    set({ loadingMore: true });
+    try {
+      const { jobs: newJobs, hasMore } = await fetchOpenJobsForProvider(
+        providerId, providerRole, country, openJobsDbOffset,
+      );
+      // Deduplicate by id before appending
+      const existingIds = new Set(openJobs.map((j) => j.id));
+      const fresh = newJobs.filter((j) => !existingIds.has(j.id));
+      set({
+        openJobs: [...openJobs, ...fresh],
+        openJobsHasMore: hasMore,
+        openJobsDbOffset: openJobsDbOffset + 25,
+      });
+    } catch (e: any) {
+      console.error('[jobStore] loadMoreOpenJobs failed:', e?.message ?? e);
+    } finally {
+      set({ loadingMore: false });
     }
   },
   fetchMyJobs: async (providerId) => {

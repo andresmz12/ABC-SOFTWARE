@@ -15,11 +15,14 @@ export async function fetchOpenJobs(country: Country): Promise<JobRequest[]> {
   return data ?? [];
 }
 
+const PAGE_SIZE = 25;
+
 export async function fetchOpenJobsForProvider(
   providerId: string,
   providerRole: 'company' | 'independent',
   country: Country,
-): Promise<JobRequest[]> {
+  offset = 0,
+): Promise<{ jobs: JobRequest[]; hasMore: boolean }> {
   const profileTable = providerRole === 'company' ? 'companies' : 'independents';
   const [areasRes, profileRes] = await Promise.all([
     // Select the `state` column (= department in Colombia, state in USA).
@@ -35,17 +38,18 @@ export async function fetchOpenJobsForProvider(
   const departments = [...new Set((areasRes.data ?? []).map((a: any) => a.state as string).filter(Boolean))];
 
   // No service areas configured → show nothing until the provider sets them up.
-  if (departments.length === 0) return [];
+  if (departments.length === 0) return { jobs: [], hasMore: false };
 
   const providerServiceType = (profileRes.data as any)?.service_type ?? 'both';
 
+  // Fetch PAGE_SIZE + 1 to detect whether a next page exists.
   let query = supabase
     .from('job_requests')
     .select('*')
     .eq('status', 'open')
     .eq('country', country)
     .order('created_at', { ascending: false })
-    .limit(50);
+    .range(offset, offset + PAGE_SIZE);
 
   if (providerRole === 'independent') {
     query = query.eq('service_type', 'residential');
@@ -61,8 +65,12 @@ export async function fetchOpenJobsForProvider(
     throw error;
   }
 
-  const jobs = data ?? [];
-  if (jobs.length === 0) return jobs;
+  const rawRows = data ?? [];
+  // PAGE_SIZE+1 means more rows exist beyond this page; trim to PAGE_SIZE.
+  const hasMore = rawRows.length > PAGE_SIZE;
+  const jobs = hasMore ? rawRows.slice(0, PAGE_SIZE) : rawRows;
+
+  if (jobs.length === 0) return { jobs: [], hasMore };
 
   // Feed visibility rule: show a job to a provider if either:
   //   (a) the provider has already applied (they can see their "Applied" badge), OR
@@ -81,9 +89,10 @@ export async function fetchOpenJobsForProvider(
     (allApps ?? []).filter((a) => a.provider_id !== providerId).map((a) => a.job_request_id),
   );
 
-  return jobs.filter((job) =>
-    myAppliedJobIds.has(job.id) || !jobsWithOtherApplicants.has(job.id),
-  );
+  return {
+    jobs: jobs.filter((job) => myAppliedJobIds.has(job.id) || !jobsWithOtherApplicants.has(job.id)),
+    hasMore,
+  };
 }
 
 export interface BidWithProvider {
@@ -341,6 +350,17 @@ export async function applyToJob({
   currency: 'usd' | 'cop';
   message?: string;
 }): Promise<JobApplication> {
+  // Verify provider account is approved before allowing bid submission
+  const profileTable = providerType === 'company' ? 'companies' : 'independents';
+  const { data: profile } = await supabase
+    .from(profileTable)
+    .select('status')
+    .eq('user_id', providerId)
+    .maybeSingle();
+  if (!profile || profile.status !== 'approved') {
+    throw new Error('Your account must be approved before applying to jobs.');
+  }
+
   const { data, error } = await supabase
     .from('job_applications')
     .insert({

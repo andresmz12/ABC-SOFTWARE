@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
+import { View, Text, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/authStore';
 import { useJobStore } from '@/store/jobStore';
 import EmptyState from '@/components/ui/EmptyState';
 import { SkeletonList } from '@/components/ui/Skeleton';
+import { supabase } from '@/lib/supabase';
 import { C } from '@/constants/theme';
 
 export default function ProviderHome() {
@@ -16,7 +17,10 @@ export default function ProviderHome() {
   const es = lang === 'es';
   const router = useRouter();
   const { user, refreshProfile } = useAuthStore(useShallow((s) => ({ user: s.user, refreshProfile: s.refreshProfile })));
-  const { openJobs, loading, fetchOpenJobs, appliedJobs, activeJobs, fetchMyJobs } = useJobStore(
+  const {
+    openJobs, loading, fetchOpenJobs, appliedJobs, activeJobs, fetchMyJobs,
+    openJobsHasMore, loadingMore, loadMoreOpenJobs,
+  } = useJobStore(
     useShallow((s) => ({
       openJobs: s.openJobs,
       loading: s.loading,
@@ -24,11 +28,15 @@ export default function ProviderHome() {
       appliedJobs: s.appliedJobs,
       activeJobs: s.activeJobs,
       fetchMyJobs: s.fetchMyJobs,
+      openJobsHasMore: s.openJobsHasMore,
+      loadingMore: s.loadingMore,
+      loadMoreOpenJobs: s.loadMoreOpenJobs,
     })),
   );
   const isPending = user?.status === 'pending';
   const isColombia = user?.country === 'colombia';
   const [refreshing, setRefreshing] = useState(false);
+  const [hasServiceAreas, setHasServiceAreas] = useState<boolean | null>(null);
 
   // Re-check approval status each time the screen comes into focus while pending
   useFocusEffect(useCallback(() => {
@@ -50,6 +58,16 @@ export default function ProviderHome() {
   };
 
   useEffect(() => { loadAll(); }, [user?.id, user?.country, isPending]);
+
+  // Check if provider has configured service areas (for onboarding banner)
+  useEffect(() => {
+    if (!user?.id || isPending) return;
+    supabase
+      .from('service_areas')
+      .select('provider_id', { count: 'exact', head: true })
+      .eq('provider_id', user.id)
+      .then(({ count }) => setHasServiceAreas((count ?? 0) > 0));
+  }, [user?.id, isPending]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -143,6 +161,39 @@ export default function ProviderHome() {
               </View>
             )}
 
+            {/* Onboarding banner — shown when approved but no service areas configured */}
+            {!isPending && hasServiceAreas === false && (
+              <View style={{
+                backgroundColor: '#FFF7ED',
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 16,
+                borderWidth: 1,
+                borderColor: '#F59E0B',
+              }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+                  <Feather name="map" size={16} color="#D97706" style={{ marginRight: 8 }} />
+                  <Text style={{ color: '#92400E', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Configura tu área de servicio' : 'Set up your service area'}
+                  </Text>
+                </View>
+                <Text style={{ color: '#92400E', fontSize: 13, fontFamily: 'Inter_400Regular', lineHeight: 19, marginBottom: 12 }}>
+                  {es
+                    ? 'Para ver trabajos disponibles, configura los estados donde ofreces tu servicio desde tu perfil.'
+                    : 'To see available jobs, configure the states where you offer your service from your profile.'}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => router.push('/(provider)/profile' as any)}
+                  style={{ backgroundColor: '#F59E0B', borderRadius: 10, paddingVertical: 10, alignItems: 'center' }}
+                  activeOpacity={0.85}
+                >
+                  <Text style={{ color: '#FFF', fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Ir a Perfil' : 'Go to Profile'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             {!isPending && openJobs.length > 0 && (
               <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16 }}>
                 <Feather name="map-pin" size={12} color={C.textMuted} style={{ marginRight: 4 }} />
@@ -168,6 +219,35 @@ export default function ProviderHome() {
         }
         ListFooterComponent={
           <View style={{ paddingHorizontal: 16, paddingBottom: 32 }}>
+            {/* Load more button */}
+            {!isPending && openJobsHasMore && (
+              <TouchableOpacity
+                onPress={() => {
+                  if (!user?.id || !user?.country) return;
+                  loadMoreOpenJobs(user.country, user.id, user.role as 'company' | 'independent');
+                }}
+                disabled={loadingMore}
+                style={{
+                  height: 46,
+                  borderRadius: 12,
+                  borderWidth: 1,
+                  borderColor: C.accent,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: 12,
+                  opacity: loadingMore ? 0.6 : 1,
+                }}
+                activeOpacity={0.8}
+              >
+                {loadingMore ? (
+                  <ActivityIndicator size="small" color={C.accent} />
+                ) : (
+                  <Text style={{ color: C.accent, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Cargar más trabajos' : 'Load more jobs'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               onPress={() => router.push('/(shared)/chat' as any)}
               style={{

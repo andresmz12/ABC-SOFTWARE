@@ -106,6 +106,23 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
         .eq('id', job.id);
       if (error) throw error;
 
+      // Notify client that work has started (fire-and-forget)
+      if (job.client_id) {
+        const cityEn = job.city ? ` in ${job.city}` : '';
+        const cityEs = job.city ? ` en ${job.city}` : '';
+        const svcEn = job.service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning';
+        const svcEs = job.service_type === 'commercial' ? 'Limpieza Comercial' : 'Limpieza Residencial';
+        supabase.from('notifications').insert({
+          user_id: job.client_id,
+          title_en: 'Work Has Started',
+          title_es: 'El Trabajo Comenzó',
+          body_en: `Your provider has started the ${svcEn}${cityEn}.`,
+          body_es: `Tu proveedor ha iniciado la ${svcEs}${cityEs}.`,
+          type: 'job_started',
+          data: { job_id: job.id },
+        }).then(() => {});
+      }
+
       setPhoto(null);
       onStarted();
       onClose();
@@ -266,6 +283,23 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
         })
         .eq('id', job.id);
       if (error) throw error;
+
+      // Notify client that work is complete (fire-and-forget)
+      if (job.client_id) {
+        const cityEn = job.city ? ` in ${job.city}` : '';
+        const cityEs = job.city ? ` en ${job.city}` : '';
+        const svcEn = job.service_type === 'commercial' ? 'Commercial Cleaning' : 'Residential Cleaning';
+        const svcEs = job.service_type === 'commercial' ? 'Limpieza Comercial' : 'Limpieza Residencial';
+        supabase.from('notifications').insert({
+          user_id: job.client_id,
+          title_en: 'Job Completed',
+          title_es: 'Trabajo Completado',
+          body_en: `The ${svcEn}${cityEn} has been completed. Please review the work.`,
+          body_es: `La ${svcEs}${cityEs} ha sido completada. Por favor revisa el trabajo.`,
+          type: 'job_completed',
+          data: { job_id: job.id },
+        }).then(() => {});
+      }
 
       setPhotos([]);
       onCompleted();

@@ -1,5 +1,6 @@
 import '../global.css';
 import { useEffect, useRef, useCallback } from 'react';
+import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import {
   Platform,
   AppState, AppStateStatus,
@@ -190,6 +191,7 @@ export default function RootLayout() {
   );
 
   return (
+    <ErrorBoundary>
     <LanguageProvider>
       <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#F5F7FA' }}>
         <SafeAreaProvider>
@@ -208,5 +210,6 @@ export default function RootLayout() {
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </LanguageProvider>
+    </ErrorBoundary>
   );
 }
