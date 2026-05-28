@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
@@ -10,6 +10,7 @@ import { supabase } from '@/lib/supabase';
 import { updateProviderStatus } from '@/lib/userUtils';
 
 type Filter = 'all' | 'pending' | 'approved' | 'rejected' | 'suspended';
+type CountryFilter = 'all' | 'usa' | 'colombia';
 type ProviderStatus = 'pending' | 'approved' | 'rejected' | 'suspended';
 
 interface ProviderRow {
@@ -23,12 +24,18 @@ interface ProviderRow {
   created_at: string;
 }
 
-const FILTERS: { key: Filter; labelEn: string; labelEs: string }[] = [
+const STATUS_FILTERS: { key: Filter; labelEn: string; labelEs: string }[] = [
   { key: 'all',       labelEn: 'All',       labelEs: 'Todos' },
   { key: 'pending',   labelEn: 'Pending',   labelEs: 'Pendientes' },
   { key: 'approved',  labelEn: 'Approved',  labelEs: 'Aprobados' },
   { key: 'rejected',  labelEn: 'Rejected',  labelEs: 'Rechazados' },
   { key: 'suspended', labelEn: 'Suspended', labelEs: 'Suspendidos' },
+];
+
+const COUNTRY_FILTERS: { key: CountryFilter; label: string }[] = [
+  { key: 'all',      label: '🌎 Todos' },
+  { key: 'usa',      label: '🇺🇸 USA' },
+  { key: 'colombia', label: '🇨🇴 Colombia' },
 ];
 
 function buildStatusColors(es: boolean): Record<ProviderStatus, { bg: string; text: string; label: string }> {
@@ -138,6 +145,7 @@ export default function AdminProviders() {
   const es = lang === 'es';
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('all');
+  const [countryFilter, setCountryFilter] = useState<CountryFilter>('all');
   const [providers, setProviders] = useState<ProviderRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -175,7 +183,6 @@ export default function AdminProviders() {
         })),
       ];
       rows.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      // Always update state (even when empty, to clear stale data)
       setProviders(rows);
     } catch (e: any) {
       console.warn('[Providers] load error:', e?.message ?? e);
@@ -208,7 +215,6 @@ export default function AdminProviders() {
               return;
             }
             setProviders((prev) => prev.map((p) => p.id === id ? { ...p, status: newStatus } : p));
-            // Notify the provider
             await supabase.from('notifications').insert({
               user_id: id,
               title_en: isApprove ? 'Account Approved' : 'Application Not Approved',
@@ -228,7 +234,14 @@ export default function AdminProviders() {
     );
   };
 
-  const filtered = filter === 'all' ? providers : providers.filter((p) => p.status === filter);
+  const byCountry = countryFilter === 'all'
+    ? providers
+    : providers.filter((p) => p.country === countryFilter);
+
+  const filtered = filter === 'all' ? byCountry : byCountry.filter((p) => p.status === filter);
+
+  const countForCountry = (c: CountryFilter) =>
+    c === 'all' ? providers.length : providers.filter((p) => p.country === c).length;
 
   return (
     <ScreenWrapper>
@@ -237,15 +250,42 @@ export default function AdminProviders() {
           {es ? 'Proveedores' : 'Providers'}
         </Text>
         <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
-          {providers.length} {es ? 'totales' : 'total'} · {providers.filter((p) => p.status === 'pending').length} {es ? 'pendientes' : 'pending'}
+          {byCountry.length} {es ? 'totales' : 'total'} · {byCountry.filter((p) => p.status === 'pending').length} {es ? 'pendientes' : 'pending'}
         </Text>
       </View>
 
-      {/* Filter chips */}
-      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 24, marginTop: 16, marginBottom: 16 }}>
-        {FILTERS.map((f) => {
+      {/* Country filter */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 16 }}>
+        {COUNTRY_FILTERS.map((c) => {
+          const active = countryFilter === c.key;
+          const count = countForCountry(c.key);
+          return (
+            <TouchableOpacity
+              key={c.key}
+              onPress={() => setCountryFilter(c.key)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 9999,
+                backgroundColor: active ? C.accent2 : C.surface,
+                borderWidth: 1,
+                borderColor: active ? C.accent2 : C.line,
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: active ? '#fff' : C.textMuted, fontSize: 13, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {c.label}{count > 0 ? ` (${count})` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Status filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 8, marginBottom: 8 }}>
+        {STATUS_FILTERS.map((f) => {
           const active = filter === f.key;
-          const count = f.key === 'all' ? providers.length : providers.filter((p) => p.status === f.key).length;
+          const count = f.key === 'all' ? byCountry.length : byCountry.filter((p) => p.status === f.key).length;
           return (
             <TouchableOpacity
               key={f.key}
@@ -266,7 +306,7 @@ export default function AdminProviders() {
             </TouchableOpacity>
           );
         })}
-      </View>
+      </ScrollView>
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 48 }} color={C.accent} />

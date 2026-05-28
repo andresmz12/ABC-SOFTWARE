@@ -59,9 +59,15 @@ export default function AdminLayout() {
         tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
       }}
     >
+      {/* 1. Dashboard */}
       <Tabs.Screen name="dashboard"    options={{ title: 'Dashboard', tabBarIcon: ({ focused }) => <TabIcon name="grid"           focused={focused} activeColor={C.accent2} /> }} />
+      {/* 2. Providers */}
       <Tabs.Screen name="providers"    options={{ title: 'Providers', tabBarIcon: ({ focused }) => <TabIcon name="users"          focused={focused} activeColor={C.accent2} /> }} />
+      {/* 3. Jobs */}
       <Tabs.Screen name="jobs"         options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase"      focused={focused} activeColor={C.accent2} /> }} />
+      {/* 4. Work Orders */}
+      <Tabs.Screen name="work-orders"  options={{ title: 'WOs',       tabBarIcon: ({ focused }) => <TabIcon name="file-text"      focused={focused} activeColor={C.accent2} /> }} />
+      {/* 5. Messages */}
       <Tabs.Screen
         name="chats"
         options={{
@@ -71,7 +77,10 @@ export default function AdminLayout() {
           tabBarBadgeStyle: { backgroundColor: C.danger, fontSize: 10, minWidth: 18, height: 18, borderRadius: 9 },
         }}
       />
+      {/* 6. Profile */}
       <Tabs.Screen name="profile"      options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"           focused={focused} activeColor={C.accent2} /> }} />
+
+      {/* Hidden screens */}
       <Tabs.Screen name="documents"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail" options={{ href: null }} />
       <Tabs.Screen name="client-detail"   options={{ href: null }} />

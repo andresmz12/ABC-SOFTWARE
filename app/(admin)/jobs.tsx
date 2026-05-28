@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
 import { useLang } from '@/context/LanguageContext';
@@ -7,6 +7,8 @@ import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
 
 type JobStatus = 'open' | 'in_progress' | 'completed' | 'cancelled';
+type CountryFilter = 'all' | 'usa' | 'colombia';
+type StatusFilter = 'all' | JobStatus;
 
 interface AdminJob {
   id: string;
@@ -29,6 +31,20 @@ function buildStatusMeta(es: boolean): Record<JobStatus, { bg: string; text: str
     cancelled:   { bg: `${C.danger}20`,   text: C.danger,   label: es ? 'CANCELADA' : 'CANCELLED' },
   };
 }
+
+const COUNTRY_FILTERS: { key: CountryFilter; label: string }[] = [
+  { key: 'all',      label: '🌎 Todos' },
+  { key: 'usa',      label: '🇺🇸 USA' },
+  { key: 'colombia', label: '🇨🇴 Colombia' },
+];
+
+const STATUS_FILTERS: { key: StatusFilter; labelEn: string; labelEs: string }[] = [
+  { key: 'all',         labelEn: 'All',       labelEs: 'Todos' },
+  { key: 'open',        labelEn: 'Open',      labelEs: 'Abiertas' },
+  { key: 'in_progress', labelEn: 'Active',    labelEs: 'Activas' },
+  { key: 'completed',   labelEn: 'Done',      labelEs: 'Listas' },
+  { key: 'cancelled',   labelEn: 'Cancelled', labelEs: 'Canceladas' },
+];
 
 function JobRow({ job, es }: { job: AdminJob; es: boolean }) {
   const STATUS_META = buildStatusMeta(es);
@@ -68,6 +84,8 @@ export default function AdminJobs() {
   const es = lang === 'es';
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [countryFilter, setCountryFilter] = useState<CountryFilter>('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -76,7 +94,7 @@ export default function AdminJobs() {
         .from('job_requests')
         .select('id, service_type, city, country, status, scheduled_date, created_at, budget_usd, budget_cop, client_id')
         .order('created_at', { ascending: false })
-        .limit(100);
+        .limit(200);
 
       if (error) console.error('[AdminJobs] query failed:', error.message);
       if (data) {
@@ -99,6 +117,17 @@ export default function AdminJobs() {
 
   useEffect(() => { loadJobs(); }, [loadJobs]);
 
+  const byCountry = countryFilter === 'all'
+    ? jobs
+    : jobs.filter((j) => j.country === countryFilter);
+
+  const filtered = statusFilter === 'all'
+    ? byCountry
+    : byCountry.filter((j) => j.status === statusFilter);
+
+  const countForCountry = (c: CountryFilter) =>
+    c === 'all' ? jobs.length : jobs.filter((j) => j.country === c).length;
+
   return (
     <ScreenWrapper>
       <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
@@ -109,22 +138,76 @@ export default function AdminJobs() {
           {loading
             ? (es ? 'Cargando...' : 'Loading...')
             : es
-              ? `${jobs.length} trabajo${jobs.length !== 1 ? 's' : ''} en la plataforma`
-              : `${jobs.length} job${jobs.length !== 1 ? 's' : ''} on the platform`}
+              ? `${byCountry.length} trabajo${byCountry.length !== 1 ? 's' : ''} en la plataforma`
+              : `${byCountry.length} job${byCountry.length !== 1 ? 's' : ''} on the platform`}
         </Text>
       </View>
 
+      {/* Country filter */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 16 }}>
+        {COUNTRY_FILTERS.map((c) => {
+          const active = countryFilter === c.key;
+          const count = countForCountry(c.key);
+          return (
+            <TouchableOpacity
+              key={c.key}
+              onPress={() => setCountryFilter(c.key)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 9999,
+                backgroundColor: active ? C.accent2 : C.surface,
+                borderWidth: 1,
+                borderColor: active ? C.accent2 : C.line,
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: active ? '#fff' : C.textMuted, fontSize: 13, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {c.label}{count > 0 ? ` (${count})` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
+      {/* Status filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 8, marginBottom: 8 }}>
+        {STATUS_FILTERS.map((f) => {
+          const active = statusFilter === f.key;
+          const count = f.key === 'all' ? byCountry.length : byCountry.filter((j) => j.status === f.key).length;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setStatusFilter(f.key)}
+              style={{
+                paddingHorizontal: 14,
+                paddingVertical: 8,
+                borderRadius: 9999,
+                backgroundColor: active ? C.accent : C.surface,
+                borderWidth: 1,
+                borderColor: active ? C.accent : C.line,
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: active ? '#000' : C.textMuted, fontSize: 13, fontFamily: active ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {es ? f.labelEs : f.labelEn}{count > 0 ? ` (${count})` : ''}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
+
       {loading ? (
         <ActivityIndicator style={{ marginTop: 48 }} color={C.accent} />
-      ) : jobs.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <EmptyState
-          title={es ? 'Aún no hay solicitudes' : 'No job requests yet'}
-          subtitle={es ? 'Las solicitudes publicadas por clientes aparecerán aquí.' : 'Job requests posted by clients will appear here.'}
+          title={es ? 'Sin resultados' : 'No results'}
+          subtitle={es ? 'Prueba con otro filtro.' : 'Try a different filter.'}
           iconName="briefcase"
         />
       ) : (
         <FlatList
-          data={jobs}
+          data={filtered}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => <JobRow job={item} es={es} />}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
