@@ -500,10 +500,10 @@ async function handleNewMessage(message: any): Promise<void> {
 
   if (senderIsUser) {
     // User opened a new support conversation — notify all admins (first message only, checked in trigger)
-    const { data: adminRows } = await supabase.from('admins').select('user_id');
+    const { data: adminRows } = await supabase.from('admins').select('id');
     if (!adminRows?.length) return;
     for (const admin of adminRows) {
-      const { data: authAdmin } = await supabase.auth.admin.getUserById(admin.user_id);
+      const { data: authAdmin } = await supabase.auth.admin.getUserById(admin.id);
       const adminEmail = authAdmin?.user?.email;
       if (!adminEmail) continue;
 

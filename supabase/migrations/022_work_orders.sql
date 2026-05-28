@@ -34,7 +34,7 @@ ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "wo_client" ON work_orders FOR ALL USING (client_id = auth.uid());
 CREATE POLICY "wo_provider" ON work_orders FOR ALL USING (provider_id = auth.uid());
--- admins table uses user_id column (not id)
+-- admins table uses id as primary key (= auth user UUID)
 CREATE POLICY "wo_admin" ON work_orders FOR ALL USING (
-  EXISTS (SELECT 1 FROM admins WHERE user_id = auth.uid())
+  EXISTS (SELECT 1 FROM admins WHERE id = auth.uid())
 );
