@@ -3,6 +3,21 @@ import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Pla
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import * as SecureStore from 'expo-secure-store';
+
+const secureGet = (key: string): Promise<string | null> =>
+  Platform.OS === 'web'
+    ? Promise.resolve(localStorage.getItem(key))
+    : SecureStore.getItemAsync(key);
+
+const secureSet = (key: string, value: string): Promise<void> =>
+  Platform.OS === 'web'
+    ? Promise.resolve(localStorage.setItem(key, value))
+    : SecureStore.setItemAsync(key, value);
+
+const secureDelete = (key: string): Promise<void> =>
+  Platform.OS === 'web'
+    ? Promise.resolve(localStorage.removeItem(key))
+    : SecureStore.deleteItemAsync(key);
 import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 import LanguageToggle from '@/components/ui/LanguageToggle';
@@ -37,7 +52,7 @@ export default function AdminProfile() {
   const loadTestAccounts = async () => {
     const entries = await Promise.all(
       ROLE_META.map(async ({ role }) => {
-        const raw = await SecureStore.getItemAsync(storageKey(role));
+        const raw = await secureGet(storageKey(role));
         return [role, raw ? (JSON.parse(raw) as TestAccount) : null] as [TestRole, TestAccount | null];
       })
     );
@@ -52,13 +67,13 @@ export default function AdminProfile() {
     if (!editing || !editing.email.trim() || !editing.password.trim()) return;
     const { role, email, password } = editing;
     const acct: TestAccount = { email: email.trim(), password: password.trim() };
-    await SecureStore.setItemAsync(storageKey(role), JSON.stringify(acct));
+    await secureSet(storageKey(role), JSON.stringify(acct));
     setTestAccounts((prev) => ({ ...prev, [role]: acct }));
     setEditing(null);
   };
 
   const removeTestAccount = async (role: TestRole) => {
-    await SecureStore.deleteItemAsync(storageKey(role));
+    await secureDelete(storageKey(role));
     setTestAccounts(({ [role]: _, ...rest }) => rest);
   };
 

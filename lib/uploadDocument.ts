@@ -22,7 +22,7 @@ export async function uploadDocument({ userId, docType, useImagePicker = false }
 
     if (useImagePicker) {
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'] as any,
         quality: 0.8,
       });
       if (result.canceled) return { document: null, error: null };
