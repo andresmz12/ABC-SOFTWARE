@@ -87,6 +87,8 @@ export const useAuthStore = create<AuthState>((set) => ({
             preferred_language: profile.preferred_language as any,
             push_token: profile.push_token,
             created_at: profile.created_at ?? new Date().toISOString(),
+            is_super_admin: profile.is_super_admin ?? false,
+            display_name: profile.display_name ?? '',
           } as User,
           session,
           loading: false,

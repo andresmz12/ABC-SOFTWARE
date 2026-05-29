@@ -19,6 +19,9 @@ export interface User {
   preferred_language: Language;
   push_token?: string | null;
   created_at: string;
+  // Admin-only fields
+  is_super_admin?: boolean;
+  display_name?: string;
 }
 
 export interface Company {

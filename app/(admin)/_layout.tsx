@@ -4,11 +4,15 @@ import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
+import { useLang } from '@/context/LanguageContext';
 
 export default function AdminLayout() {
   const rootNavState = useRootNavigationState();
   const router = useRouter();
   const { user } = useAuthStore();
+  const { lang } = useLang();
+  const es = lang === 'es';
+  const isSuperAdmin = user?.is_super_admin === true;
   const [totalUnread, setTotalUnread] = useState(0);
 
   const fetchTotalUnread = useCallback(async () => {
@@ -77,7 +81,16 @@ export default function AdminLayout() {
           tabBarBadgeStyle: { backgroundColor: C.danger, fontSize: 10, minWidth: 18, height: 18, borderRadius: 9 },
         }}
       />
-      {/* 6. Profile */}
+      {/* 6. Team — only visible to super admin */}
+      <Tabs.Screen
+        name="team"
+        options={{
+          href: isSuperAdmin ? undefined : null,
+          title: es ? 'Equipo' : 'Team',
+          tabBarIcon: ({ focused }) => <TabIcon name="shield" focused={focused} activeColor={C.accent2} />,
+        }}
+      />
+      {/* 7. Profile */}
       <Tabs.Screen name="profile"      options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"           focused={focused} activeColor={C.accent2} /> }} />
 
       {/* Hidden screens */}

@@ -25,6 +25,9 @@ export interface UnifiedUser {
   name?: string;
   available?: boolean;
   created_at?: string;
+  // Admin-only
+  is_super_admin?: boolean;
+  display_name?: string;
 }
 
 // Ordered by priority: companies → independents → clients
@@ -61,10 +64,9 @@ export async function getUserProfile(userId: string): Promise<UnifiedUser | null
   // ── 1. Check admins FIRST ────────────────────────────────────────────────
   const { data: admin, error: adminError } = await supabase
     .from('admins')
-    .select('id, email, created_at')
+    .select('id, email, display_name, is_super_admin, created_at')
     .eq('id', userId)
     .maybeSingle();
-  console.log('[getUserProfile] userId:', userId, '| admin:', admin, '| adminError:', adminError);
   if (adminError) console.warn('[getUserProfile] admins query error:', adminError.message);
   if (admin) {
     return {
@@ -76,6 +78,8 @@ export async function getUserProfile(userId: string): Promise<UnifiedUser | null
       preferred_language: 'en',
       push_token: null,
       created_at: admin.created_at,
+      is_super_admin: admin.is_super_admin ?? false,
+      display_name: admin.display_name ?? '',
     };
   }
 
