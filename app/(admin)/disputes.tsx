@@ -12,6 +12,8 @@ interface Dispute {
   id: string;
   job_request_id: string;
   opened_by: string;
+  against_user_id?: string;
+  opened_by_admin?: boolean;
   reason: string;
   description?: string;
   status: string;
@@ -19,6 +21,7 @@ interface Dispute {
   created_at: string;
   resolved_at?: string;
   opener_name?: string;
+  against_name?: string;
 }
 
 function timeAgo(iso: string): string {
@@ -54,18 +57,26 @@ export default function AdminDisputes() {
 
       const rows = (data ?? []) as Dispute[];
 
-      const openerIds = [...new Set(rows.map((d) => d.opened_by).filter(Boolean))];
-      if (openerIds.length > 0) {
-        const [clientsRes, companiesRes, indepRes] = await Promise.all([
-          supabase.from('clients').select('user_id, full_name').in('user_id', openerIds),
-          supabase.from('companies').select('user_id, company_name').in('user_id', openerIds),
-          supabase.from('independents').select('user_id, full_name').in('user_id', openerIds),
+      const allIds = [...new Set([
+        ...rows.map((d) => d.opened_by),
+        ...rows.map((d) => d.against_user_id).filter(Boolean),
+      ].filter(Boolean))];
+      if (allIds.length > 0) {
+        const [clientsRes, companiesRes, indepRes, adminsRes] = await Promise.all([
+          supabase.from('clients').select('user_id, full_name').in('user_id', allIds),
+          supabase.from('companies').select('user_id, company_name').in('user_id', allIds),
+          supabase.from('independents').select('user_id, full_name').in('user_id', allIds),
+          supabase.from('admins').select('id, email').in('id', allIds),
         ]);
         const nameMap: Record<string, string> = {};
         (clientsRes.data ?? []).forEach((r: any) => { nameMap[r.user_id] = r.full_name ?? ''; });
         (companiesRes.data ?? []).forEach((r: any) => { nameMap[r.user_id] = r.company_name ?? ''; });
         (indepRes.data ?? []).forEach((r: any) => { nameMap[r.user_id] = r.full_name ?? ''; });
-        rows.forEach((d) => { d.opener_name = nameMap[d.opened_by] || `${d.opened_by.slice(0, 8)}…`; });
+        (adminsRes.data ?? []).forEach((r: any) => { nameMap[r.id] = r.email ?? 'Admin'; });
+        rows.forEach((d) => {
+          d.opener_name = d.opened_by_admin ? 'Admin' : (nameMap[d.opened_by] || `${d.opened_by.slice(0, 8)}…`);
+          if (d.against_user_id) d.against_name = nameMap[d.against_user_id] || `${d.against_user_id.slice(0, 8)}…`;
+        });
       }
 
       setDisputes(rows);
@@ -162,13 +173,25 @@ export default function AdminDisputes() {
           </Text>
         ) : null}
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: isOpen || item.resolution ? 10 : 0 }}>
-          <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
-            {es ? 'Por' : 'By'}: {item.opener_name ?? '—'} · {timeAgo(item.created_at)}
-          </Text>
-          <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
-            Job: {item.job_request_id?.slice(0, 8)}…
-          </Text>
+        <View style={{ marginBottom: isOpen || item.resolution ? 10 : 0 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: item.against_name ? 4 : 0 }}>
+            <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
+              {item.opened_by_admin ? '🛡️ Admin' : (es ? 'Por' : 'By')}{!item.opened_by_admin ? `: ${item.opener_name ?? '—'}` : ''} · {timeAgo(item.created_at)}
+            </Text>
+            {item.job_request_id && (
+              <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_400Regular' }}>
+                Job: {item.job_request_id.slice(0, 8)}…
+              </Text>
+            )}
+          </View>
+          {item.against_name && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Feather name="alert-octagon" size={11} color={C.danger} />
+              <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_500Medium' }}>
+                {es ? 'Contra' : 'Against'}: {item.against_name}
+              </Text>
+            </View>
+          )}
         </View>
 
         {item.resolution ? (

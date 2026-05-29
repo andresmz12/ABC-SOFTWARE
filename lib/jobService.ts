@@ -379,6 +379,100 @@ export async function fetchProviderJobs(providerId: string): Promise<{
   return { applied, active, completed, rejectedJobIds };
 }
 
+// ── Admin-only helpers ────────────────────────────────────────────────────────
+
+export async function adminAssignJob(
+  jobRequestId: string,
+  providerId: string,
+  providerType: 'company' | 'independent',
+  clientId: string,
+  country: string | null,
+): Promise<void> {
+  // Upsert accepted application (provider may not have bid yet)
+  const { error: upsertErr } = await supabase.from('job_applications').upsert(
+    { job_request_id: jobRequestId, provider_id: providerId, provider_type: providerType, status: 'accepted', applied_at: new Date().toISOString(), assigned_by_admin: true },
+    { onConflict: 'job_request_id,provider_id' },
+  );
+  if (upsertErr) throw upsertErr;
+
+  // Reject remaining pending bids
+  await supabase.from('job_applications').update({ status: 'rejected' })
+    .eq('job_request_id', jobRequestId).neq('provider_id', providerId).eq('status', 'pending');
+
+  const { error: jobErr } = await supabase.from('job_requests').update({ status: 'accepted' }).eq('id', jobRequestId);
+  if (jobErr) throw jobErr;
+
+  // Create WO
+  const { data: woNumber } = await supabase.rpc('generate_wo_number');
+  if (woNumber) {
+    await supabase.from('work_orders').insert({
+      wo_number: woNumber, job_request_id: jobRequestId, client_id: clientId,
+      provider_id: providerId, country, status: 'pending_signatures', created_by_admin: true,
+    }).catch((e: any) => console.warn('[adminAssignJob] WO insert:', e));
+  }
+
+  await supabase.from('notifications').insert([
+    { user_id: providerId, title_en: 'Job Assigned to You', title_es: 'Trabajo Asignado', body_en: 'An administrator assigned a job to you. Please sign the work order.', body_es: 'Un administrador te asignó un trabajo. Por favor firma la orden de trabajo.', type: 'admin_assigned', read: false },
+    { user_id: clientId,   title_en: 'Provider Assigned',   title_es: 'Proveedor Asignado', body_en: 'An administrator assigned a provider to your job.', body_es: 'Un administrador asignó un proveedor para tu trabajo.', type: 'admin_assigned', read: false },
+  ]).catch((e: any) => console.warn('[adminAssignJob] notifications:', e));
+}
+
+export async function adminReassignJob(
+  jobRequestId: string,
+  oldProviderId: string,
+  newProviderId: string,
+  newProviderType: 'company' | 'independent',
+  clientId: string,
+  country: string | null,
+): Promise<void> {
+  // Cancel old WOs for the outgoing provider
+  await supabase.from('work_orders').update({ status: 'cancelled' })
+    .eq('job_request_id', jobRequestId).eq('provider_id', oldProviderId).neq('status', 'cancelled')
+    .catch((e: any) => console.warn('[adminReassignJob] WO cancel:', e));
+
+  // Reject old application
+  await supabase.from('job_applications').update({ status: 'rejected' })
+    .eq('job_request_id', jobRequestId).eq('provider_id', oldProviderId);
+
+  // Accept new application (upsert in case provider never bid)
+  const { error: upsertErr } = await supabase.from('job_applications').upsert(
+    { job_request_id: jobRequestId, provider_id: newProviderId, provider_type: newProviderType, status: 'accepted', applied_at: new Date().toISOString(), assigned_by_admin: true },
+    { onConflict: 'job_request_id,provider_id' },
+  );
+  if (upsertErr) throw upsertErr;
+
+  // Create WO for new provider
+  const { data: woNumber } = await supabase.rpc('generate_wo_number');
+  if (woNumber) {
+    await supabase.from('work_orders').insert({
+      wo_number: woNumber, job_request_id: jobRequestId, client_id: clientId,
+      provider_id: newProviderId, country, status: 'pending_signatures', created_by_admin: true,
+    }).catch((e: any) => console.warn('[adminReassignJob] WO insert:', e));
+  }
+
+  await supabase.from('notifications').insert([
+    { user_id: oldProviderId, title_en: 'Job Removed from Your Queue', title_es: 'Trabajo Reasignado', body_en: 'A job assigned to you was reassigned by an administrator.', body_es: 'Un trabajo que tenías asignado fue reasignado por un administrador.', type: 'admin_reassigned', read: false },
+    { user_id: newProviderId, title_en: 'Job Assigned to You',         title_es: 'Trabajo Asignado',    body_en: 'An administrator assigned a job to you.',                   body_es: 'Un administrador te asignó un trabajo.',                            type: 'admin_assigned',    read: false },
+    { user_id: clientId,      title_en: 'Provider Changed',            title_es: 'Proveedor Cambiado',  body_en: 'The provider for your job was changed by an administrator.', body_es: 'El proveedor para tu trabajo fue cambiado por un administrador.',   type: 'admin_reassigned', read: false },
+  ]).catch((e: any) => console.warn('[adminReassignJob] notifications:', e));
+}
+
+export async function adminCreateWorkOrder(
+  jobRequestId: string,
+  clientId: string,
+  providerId: string,
+  country: string | null,
+): Promise<{ id: string; wo_number: string }> {
+  const { data: woNumber, error: rpcErr } = await supabase.rpc('generate_wo_number');
+  if (rpcErr || !woNumber) throw rpcErr ?? new Error('Failed to generate WO number');
+  const { data, error } = await supabase.from('work_orders').insert({
+    wo_number: woNumber, job_request_id: jobRequestId, client_id: clientId,
+    provider_id: providerId, country, status: 'pending_signatures', created_by_admin: true,
+  }).select('id, wo_number').single();
+  if (error) throw error;
+  return data as { id: string; wo_number: string };
+}
+
 export async function applyToJob({
   jobId,
   providerId,

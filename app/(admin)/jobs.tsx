@@ -1,7 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, ActivityIndicator, TouchableOpacity, ScrollView } from 'react-native';
+import { useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
+import { Feather } from '@expo/vector-icons';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 import { supabase } from '@/lib/supabase';
@@ -46,18 +48,22 @@ const STATUS_FILTERS: { key: StatusFilter; labelEn: string; labelEs: string }[] 
   { key: 'cancelled',   labelEn: 'Cancelled', labelEs: 'Canceladas' },
 ];
 
-function JobRow({ job, es }: { job: AdminJob; es: boolean }) {
+function JobRow({ job, es, onPress }: { job: AdminJob; es: boolean; onPress: () => void }) {
   const STATUS_META = buildStatusMeta(es);
   const meta = STATUS_META[job.status] ?? STATUS_META.open;
   return (
-    <View style={{
-      backgroundColor: C.surface,
-      borderWidth: 1,
-      borderColor: C.line,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 12,
-    }}>
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        backgroundColor: C.surface,
+        borderWidth: 1,
+        borderColor: C.line,
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 12,
+      }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 }}>
         <View style={{ flex: 1 }}>
           <Text style={{ color: C.textPrimary, fontSize: 15, fontFamily: 'Inter_600SemiBold', marginBottom: 2 }}>
@@ -68,20 +74,24 @@ function JobRow({ job, es }: { job: AdminJob; es: boolean }) {
             {job.client_email} · {job.city} · {job.country === 'colombia' ? '🇨🇴' : '🇺🇸'}
           </Text>
         </View>
-        <View style={{ backgroundColor: meta.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
-          <Text style={{ color: meta.text, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>{meta.label}</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <View style={{ backgroundColor: meta.bg, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 }}>
+            <Text style={{ color: meta.text, fontSize: 10, fontFamily: 'Inter_600SemiBold' }}>{meta.label}</Text>
+          </View>
+          <Feather name="chevron-right" size={14} color={C.textMuted} />
         </View>
       </View>
       <Text style={{ color: C.textMuted, fontSize: 12, fontFamily: 'Inter_400Regular' }}>
         📅 {job.scheduled_date}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
 export default function AdminJobs() {
   const { lang } = useLang();
   const es = lang === 'es';
+  const router = useRouter();
   const [jobs, setJobs] = useState<AdminJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [countryFilter, setCountryFilter] = useState<CountryFilter>('all');
@@ -209,7 +219,7 @@ export default function AdminJobs() {
         <FlatList
           data={filtered}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <JobRow job={item} es={es} />}
+          renderItem={({ item }) => <JobRow job={item} es={es} onPress={() => router.push({ pathname: '/(admin)/job-detail', params: { jobId: item.id } } as any)} />}
           contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
         />
