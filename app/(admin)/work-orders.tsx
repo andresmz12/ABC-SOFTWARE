@@ -11,6 +11,7 @@ import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
 
 type WOFilter = 'all' | 'pending_signatures' | 'signed';
+type CountryFilter = 'all' | 'usa' | 'colombia';
 
 interface WORow {
   id: string;
@@ -27,6 +28,7 @@ interface WORow {
   service_type: string;
   city: string;
   scheduled_date: string;
+  country: string;
 }
 
 function formatDate(iso: string): string {
@@ -146,6 +148,7 @@ export default function WorkOrdersAdminScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<WOFilter>('all');
+  const [countryFilter, setCountryFilter] = useState<CountryFilter>('all');
 
   const loadWOs = useCallback(async () => {
     setLoading(true);
@@ -165,7 +168,7 @@ export default function WorkOrdersAdminScreen() {
       const providerIds = [...new Set(woRows.map((w: any) => w.provider_id))];
 
       const [jobsRes, clientsRes, companiesRes, independentsRes] = await Promise.all([
-        supabase.from('job_requests').select('id, service_type, city, scheduled_date').in('id', jobIds),
+        supabase.from('job_requests').select('id, service_type, city, scheduled_date, country').in('id', jobIds),
         supabase.from('clients').select('user_id, full_name').in('user_id', clientIds),
         supabase.from('companies').select('user_id, company_name').in('user_id', providerIds),
         supabase.from('independents').select('user_id, full_name').in('user_id', providerIds),
@@ -192,6 +195,7 @@ export default function WorkOrdersAdminScreen() {
           service_type: j.service_type ?? '',
           city: j.city ?? '',
           scheduled_date: j.scheduled_date ?? '',
+          country: j.country ?? 'usa',
         };
       });
 
@@ -211,12 +215,19 @@ export default function WorkOrdersAdminScreen() {
     setRefreshing(false);
   };
 
-  const filtered = filter === 'all' ? wos : wos.filter((w) => w.status === filter);
+  const byCountry = countryFilter === 'all' ? wos : wos.filter((w) => w.country === countryFilter);
+  const filtered = filter === 'all' ? byCountry : byCountry.filter((w) => w.status === filter);
+
+  const COUNTRY_FILTERS: { key: CountryFilter; label: string }[] = [
+    { key: 'all',      label: es ? 'Todos' : 'All' },
+    { key: 'usa',      label: '🇺🇸 USA' },
+    { key: 'colombia', label: '🇨🇴 Colombia' },
+  ];
 
   const FILTERS: { key: WOFilter; label: string }[] = [
-    { key: 'all', label: es ? 'Todas' : 'All' },
+    { key: 'all',               label: es ? 'Todas' : 'All' },
     { key: 'pending_signatures', label: es ? 'Pendientes' : 'Pending' },
-    { key: 'signed', label: es ? 'Firmadas' : 'Signed' },
+    { key: 'signed',            label: es ? 'Firmadas' : 'Signed' },
   ];
 
   return (
@@ -235,7 +246,8 @@ export default function WorkOrdersAdminScreen() {
               {es ? 'Órdenes de Trabajo' : 'Work Orders'}
             </Text>
             <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', marginTop: 2 }}>
-              {wos.length} {es ? 'órdenes en total' : 'orders total'}
+              {filtered.length} {es ? 'órdenes' : 'orders'}
+              {countryFilter !== 'all' || filter !== 'all' ? ` · ${wos.length} ${es ? 'total' : 'total'}` : ''}
             </Text>
           </View>
           <View style={{ backgroundColor: '#FEF3C7', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 }}>
@@ -249,7 +261,30 @@ export default function WorkOrdersAdminScreen() {
         </View>
       </View>
 
-      {/* Filter chips */}
+      {/* Country filter */}
+      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 8 }}>
+        {COUNTRY_FILTERS.map((f) => {
+          const isActive = countryFilter === f.key;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setCountryFilter(f.key)}
+              style={{
+                paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999,
+                backgroundColor: isActive ? C.accent2 : C.surface,
+                borderWidth: 1, borderColor: isActive ? C.accent2 : C.line,
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={{ color: isActive ? '#FFF' : C.textMuted, fontSize: 12, fontFamily: isActive ? 'Inter_600SemiBold' : 'Inter_400Regular' }}>
+                {f.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Status filter chips */}
       <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
         {FILTERS.map((f) => {
           const isActive = filter === f.key;
