@@ -140,17 +140,29 @@ export default function AdminJobs() {
 
   return (
     <ScreenWrapper>
-      <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8 }}>
-        <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
-          {es ? 'Todos los Trabajos' : 'All Jobs'}
-        </Text>
-        <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
-          {loading
-            ? (es ? 'Cargando...' : 'Loading...')
-            : es
-              ? `${byCountry.length} trabajo${byCountry.length !== 1 ? 's' : ''} en la plataforma`
-              : `${byCountry.length} job${byCountry.length !== 1 ? 's' : ''} on the platform`}
-        </Text>
+      <View style={{ paddingHorizontal: 24, paddingTop: 32, paddingBottom: 8, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: C.textPrimary, fontSize: 28, fontFamily: 'Inter_700Bold', letterSpacing: -0.5 }}>
+            {es ? 'Todos los Trabajos' : 'All Jobs'}
+          </Text>
+          <Text style={{ color: C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 4 }}>
+            {loading
+              ? (es ? 'Cargando...' : 'Loading...')
+              : es
+                ? `${byCountry.length} trabajo${byCountry.length !== 1 ? 's' : ''} en la plataforma`
+                : `${byCountry.length} job${byCountry.length !== 1 ? 's' : ''} on the platform`}
+          </Text>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(admin)/new-job' as any)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.accent2, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 9, marginTop: 4 }}
+          activeOpacity={0.85}
+        >
+          <Feather name="plus" size={16} color="#FFF" />
+          <Text style={{ color: '#FFF', fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>
+            {es ? 'Nuevo' : 'New Job'}
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Country filter */}

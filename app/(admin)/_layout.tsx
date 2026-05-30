@@ -95,6 +95,7 @@ export default function AdminLayout() {
 
       {/* Hidden screens */}
       <Tabs.Screen name="job-detail"      options={{ href: null }} />
+      <Tabs.Screen name="new-job"         options={{ href: null }} />
       <Tabs.Screen name="documents"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail" options={{ href: null }} />
       <Tabs.Screen name="client-detail"   options={{ href: null }} />
