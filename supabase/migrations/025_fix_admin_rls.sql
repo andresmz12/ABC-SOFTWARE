@@ -52,4 +52,17 @@ CREATE POLICY "admin_all_payments" ON payments FOR ALL USING (is_admin());
 DROP POLICY IF EXISTS "admin_all_notifications" ON notifications;
 CREATE POLICY "admin_all_notifications" ON notifications FOR ALL USING (is_admin());
 
+-- ── 11. disputes (enable RLS + policies) ─────────────────────────────────────
+ALTER TABLE disputes ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "disputes_admin_all" ON disputes;
+DROP POLICY IF EXISTS "disputes_involved_read" ON disputes;
+CREATE POLICY "disputes_admin_all" ON disputes FOR ALL USING (is_admin());
+CREATE POLICY "disputes_involved_read" ON disputes FOR SELECT USING (
+  opened_by = auth.uid()
+  OR EXISTS (SELECT 1 FROM job_requests jr WHERE jr.id = disputes.job_request_id AND jr.client_id = auth.uid())
+);
+CREATE POLICY "disputes_user_insert" ON disputes FOR INSERT WITH CHECK (
+  opened_by = auth.uid()
+);
+
 NOTIFY pgrst, 'reload schema';

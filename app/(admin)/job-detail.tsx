@@ -94,6 +94,8 @@ export default function AdminJobDetail() {
   const [wos, setWos] = useState<WORow[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [pickerError, setPickerError] = useState('');
+  const [caseError, setCaseError] = useState('');
 
   // Provider picker
   const [showPicker, setShowPicker] = useState(false);
@@ -153,6 +155,7 @@ export default function AdminJobDetail() {
     setPickerMode(mode);
     setPickerSelected(null);
     setPickerSearch('');
+    setPickerError('');
     setShowPicker(true);
     setPickerLoading(true);
     try {
@@ -173,20 +176,20 @@ export default function AdminJobDetail() {
 
   const confirmProviderAction = async () => {
     if (!pickerSelected || !job) return;
+    setPickerError('');
     setSaving(true);
     try {
       if (pickerMode === 'assign') {
         await adminAssignJob(job.id, pickerSelected.id, pickerSelected.type, job.client_id, job.country);
-        Alert.alert('✓', es ? 'Proveedor asignado correctamente.' : 'Provider assigned successfully.');
       } else {
         if (!acceptedBid) return;
         await adminReassignJob(job.id, acceptedBid.provider_id, pickerSelected.id, pickerSelected.type, job.client_id, job.country);
-        Alert.alert('✓', es ? 'Trabajo reasignado correctamente.' : 'Job reassigned successfully.');
       }
       setShowPicker(false);
       await load();
     } catch (e: any) {
-      Alert.alert('Error', e.message ?? 'Unknown error');
+      console.error('[confirmProviderAction]', e);
+      setPickerError(e.message ?? 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -194,62 +197,38 @@ export default function AdminJobDetail() {
 
   const handleCreateWO = async () => {
     if (!acceptedBid || !job?.client_id) return;
-    const activeWO = wos.find((w) => w.status !== 'cancelled');
-    const doCreate = async () => {
-      setSaving(true);
-      try {
-        const wo = await adminCreateWorkOrder(job.id, job.client_id, acceptedBid.provider_id, job.country);
-        Alert.alert('✓', `WO ${wo.wo_number} ${es ? 'creado exitosamente.' : 'created successfully.'}`);
-        await load();
-      } catch (e: any) {
-        Alert.alert('Error', e.message);
-      } finally {
-        setSaving(false);
-      }
-    };
-
-    if (activeWO) {
-      Alert.alert(
-        es ? 'Ya existe un WO activo' : 'Active WO Exists',
-        es ? `Ya hay un WO (${activeWO.wo_number}) activo. ¿Crear uno adicional?` : `There's already an active WO (${activeWO.wo_number}). Create an additional one?`,
-        [
-          { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-          { text: es ? 'Crear Nuevo' : 'Create New', onPress: doCreate },
-        ],
-      );
-    } else {
-      doCreate();
+    setSaving(true);
+    try {
+      await adminCreateWorkOrder(job.id, job.client_id, acceptedBid.provider_id, job.country);
+      await load();
+    } catch (e: any) {
+      console.error('[handleCreateWO]', e);
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleCancelJob = () => {
-    Alert.alert(
-      es ? '¿Cancelar Trabajo?' : 'Cancel Job?',
-      es ? 'Esta acción no se puede deshacer. Se cancelarán también los WOs activos.' : 'This cannot be undone. Active work orders will also be cancelled.',
-      [
-        { text: es ? 'No' : 'No', style: 'cancel' },
-        {
-          text: es ? 'Sí, Cancelar' : 'Yes, Cancel',
-          style: 'destructive',
-          onPress: async () => {
-            setSaving(true);
-            try {
-              await Promise.all([
-                supabase.from('job_requests').update({ status: 'cancelled' }).eq('id', job!.id),
-                supabase.from('work_orders').update({ status: 'cancelled' }).eq('job_request_id', job!.id).neq('status', 'cancelled'),
-              ]);
-              await load();
-            } finally {
-              setSaving(false);
-            }
-          },
-        },
-      ],
-    );
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+
+  const handleCancelJob = async () => {
+    setSaving(true);
+    try {
+      await Promise.all([
+        supabase.from('job_requests').update({ status: 'cancelled' }).eq('id', job!.id),
+        supabase.from('work_orders').update({ status: 'cancelled' }).eq('job_request_id', job!.id).neq('status', 'cancelled'),
+      ]);
+      setShowCancelConfirm(false);
+      await load();
+    } catch (e: any) {
+      console.error('[handleCancelJob]', e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   const submitCase = async () => {
     if (!caseReason.trim() || !acceptedBid || !user?.id) return;
+    setCaseError('');
     setSaving(true);
     try {
       const { error } = await supabase.from('disputes').insert({
@@ -265,9 +244,9 @@ export default function AdminJobDetail() {
       setShowCaseModal(false);
       setCaseReason('');
       setCaseDesc('');
-      Alert.alert('✓', es ? 'Caso abierto exitosamente.' : 'Case opened successfully.');
     } catch (e: any) {
-      Alert.alert('Error', e.message);
+      console.error('[submitCase]', e);
+      setCaseError(e.message ?? 'Unknown error');
     } finally {
       setSaving(false);
     }
@@ -389,7 +368,7 @@ export default function AdminJobDetail() {
                   <Text style={{ color: C.warning, fontSize: 13, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Reasignar' : 'Reassign'}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => { setCaseReason(''); setCaseDesc(''); setShowCaseModal(true); }}
+                  onPress={() => { setCaseReason(''); setCaseDesc(''); setCaseError(''); setShowCaseModal(true); }}
                   style={{ flex: 1, height: 42, borderRadius: 10, backgroundColor: `${C.danger}15`, borderWidth: 1, borderColor: `${C.danger}50`, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                   activeOpacity={0.85}
                 >
@@ -525,7 +504,7 @@ export default function AdminJobDetail() {
               </TouchableOpacity>
             )}
             <TouchableOpacity
-              onPress={handleCancelJob}
+              onPress={() => setShowCancelConfirm(true)}
               disabled={saving}
               style={{ height: 50, borderRadius: 12, backgroundColor: `${C.danger}15`, borderWidth: 1, borderColor: `${C.danger}40`, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }}
               activeOpacity={0.85}
@@ -622,10 +601,16 @@ export default function AdminJobDetail() {
 
           {pickerSelected && (
             <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 20, paddingBottom: 40, backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.line }}>
+              {pickerError ? (
+                <View style={{ backgroundColor: `${C.danger}15`, borderRadius: 10, padding: 10, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <Feather name="alert-circle" size={14} color={C.danger} />
+                  <Text style={{ color: C.danger, fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 }}>{pickerError}</Text>
+                </View>
+              ) : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: `${C.accent2}10`, borderRadius: 10, padding: 12, marginBottom: 12 }}>
                 <Feather name={pickerSelected.type === 'company' ? 'briefcase' : 'user'} size={14} color={C.accent2} style={{ marginRight: 8 }} />
                 <Text style={{ color: C.accent2, fontSize: 13, fontFamily: 'Inter_600SemiBold', flex: 1 }} numberOfLines={1}>{pickerSelected.name}</Text>
-                <TouchableOpacity onPress={() => setPickerSelected(null)}>
+                <TouchableOpacity onPress={() => { setPickerSelected(null); setPickerError(''); }}>
                   <Feather name="x" size={14} color={C.accent2} />
                 </TouchableOpacity>
               </View>
@@ -643,6 +628,41 @@ export default function AdminJobDetail() {
               </TouchableOpacity>
             </View>
           )}
+        </View>
+      </Modal>
+
+      {/* ── Cancel Job Confirm Modal ── */}
+      <Modal visible={showCancelConfirm} transparent animationType="fade" onRequestClose={() => setShowCancelConfirm(false)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: C.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 400 }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: `${C.danger}15`, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Feather name="alert-triangle" size={24} color={C.danger} />
+            </View>
+            <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', textAlign: 'center', marginBottom: 8 }}>
+              {es ? '¿Cancelar trabajo?' : 'Cancel job?'}
+            </Text>
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', marginBottom: 24, lineHeight: 20 }}>
+              {es ? 'Esta acción no se puede deshacer. Los WOs activos también serán cancelados.' : 'This cannot be undone. Active work orders will also be cancelled.'}
+            </Text>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setShowCancelConfirm(false)}
+                style={{ flex: 1, height: 48, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_500Medium' }}>{es ? 'No' : 'No'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleCancelJob}
+                disabled={saving}
+                style={{ flex: 1, height: 48, borderRadius: 12, backgroundColor: C.danger, alignItems: 'center', justifyContent: 'center', opacity: saving ? 0.7 : 1 }}
+                activeOpacity={0.85}
+              >
+                {saving ? <ActivityIndicator color="#FFF" size="small" /> : (
+                  <Text style={{ color: '#FFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Sí, cancelar' : 'Yes, cancel'}</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
       </Modal>
 
@@ -669,6 +689,12 @@ export default function AdminJobDetail() {
               </View>
             )}
 
+            {caseError ? (
+              <View style={{ backgroundColor: `${C.danger}15`, borderRadius: 10, padding: 10, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="alert-circle" size={14} color={C.danger} />
+                <Text style={{ color: C.danger, fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 }}>{caseError}</Text>
+              </View>
+            ) : null}
             <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_500Medium', marginBottom: 6 }}>
               {es ? 'Razón *' : 'Reason *'}
             </Text>
