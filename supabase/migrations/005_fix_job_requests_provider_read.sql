@@ -6,6 +6,7 @@
 
 -- Drop the broken city-join policy
 drop policy if exists "job_requests_approved_provider_read" on job_requests;
+drop policy if exists "job_requests_provider_read" on job_requests;
 
 -- Allow any approved provider to read any job_request.
 -- The app layer (fetchOpenJobsForProvider) filters by country, state, and
@@ -21,6 +22,7 @@ for select using (
 
 -- Allow a provider to read a job_request they have already applied to
 -- (needed for the My Jobs / jobs.tsx screen — fetchProviderJobs fetches by job IDs).
+drop policy if exists "job_requests_applicant_read" on job_requests;
 create policy "job_requests_applicant_read" on job_requests
 for select using (
   exists (

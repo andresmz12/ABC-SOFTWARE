@@ -32,6 +32,10 @@ $$ LANGUAGE plpgsql;
 
 ALTER TABLE work_orders ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "wo_client"   ON work_orders;
+DROP POLICY IF EXISTS "wo_provider" ON work_orders;
+DROP POLICY IF EXISTS "wo_admin"    ON work_orders;
+
 CREATE POLICY "wo_client" ON work_orders FOR ALL USING (client_id = auth.uid());
 CREATE POLICY "wo_provider" ON work_orders FOR ALL USING (provider_id = auth.uid());
 -- admins table uses id as primary key (= auth user UUID)

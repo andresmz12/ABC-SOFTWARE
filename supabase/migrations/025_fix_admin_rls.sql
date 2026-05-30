@@ -61,6 +61,7 @@ CREATE POLICY "disputes_involved_read" ON disputes FOR SELECT USING (
   opened_by = auth.uid()
   OR EXISTS (SELECT 1 FROM job_requests jr WHERE jr.id = disputes.job_request_id AND jr.client_id = auth.uid())
 );
+DROP POLICY IF EXISTS "disputes_user_insert" ON disputes;
 CREATE POLICY "disputes_user_insert" ON disputes FOR INSERT WITH CHECK (
   opened_by = auth.uid()
 );

@@ -4,6 +4,7 @@ values ('client-documents', 'client-documents', false)
 on conflict (id) do nothing;
 
 -- Client can upload documents to their own folder
+drop policy if exists "client_docs_owner_upload" on storage.objects;
 create policy "client_docs_owner_upload" on storage.objects
   for insert with check (
     bucket_id = 'client-documents'
@@ -11,6 +12,7 @@ create policy "client_docs_owner_upload" on storage.objects
   );
 
 -- Client can read their own documents
+drop policy if exists "client_docs_owner_read" on storage.objects;
 create policy "client_docs_owner_read" on storage.objects
   for select using (
     bucket_id = 'client-documents'
@@ -18,8 +20,9 @@ create policy "client_docs_owner_read" on storage.objects
   );
 
 -- Admin can read all client documents
+drop policy if exists "client_docs_admin_read" on storage.objects;
 create policy "client_docs_admin_read" on storage.objects
   for select using (
     bucket_id = 'client-documents'
-    and exists (select 1 from public.users where id = auth.uid() and role = 'admin')
+    and exists (select 1 from public.admins where id = auth.uid())
   );
