@@ -405,16 +405,18 @@ export async function adminAssignJob(
   // Create WO
   const { data: woNumber } = await supabase.rpc('generate_wo_number');
   if (woNumber) {
-    await supabase.from('work_orders').insert({
+    const { error: woErr } = await supabase.from('work_orders').insert({
       wo_number: woNumber, job_request_id: jobRequestId, client_id: clientId,
       provider_id: providerId, country, status: 'pending_signatures', created_by_admin: true,
-    }).catch((e: any) => console.warn('[adminAssignJob] WO insert:', e));
+    });
+    if (woErr) console.warn('[adminAssignJob] WO insert:', woErr.message);
   }
 
-  await supabase.from('notifications').insert([
+  const { error: notifErr } = await supabase.from('notifications').insert([
     { user_id: providerId, title_en: 'Job Assigned to You', title_es: 'Trabajo Asignado', body_en: 'An administrator assigned a job to you. Please sign the work order.', body_es: 'Un administrador te asignó un trabajo. Por favor firma la orden de trabajo.', type: 'admin_assigned', read: false },
     { user_id: clientId,   title_en: 'Provider Assigned',   title_es: 'Proveedor Asignado', body_en: 'An administrator assigned a provider to your job.', body_es: 'Un administrador asignó un proveedor para tu trabajo.', type: 'admin_assigned', read: false },
-  ]).catch((e: any) => console.warn('[adminAssignJob] notifications:', e));
+  ]);
+  if (notifErr) console.warn('[adminAssignJob] notifications:', notifErr.message);
 }
 
 export async function adminReassignJob(
@@ -426,9 +428,9 @@ export async function adminReassignJob(
   country: string | null,
 ): Promise<void> {
   // Cancel old WOs for the outgoing provider
-  await supabase.from('work_orders').update({ status: 'cancelled' })
-    .eq('job_request_id', jobRequestId).eq('provider_id', oldProviderId).neq('status', 'cancelled')
-    .catch((e: any) => console.warn('[adminReassignJob] WO cancel:', e));
+  const { error: cancelErr } = await supabase.from('work_orders').update({ status: 'cancelled' })
+    .eq('job_request_id', jobRequestId).eq('provider_id', oldProviderId).neq('status', 'cancelled');
+  if (cancelErr) console.warn('[adminReassignJob] WO cancel:', cancelErr.message);
 
   // Reject old application
   await supabase.from('job_applications').update({ status: 'rejected' })
@@ -444,17 +446,19 @@ export async function adminReassignJob(
   // Create WO for new provider
   const { data: woNumber } = await supabase.rpc('generate_wo_number');
   if (woNumber) {
-    await supabase.from('work_orders').insert({
+    const { error: woErr } = await supabase.from('work_orders').insert({
       wo_number: woNumber, job_request_id: jobRequestId, client_id: clientId,
       provider_id: newProviderId, country, status: 'pending_signatures', created_by_admin: true,
-    }).catch((e: any) => console.warn('[adminReassignJob] WO insert:', e));
+    });
+    if (woErr) console.warn('[adminReassignJob] WO insert:', woErr.message);
   }
 
-  await supabase.from('notifications').insert([
+  const { error: notifErr } = await supabase.from('notifications').insert([
     { user_id: oldProviderId, title_en: 'Job Removed from Your Queue', title_es: 'Trabajo Reasignado', body_en: 'A job assigned to you was reassigned by an administrator.', body_es: 'Un trabajo que tenías asignado fue reasignado por un administrador.', type: 'admin_reassigned', read: false },
     { user_id: newProviderId, title_en: 'Job Assigned to You',         title_es: 'Trabajo Asignado',    body_en: 'An administrator assigned a job to you.',                   body_es: 'Un administrador te asignó un trabajo.',                            type: 'admin_assigned',    read: false },
     { user_id: clientId,      title_en: 'Provider Changed',            title_es: 'Proveedor Cambiado',  body_en: 'The provider for your job was changed by an administrator.', body_es: 'El proveedor para tu trabajo fue cambiado por un administrador.',   type: 'admin_reassigned', read: false },
-  ]).catch((e: any) => console.warn('[adminReassignJob] notifications:', e));
+  ]);
+  if (notifErr) console.warn('[adminReassignJob] notifications:', notifErr.message);
 }
 
 export async function adminCreateWorkOrder(

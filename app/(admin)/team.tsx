@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Modal, TextInput,
-  ActivityIndicator, Alert, ScrollView,
+  ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -47,6 +47,14 @@ export default function AdminTeam() {
   const [showPassword, setShowPassword] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  // Credentials shown after a successful create (web-safe; replaces Alert)
+  const [createdCreds, setCreatedCreds] = useState<{ email: string; password: string } | null>(null);
+
+  // Remove-admin confirmation
+  const [removeTarget, setRemoveTarget] = useState<AdminMember | null>(null);
+  const [removing, setRemoving] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -94,12 +102,7 @@ export default function AdminTeam() {
       if (res.data?.error) throw new Error(res.data.error);
 
       setShowModal(false);
-      Alert.alert(
-        '✓',
-        es
-          ? `Admin creado exitosamente.\nEmail: ${formEmail.trim().toLowerCase()}\nContraseña temporal: ${formPassword.trim()}\n\nEntrega estas credenciales al empleado de forma segura.`
-          : `Admin created successfully.\nEmail: ${formEmail.trim().toLowerCase()}\nTemp password: ${formPassword.trim()}\n\nShare these credentials securely with the employee.`,
-      );
+      setCreatedCreds({ email: formEmail.trim().toLowerCase(), password: formPassword.trim() });
       await load();
     } catch (e: any) {
       setFormError(e.message ?? (es ? 'Error desconocido' : 'Unknown error'));
@@ -109,32 +112,29 @@ export default function AdminTeam() {
   };
 
   const handleRemove = (admin: AdminMember) => {
-    if (admin.id === user?.id) {
-      Alert.alert(es ? 'No permitido' : 'Not allowed', es ? 'No puedes eliminarte a ti mismo.' : 'You cannot remove yourself.');
-      return;
+    if (admin.id === user?.id || admin.is_super_admin) return;
+    setRemoveError(null);
+    setRemoveTarget(admin);
+  };
+
+  const confirmRemove = async () => {
+    if (!removeTarget) return;
+    setRemoving(true);
+    setRemoveError(null);
+    try {
+      const res = await supabase.functions.invoke('delete-admin', {
+        body: { admin_id: removeTarget.id },
+      });
+      if (res.error) throw new Error(res.error.message);
+      if (res.data?.error) throw new Error(res.data.error);
+
+      setAdmins((prev) => prev.filter((a) => a.id !== removeTarget.id));
+      setRemoveTarget(null);
+    } catch (e: any) {
+      setRemoveError(e.message ?? (es ? 'Error desconocido' : 'Unknown error'));
+    } finally {
+      setRemoving(false);
     }
-    if (admin.is_super_admin) {
-      Alert.alert(es ? 'No permitido' : 'Not allowed', es ? 'No puedes eliminar a otro super admin.' : 'You cannot remove another super admin.');
-      return;
-    }
-    Alert.alert(
-      es ? `¿Eliminar a ${admin.display_name ?? admin.email}?` : `Remove ${admin.display_name ?? admin.email}?`,
-      es
-        ? 'Su acceso al panel será revocado inmediatamente. No se elimina la cuenta de Supabase Auth.'
-        : 'Their panel access is revoked immediately. The Supabase Auth account is not deleted.',
-      [
-        { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-        {
-          text: es ? 'Eliminar acceso' : 'Remove access',
-          style: 'destructive',
-          onPress: async () => {
-            const { error } = await supabase.from('admins').delete().eq('id', admin.id);
-            if (error) { Alert.alert('Error', error.message); return; }
-            setAdmins((prev) => prev.filter((a) => a.id !== admin.id));
-          },
-        },
-      ],
-    );
   };
 
   if (!isSuperAdmin) {
@@ -379,6 +379,80 @@ export default function AdminTeam() {
                       {es ? 'Crear Admin' : 'Create Admin'}
                     </Text>
                   </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Credentials success modal (web-safe replacement for Alert) */}
+      <Modal visible={!!createdCreds} transparent animationType="fade" onRequestClose={() => setCreatedCreds(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: C.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 420 }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: `${C.success}15`, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Feather name="check-circle" size={26} color={C.success} />
+            </View>
+            <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', textAlign: 'center', marginBottom: 6 }}>
+              {es ? 'Admin creado' : 'Admin created'}
+            </Text>
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', marginBottom: 18, lineHeight: 19 }}>
+              {es ? 'Entrega estas credenciales al empleado de forma segura. Puede cambiar la contraseña desde el app.' : 'Share these credentials securely. They can change the password from the app.'}
+            </Text>
+            <View style={{ backgroundColor: C.surface2, borderRadius: 12, padding: 14, marginBottom: 20, borderWidth: 1, borderColor: C.line }}>
+              <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 2 }}>Email</Text>
+              <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold', marginBottom: 12 }} selectable>{createdCreds?.email}</Text>
+              <Text style={{ color: C.textMuted, fontSize: 11, fontFamily: 'Inter_500Medium', marginBottom: 2 }}>{es ? 'Contraseña temporal' : 'Temporary password'}</Text>
+              <Text style={{ color: C.textPrimary, fontSize: 14, fontFamily: 'Inter_600SemiBold' }} selectable>{createdCreds?.password}</Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => setCreatedCreds(null)}
+              style={{ height: 48, borderRadius: 12, backgroundColor: C.accent2, alignItems: 'center', justifyContent: 'center' }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ color: '#FFF', fontSize: 15, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Remove-admin confirmation modal */}
+      <Modal visible={!!removeTarget} transparent animationType="fade" onRequestClose={() => setRemoveTarget(null)}>
+        <View style={{ flex: 1, backgroundColor: 'rgba(13,27,42,0.75)', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+          <View style={{ backgroundColor: C.surface, borderRadius: 20, padding: 24, width: '100%', maxWidth: 420 }}>
+            <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: `${C.danger}15`, alignItems: 'center', justifyContent: 'center', alignSelf: 'center', marginBottom: 16 }}>
+              <Feather name="user-x" size={24} color={C.danger} />
+            </View>
+            <Text style={{ color: C.textPrimary, fontSize: 18, fontFamily: 'Inter_700Bold', textAlign: 'center', marginBottom: 8 }}>
+              {es ? `¿Eliminar a ${removeTarget?.display_name ?? removeTarget?.email}?` : `Remove ${removeTarget?.display_name ?? removeTarget?.email}?`}
+            </Text>
+            <Text style={{ color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_400Regular', textAlign: 'center', marginBottom: 20, lineHeight: 19 }}>
+              {es
+                ? 'Se eliminará su acceso al panel y su cuenta. Esta acción no se puede deshacer.'
+                : 'Their panel access and account will be deleted. This cannot be undone.'}
+            </Text>
+            {removeError ? (
+              <View style={{ backgroundColor: `${C.danger}15`, borderRadius: 10, padding: 10, marginBottom: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Feather name="alert-circle" size={14} color={C.danger} />
+                <Text style={{ color: C.danger, fontSize: 12, fontFamily: 'Inter_400Regular', flex: 1 }}>{removeError}</Text>
+              </View>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setRemoveTarget(null)}
+                disabled={removing}
+                style={{ flex: 1, height: 48, borderRadius: 12, borderWidth: 1, borderColor: C.line, alignItems: 'center', justifyContent: 'center' }}
+              >
+                <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_500Medium' }}>{es ? 'Cancelar' : 'Cancel'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={confirmRemove}
+                disabled={removing}
+                style={{ flex: 1, height: 48, borderRadius: 12, backgroundColor: C.danger, alignItems: 'center', justifyContent: 'center', opacity: removing ? 0.7 : 1 }}
+                activeOpacity={0.85}
+              >
+                {removing ? <ActivityIndicator color="#FFF" size="small" /> : (
+                  <Text style={{ color: '#FFF', fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Eliminar' : 'Remove'}</Text>
                 )}
               </TouchableOpacity>
             </View>

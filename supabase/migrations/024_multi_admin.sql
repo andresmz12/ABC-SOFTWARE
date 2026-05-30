@@ -1,6 +1,14 @@
 -- 024_multi_admin.sql
 -- Add super-admin flag and display name to the admins table.
 
+-- Ensure the admins table exists (historically created manually in the
+-- dashboard; this makes a clean `supabase db push` self-sufficient).
+CREATE TABLE IF NOT EXISTS admins (
+  id          uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  email       text,
+  created_at  timestamptz DEFAULT now()
+);
+
 ALTER TABLE admins ADD COLUMN IF NOT EXISTS is_super_admin BOOLEAN DEFAULT FALSE;
 ALTER TABLE admins ADD COLUMN IF NOT EXISTS display_name   TEXT;
 ALTER TABLE admins ADD COLUMN IF NOT EXISTS invited_by     UUID REFERENCES auth.users(id);
