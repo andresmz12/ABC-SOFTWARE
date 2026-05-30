@@ -13,10 +13,9 @@ drop policy if exists "job_requests_approved_provider_read" on job_requests;
 create policy "job_requests_provider_read" on job_requests
 for select using (
   exists (
-    select 1 from users u
-    where u.id = auth.uid()
-      and u.status = 'approved'
-      and u.role in ('company', 'independent')
+    select 1 from companies where user_id = auth.uid() and status = 'approved'
+    union all
+    select 1 from independents where user_id = auth.uid() and status = 'approved'
   )
 );
 

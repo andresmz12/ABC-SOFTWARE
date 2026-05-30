@@ -71,7 +71,7 @@ DROP POLICY IF EXISTS "chats_user_access"  ON chats;
 CREATE POLICY "chats_user_access" ON chats
   FOR ALL USING (
     auth.uid() = user_id
-    OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+    OR EXISTS (SELECT 1 FROM admins WHERE id = auth.uid())
   );
 
 DROP POLICY IF EXISTS "messages_access" ON messages;
@@ -82,7 +82,7 @@ CREATE POLICY "messages_access" ON messages
       WHERE c.id = messages.chat_id
         AND (
           c.user_id = auth.uid()
-          OR EXISTS (SELECT 1 FROM users u WHERE u.id = auth.uid() AND u.role = 'admin')
+          OR EXISTS (SELECT 1 FROM admins WHERE id = auth.uid())
         )
     )
   );

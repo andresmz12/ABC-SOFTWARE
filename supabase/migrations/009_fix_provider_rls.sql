@@ -6,9 +6,9 @@ DROP POLICY IF EXISTS "job_requests_provider_read" ON job_requests;
 
 CREATE POLICY "job_requests_provider_read" ON job_requests
 FOR SELECT USING (
-  auth.uid() IN (
-    SELECT id FROM users
-    WHERE status = 'approved'
-    AND role IN ('company', 'independent')
+  EXISTS (
+    SELECT 1 FROM companies WHERE user_id = auth.uid() AND status = 'approved'
+    UNION ALL
+    SELECT 1 FROM independents WHERE user_id = auth.uid() AND status = 'approved'
   )
 );
