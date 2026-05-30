@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, FlatList, Modal, TextInput,
   ActivityIndicator, ScrollView,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
@@ -31,6 +31,7 @@ function timeAgo(iso: string, es: boolean): string {
 }
 
 export default function AdminTeam() {
+  const router = useRouter();
   const { lang } = useLang();
   const es = lang === 'es';
   const { user, session } = useAuthStore();
@@ -173,6 +174,19 @@ export default function AdminTeam() {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Audit log shortcut */}
+      <TouchableOpacity
+        onPress={() => router.push('/(admin)/audit' as any)}
+        style={{ marginHorizontal: 24, marginTop: 12, marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12, borderRadius: 10, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.line }}
+        activeOpacity={0.8}
+      >
+        <Feather name="activity" size={15} color={C.textSecondary} />
+        <Text style={{ flex: 1, color: C.textSecondary, fontSize: 13, fontFamily: 'Inter_500Medium' }}>
+          {es ? 'Ver registro de auditoría' : 'View audit log'}
+        </Text>
+        <Feather name="chevron-right" size={15} color={C.textMuted} />
+      </TouchableOpacity>
 
       {/* Super admin notice */}
       <View style={{ marginHorizontal: 24, marginVertical: 12, backgroundColor: `${C.accent2}10`, borderRadius: 12, padding: 12, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderWidth: 1, borderColor: `${C.accent2}30` }}>

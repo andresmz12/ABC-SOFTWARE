@@ -381,6 +381,28 @@ export async function fetchProviderJobs(providerId: string): Promise<{
 
 // ── Admin-only helpers ────────────────────────────────────────────────────────
 
+export async function logAdminAction(
+  action: string,
+  targetType: string,
+  targetId: string | null,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  try {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { error } = await supabase.from('admin_audit_log').insert({
+      admin_id: user.id,
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      metadata,
+    });
+    if (error) console.warn('[logAdminAction] insert failed:', error.message);
+  } catch (e) {
+    console.warn('[logAdminAction] error:', e);
+  }
+}
+
 export async function adminAssignJob(
   jobRequestId: string,
   providerId: string,
@@ -417,6 +439,8 @@ export async function adminAssignJob(
     { user_id: clientId,   title_en: 'Provider Assigned',   title_es: 'Proveedor Asignado', body_en: 'An administrator assigned a provider to your job.', body_es: 'Un administrador asignó un proveedor para tu trabajo.', type: 'admin_assigned', read: false },
   ]);
   if (notifErr) console.warn('[adminAssignJob] notifications:', notifErr.message);
+
+  logAdminAction('assign_job', 'job', jobRequestId, { provider_id: providerId, provider_type: providerType });
 }
 
 export async function adminReassignJob(
@@ -459,6 +483,8 @@ export async function adminReassignJob(
     { user_id: clientId,      title_en: 'Provider Changed',            title_es: 'Proveedor Cambiado',  body_en: 'The provider for your job was changed by an administrator.', body_es: 'El proveedor para tu trabajo fue cambiado por un administrador.',   type: 'admin_reassigned', read: false },
   ]);
   if (notifErr) console.warn('[adminReassignJob] notifications:', notifErr.message);
+
+  logAdminAction('reassign_job', 'job', jobRequestId, { old_provider_id: oldProviderId, new_provider_id: newProviderId });
 }
 
 export async function adminCreateWorkOrder(
@@ -474,6 +500,7 @@ export async function adminCreateWorkOrder(
     provider_id: providerId, country, status: 'pending_signatures', created_by_admin: true,
   }).select('id, wo_number').single();
   if (error) throw error;
+  logAdminAction('create_work_order', 'work_order', (data as any).id, { job_request_id: jobRequestId, provider_id: providerId });
   return data as { id: string; wo_number: string };
 }
 
