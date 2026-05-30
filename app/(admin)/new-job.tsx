@@ -1,15 +1,16 @@
 import React, { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  ActivityIndicator, Modal, FlatList,
+  ActivityIndicator, Modal, FlatList, Platform,
 } from 'react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
-import { adminAssignJob } from '@/lib/jobService';
+import { adminAssignJob, logAdminAction } from '@/lib/jobService';
 
 interface ClientOption {
   id: string;
@@ -79,6 +80,14 @@ function ToggleGroup<T extends string>({
   );
 }
 
+// Sensible default: tomorrow at 9:00 AM
+function defaultPickerDate(): Date {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(9, 0, 0, 0);
+  return d;
+}
+
 export default function AdminNewJobScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -98,6 +107,11 @@ export default function AdminNewJobScreen() {
   const [budgetMin, setBudgetMin] = useState('');
   const [budgetMax, setBudgetMax] = useState('');
   const [description, setDescription] = useState('');
+
+  // Native picker state (mobile only)
+  const [pickerDate, setPickerDate] = useState<Date>(defaultPickerDate);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   // After-create optional assignment
   const [createdJobId, setCreatedJobId] = useState<string | null>(null);
@@ -121,6 +135,54 @@ export default function AdminNewJobScreen() {
   const [selectedProvider, setSelectedProvider] = useState<ProviderOption | null>(null);
   const [assigning, setAssigning] = useState(false);
   const [assignError, setAssignError] = useState('');
+
+  // ── Date / time picker handlers ──────────────────────────────────────────────
+
+  const onDateChange = (_event: any, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (selected) {
+        const merged = new Date(selected);
+        merged.setHours(pickerDate.getHours(), pickerDate.getMinutes(), 0, 0);
+        setPickerDate(merged);
+        setDate(merged.toISOString().slice(0, 10));
+      }
+    } else if (selected) {
+      setPickerDate(selected);
+    }
+  };
+
+  const confirmIosDate = () => {
+    setDate(pickerDate.toISOString().slice(0, 10));
+    setShowDatePicker(false);
+  };
+
+  const onTimeChange = (_event: any, selected?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowTimePicker(false);
+      if (selected) {
+        const merged = new Date(pickerDate);
+        merged.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+        setPickerDate(merged);
+        const h = String(selected.getHours()).padStart(2, '0');
+        const m = String(selected.getMinutes()).padStart(2, '0');
+        setTime(`${h}:${m}`);
+      }
+    } else if (selected) {
+      const merged = new Date(pickerDate);
+      merged.setHours(selected.getHours(), selected.getMinutes(), 0, 0);
+      setPickerDate(merged);
+    }
+  };
+
+  const confirmIosTime = () => {
+    const h = String(pickerDate.getHours()).padStart(2, '0');
+    const m = String(pickerDate.getMinutes()).padStart(2, '0');
+    setTime(`${h}:${m}`);
+    setShowTimePicker(false);
+  };
+
+  // ── Data loaders ─────────────────────────────────────────────────────────────
 
   const openClientPicker = useCallback(async () => {
     setShowClientPicker(true);
@@ -159,14 +221,16 @@ export default function AdminNewJobScreen() {
     }
   }, []);
 
+  // ── Form submit ───────────────────────────────────────────────────────────────
+
   const handleCreate = async () => {
     setError('');
     if (!client) { setError(es ? 'Selecciona un cliente.' : 'Select a client.'); return; }
     if (!city.trim()) { setError(es ? 'Ciudad requerida.' : 'City is required.'); return; }
     if (!state.trim()) { setError(es ? 'Estado/Depto requerido.' : 'State is required.'); return; }
     if (!zip.trim()) { setError(es ? 'ZIP requerido.' : 'ZIP is required.'); return; }
-    if (!date.trim()) { setError(es ? 'Fecha requerida (YYYY-MM-DD).' : 'Date required (YYYY-MM-DD).'); return; }
-    if (!time.trim()) { setError(es ? 'Hora requerida (HH:MM).' : 'Time required (HH:MM).'); return; }
+    if (!date.trim()) { setError(es ? 'Fecha requerida.' : 'Date required.'); return; }
+    if (!time.trim()) { setError(es ? 'Hora requerida.' : 'Time required.'); return; }
     if (!hours.trim() || isNaN(Number(hours))) { setError(es ? 'Horas estimadas requeridas.' : 'Estimated hours required.'); return; }
 
     setSaving(true);
@@ -196,6 +260,7 @@ export default function AdminNewJobScreen() {
       if (insErr) throw insErr;
       setCreatedJobId(data.id);
       setCreatedClientId(client.id);
+      logAdminAction('create_job', 'job', data.id, { client_id: client.id, service_type: serviceType, country });
     } catch (e: any) {
       console.error('[AdminNewJob] create error', e);
       setError(e.message ?? 'Unknown error');
@@ -458,25 +523,85 @@ export default function AdminNewJobScreen() {
         {/* Date & Time */}
         <View style={{ flexDirection: 'row', gap: 12 }}>
           <View style={{ flex: 3 }}>
-            <Field label={es ? 'Fecha * (YYYY-MM-DD)' : 'Date * (YYYY-MM-DD)'}>
-              <TextInput
-                value={date}
-                onChangeText={setDate}
-                placeholder="2026-08-15"
-                placeholderTextColor={C.textMuted}
-                style={inputStyle()}
-              />
+            <Field label={es ? 'Fecha *' : 'Date *'}>
+              {Platform.OS === 'web' ? (
+                <View style={{ ...inputStyle(), padding: 0, overflow: 'hidden' as any }}>
+                  <input
+                    type="date"
+                    value={date}
+                    onChange={(e: any) => setDate(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: '12px 14px',
+                      color: date ? C.textPrimary : C.textMuted,
+                      fontSize: 14,
+                      fontFamily: 'Inter_400Regular, sans-serif',
+                      width: '100%',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      boxSizing: 'border-box',
+                    } as any}
+                  />
+                </View>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setShowDatePicker(true)}
+                    style={{ ...inputStyle(), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: date ? C.textPrimary : C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular' }}>
+                      {date || (es ? 'Seleccionar...' : 'Select...')}
+                    </Text>
+                    <Feather name="calendar" size={15} color={C.textMuted} />
+                  </TouchableOpacity>
+                  {Platform.OS === 'android' && showDatePicker && (
+                    <DateTimePicker value={pickerDate} mode="date" display="default" onChange={onDateChange} />
+                  )}
+                </>
+              )}
             </Field>
           </View>
           <View style={{ flex: 2 }}>
-            <Field label={es ? 'Hora * (HH:MM)' : 'Time * (HH:MM)'}>
-              <TextInput
-                value={time}
-                onChangeText={setTime}
-                placeholder="09:00"
-                placeholderTextColor={C.textMuted}
-                style={inputStyle()}
-              />
+            <Field label={es ? 'Hora *' : 'Time *'}>
+              {Platform.OS === 'web' ? (
+                <View style={{ ...inputStyle(), padding: 0, overflow: 'hidden' as any }}>
+                  <input
+                    type="time"
+                    value={time}
+                    onChange={(e: any) => setTime(e.target.value)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: '12px 14px',
+                      color: time ? C.textPrimary : C.textMuted,
+                      fontSize: 14,
+                      fontFamily: 'Inter_400Regular, sans-serif',
+                      width: '100%',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      boxSizing: 'border-box',
+                    } as any}
+                  />
+                </View>
+              ) : (
+                <>
+                  <TouchableOpacity
+                    onPress={() => setShowTimePicker(true)}
+                    style={{ ...inputStyle(), flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={{ color: time ? C.textPrimary : C.textMuted, fontSize: 14, fontFamily: 'Inter_400Regular' }}>
+                      {time || (es ? 'Seleccionar...' : 'Select...')}
+                    </Text>
+                    <Feather name="clock" size={15} color={C.textMuted} />
+                  </TouchableOpacity>
+                  {Platform.OS === 'android' && showTimePicker && (
+                    <DateTimePicker value={pickerDate} mode="time" display="default" onChange={onTimeChange} is24Hour />
+                  )}
+                </>
+              )}
             </Field>
           </View>
         </View>
@@ -621,6 +746,65 @@ export default function AdminNewJobScreen() {
               }
             />
           )}
+        </View>
+      </Modal>
+
+      {/* iOS date picker modal */}
+      <Modal
+        visible={Platform.OS === 'ios' && showDatePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePicker(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.line }}>
+              <TouchableOpacity onPress={() => setShowDatePicker(false)}>
+                <Text style={{ color: C.textMuted, fontSize: 16, fontFamily: 'Inter_500Medium' }}>{es ? 'Cancelar' : 'Cancel'}</Text>
+              </TouchableOpacity>
+              <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Seleccionar fecha' : 'Select Date'}</Text>
+              <TouchableOpacity onPress={confirmIosDate}>
+                <Text style={{ color: C.accent2, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="spinner"
+              onChange={onDateChange}
+              style={{ height: 200 }}
+            />
+          </View>
+        </View>
+      </Modal>
+
+      {/* iOS time picker modal */}
+      <Modal
+        visible={Platform.OS === 'ios' && showTimePicker}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowTimePicker(false)}
+      >
+        <View style={{ flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <View style={{ backgroundColor: C.surface, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 40 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: C.line }}>
+              <TouchableOpacity onPress={() => setShowTimePicker(false)}>
+                <Text style={{ color: C.textMuted, fontSize: 16, fontFamily: 'Inter_500Medium' }}>{es ? 'Cancelar' : 'Cancel'}</Text>
+              </TouchableOpacity>
+              <Text style={{ color: C.textPrimary, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Seleccionar hora' : 'Select Time'}</Text>
+              <TouchableOpacity onPress={confirmIosTime}>
+                <Text style={{ color: C.accent2, fontSize: 16, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Listo' : 'Done'}</Text>
+              </TouchableOpacity>
+            </View>
+            <DateTimePicker
+              value={pickerDate}
+              mode="time"
+              display="spinner"
+              onChange={onTimeChange}
+              is24Hour
+              style={{ height: 200 }}
+            />
+          </View>
         </View>
       </Modal>
     </View>

@@ -94,6 +94,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="profile"      options={{ title: 'Profile',   tabBarIcon: ({ focused }) => <TabIcon name="user"           focused={focused} activeColor={C.accent2} /> }} />
 
       {/* Hidden screens */}
+      <Tabs.Screen name="audit"           options={{ href: null }} />
       <Tabs.Screen name="job-detail"      options={{ href: null }} />
       <Tabs.Screen name="new-job"         options={{ href: null }} />
       <Tabs.Screen name="documents"       options={{ href: null }} />
