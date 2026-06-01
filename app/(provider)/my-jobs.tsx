@@ -74,6 +74,7 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
 
   const handleStart = async () => {
     if (!job) return;
+    console.log('START JOB called - job_id:', job.id);
     if (!photo) {
       Alert.alert(
         es ? 'Foto requerida' : 'Photo required',
@@ -86,12 +87,13 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
     setSaving(true);
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      console.log('[StartJob] job.id:', job.id, '| auth.uid:', authUser?.id, '| userId prop:', userId);
+      console.log('[StartJob] auth.uid:', authUser?.id);
 
       const ext = photo.name.split('.').pop() ?? 'jpg';
       const path = `${job.id}/before/${Date.now()}.${ext}`;
       const response = await fetch(photo.uri);
       const blob = await response.blob();
+      console.log('PHOTO UPLOAD called - job_id:', job.id);
       const { data: uploadData, error: uploadErr } = await supabase.storage
         .from('job-photos')
         .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
@@ -251,6 +253,7 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
 
   const handleComplete = async () => {
     if (!job) return;
+    console.log('COMPLETE JOB called - job_id:', job.id);
     if (photos.length === 0) {
       Alert.alert(
         es ? 'Foto requerida' : 'Photo required',
@@ -267,12 +270,15 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
 
       for (const photo of photos) {
         const ext = photo.name.split('.').pop() ?? 'jpg';
-        const path = `${userId}/${job.id}/after/${Date.now()}.${ext}`;
+        const path = `${job.id}/after/${Date.now()}.${ext}`;
         const response = await fetch(photo.uri);
         const blob = await response.blob();
-        const { error: uploadErr } = await supabase.storage
+        console.log('PHOTO UPLOAD called - job_id:', job.id);
+        const { data: afterUploadData, error: uploadErr } = await supabase.storage
           .from('job-photos')
           .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
+        console.log('Upload error:', uploadErr);
+        console.log('Upload data:', afterUploadData);
         if (!uploadErr) {
           const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
           afterUrls.push(urlData.publicUrl);
@@ -875,7 +881,7 @@ export default function MyJobsScreen() {
           .eq('provider_id', providerUid),
         supabase
           .from('work_orders')
-          .select('id, job_request_id, provider_signature, status')
+          .select('id, job_request_id, provider_signature, client_signature, status')
           .eq('provider_id', providerUid)
           .in('status', ['pending_signatures', 'signed', 'active']),
       ]);
@@ -935,7 +941,8 @@ export default function MyJobsScreen() {
       const pendingMap: Record<string, string> = {};
       activeWos.forEach((w: any) => {
         if (!w.provider_signature) sigMap[w.job_request_id] = w.id;
-        if (w.status === 'pending_signatures') pendingMap[w.job_request_id] = w.id;
+        // Block "Complete Job" if either party's signature is still missing
+        if (!w.provider_signature || !w.client_signature) pendingMap[w.job_request_id] = w.id;
       });
       setWoMap(sigMap);
       setPendingWoMap(pendingMap);
