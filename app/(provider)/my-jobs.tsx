@@ -866,8 +866,10 @@ export default function MyJobsScreen() {
       // job_applications.provider_id are stored as auth.uid(), so we must match
       // with the same value.
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      if (!authUser) return;
+      if (!authUser) { console.warn('[MyJobs] auth.getUser() returned null'); return; }
       const providerUid = authUser.id;
+      console.log('[MyJobs] providerUid (auth.uid):', providerUid);
+      console.log('[MyJobs] user.id from store    :', user.id);
 
       // Run both queries in parallel: applications + active work_orders
       const [appsRes, activeWosRes] = await Promise.all([
@@ -875,15 +877,16 @@ export default function MyJobsScreen() {
           .from('job_applications')
           .select('job_request_id, status')
           .eq('provider_id', providerUid),
-        // Fetch work_orders where this provider is assigned and the WO is active.
-        // provider_id on work_orders = auth.uid() (set by adminAssignJob).
-        // This catches admin-direct-assign even when no job_application row exists.
         supabase
           .from('work_orders')
-          .select('id, job_request_id, provider_signature')
+          .select('id, job_request_id, provider_signature, status')
           .eq('provider_id', providerUid)
           .in('status', ['pending_signatures', 'signed', 'active']),
       ]);
+
+      console.log('[MyJobs] job_applications — error:', appsRes.error, '| rows:', appsRes.data);
+      console.log('[MyJobs] work_orders      — error:', activeWosRes.error, '| rows:', activeWosRes.data);
+
       if (appsRes.error) throw appsRes.error;
       if (activeWosRes.error) throw activeWosRes.error;
 
@@ -907,7 +910,10 @@ export default function MyJobsScreen() {
       setAdminAssignedJobIds(adminSet);
 
       const allJobIds = [...new Set([...appJobIds, ...activeWoIds])];
+      console.log('[MyJobs] allJobIds to fetch:', allJobIds);
+
       if (allJobIds.length === 0) {
+        console.log('[MyJobs] no job IDs found — clearing all tabs');
         setApplied([]); setActive([]); setCompleted([]);
         setWoMap({});
         return;
@@ -918,6 +924,9 @@ export default function MyJobsScreen() {
         .select('*')
         .in('id', allJobIds)
         .order('created_at', { ascending: false });
+
+      console.log('[MyJobs] job_requests — error:', jobsErr, '| rows:', jobs?.map((j: any) => ({ id: j.id, status: j.status })));
+
       if (jobsErr) throw jobsErr;
 
       const allJobs = (jobs ?? []) as JobRequest[];
@@ -926,14 +935,15 @@ export default function MyJobsScreen() {
 
       const activeList = allJobs
         .filter((j) => {
-          const hasActiveWO  = activeWoIds.includes(j.id);
+          const hasActiveWO   = activeWoIds.includes(j.id);
           const isAcceptedApp = statusMap[j.id] === 'accepted';
-          // Show if: active WO exists (regardless of job_request.status to handle
-          // edge case where job status update was delayed), OR provider's own
-          // application was accepted and job is in an active state.
-          return hasActiveWO || (isAcceptedApp && (j.status === 'accepted' || j.status === 'in_progress'));
+          const passes = hasActiveWO || (isAcceptedApp && (j.status === 'accepted' || j.status === 'in_progress'));
+          console.log(`[MyJobs] job ${j.id} status=${j.status} hasActiveWO=${hasActiveWO} appStatus=${statusMap[j.id]} → active=${passes}`);
+          return passes;
         })
         .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
+
+      console.log('[MyJobs] final activeList count:', activeList.length, activeList.map((j) => j.id));
       setActive(activeList);
 
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
