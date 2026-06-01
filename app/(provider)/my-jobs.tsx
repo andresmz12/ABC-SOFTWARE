@@ -85,6 +85,9 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
     }
     setSaving(true);
     try {
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      console.log('[StartJob] job.id:', job.id, '| auth.uid:', authUser?.id, '| userId prop:', userId);
+
       const ext = photo.name.split('.').pop() ?? 'jpg';
       const path = `${userId}/${job.id}/start/${Date.now()}.${ext}`;
       const response = await fetch(photo.uri);
@@ -96,14 +99,16 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
 
       const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
 
-      const { error } = await supabase
+      const { data: updateData, error } = await supabase
         .from('job_requests')
         .update({
           status: 'in_progress',
           start_photo_url: urlData.publicUrl,
           started_at: new Date().toISOString(),
         })
-        .eq('id', job.id);
+        .eq('id', job.id)
+        .select('id, status');
+      console.log('[StartJob] UPDATE result — data:', updateData, '| error:', error);
       if (error) throw error;
 
       // Notify client that work has started (fire-and-forget)
