@@ -860,35 +860,44 @@ export default function MyJobsScreen() {
     if (!user?.id) return;
     setLoading(true);
     try {
-      // Fetch job applications (provider-initiated)
-      const { data: apps, error: appsErr } = await supabase
-        .from('job_applications')
-        .select('job_request_id, status')
-        .eq('provider_id', user.id);
-      if (appsErr) throw appsErr;
+      // Run both queries in parallel: applications + active work_orders
+      const [appsRes, activeWosRes] = await Promise.all([
+        supabase
+          .from('job_applications')
+          .select('job_request_id, status')
+          .eq('provider_id', user.id),
+        // Fetch work_orders where this provider is assigned and the WO is active.
+        // provider_id on work_orders = auth.uid() (set by adminAssignJob).
+        // This catches admin-direct-assign even when no job_application row exists.
+        supabase
+          .from('work_orders')
+          .select('id, job_request_id, provider_signature')
+          .eq('provider_id', user.id)
+          .in('status', ['pending_signatures', 'signed', 'active']),
+      ]);
+      if (appsRes.error) throw appsRes.error;
+      if (activeWosRes.error) throw activeWosRes.error;
+
+      const apps      = appsRes.data     ?? [];
+      const activeWos = activeWosRes.data ?? [];
 
       const statusMap: Record<string, string> = {};
-      (apps ?? []).forEach((a: any) => { statusMap[a.job_request_id] = a.status; });
+      apps.forEach((a: any) => { statusMap[a.job_request_id] = a.status; });
       setAppStatuses(statusMap);
 
-      const rejIds = new Set((apps ?? []).filter((a: any) => a.status === 'rejected').map((a: any) => a.job_request_id as string));
+      const rejIds = new Set(
+        apps.filter((a: any) => a.status === 'rejected').map((a: any) => a.job_request_id as string)
+      );
       setRejectedIds(rejIds);
 
-      const appJobIds = (apps ?? []).map((a: any) => a.job_request_id as string);
+      const appJobIds   = apps.map((a: any) => a.job_request_id as string);
+      const activeWoIds = activeWos.map((w: any) => w.job_request_id as string);
 
-      // Fetch all work_orders for this provider — catches admin-assigned jobs not in job_applications
-      const { data: woAllRows, error: woErr } = await supabase
-        .from('work_orders')
-        .select('id, job_request_id, provider_signature, status')
-        .eq('provider_id', user.id)
-        .neq('status', 'cancelled');
-      if (woErr) throw woErr;
-
-      const woJobIds = (woAllRows ?? []).map((w: any) => w.job_request_id as string);
-      const adminSet = new Set(woJobIds.filter((id) => !appJobIds.includes(id)));
+      // Admin-assigned = has active WO but no accepted application row
+      const adminSet = new Set(activeWoIds.filter((id) => statusMap[id] !== 'accepted'));
       setAdminAssignedJobIds(adminSet);
 
-      const allJobIds = [...new Set([...appJobIds, ...woJobIds])];
+      const allJobIds = [...new Set([...appJobIds, ...activeWoIds])];
       if (allJobIds.length === 0) {
         setApplied([]); setActive([]); setCompleted([]);
         setWoMap({});
@@ -903,24 +912,27 @@ export default function MyJobsScreen() {
       if (jobsErr) throw jobsErr;
 
       const allJobs = (jobs ?? []) as JobRequest[];
+
       setApplied(allJobs.filter((j) => statusMap[j.id] === 'pending' || statusMap[j.id] === 'rejected'));
 
       const activeList = allJobs
         .filter((j) => {
-          const appStatus = statusMap[j.id];
-          return (
-            (j.status === 'accepted' || j.status === 'in_progress') &&
-            (adminSet.has(j.id) || (appStatus != null && appStatus !== 'rejected'))
-          );
+          const hasActiveWO  = activeWoIds.includes(j.id);
+          const isAcceptedApp = statusMap[j.id] === 'accepted';
+          // Show if: active WO exists (regardless of job_request.status to handle
+          // edge case where job status update was delayed), OR provider's own
+          // application was accepted and job is in an active state.
+          return hasActiveWO || (isAcceptedApp && (j.status === 'accepted' || j.status === 'in_progress'));
         })
         .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
       setActive(activeList);
+
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
 
-      // Build WO pending-signature map from the already-fetched woAllRows
+      // WO pending-signature map: WOs in this result where provider hasn't signed yet
       const map: Record<string, string> = {};
-      (woAllRows ?? []).forEach((w: any) => {
-        if (w.status === 'pending_signatures' && !w.provider_signature) map[w.job_request_id] = w.id;
+      activeWos.forEach((w: any) => {
+        if (!w.provider_signature) map[w.job_request_id] = w.id;
       });
       setWoMap(map);
     } catch (e: any) {
