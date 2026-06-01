@@ -255,7 +255,7 @@ export default function AdminProviders() {
       </View>
 
       {/* Country filter */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 16 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 16, flexGrow: 0 }}>
         {COUNTRY_FILTERS.map((c) => {
           const active = countryFilter === c.key;
           const count = countForCountry(c.key);
@@ -283,7 +283,7 @@ export default function AdminProviders() {
       </ScrollView>
 
       {/* Status filter chips */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 8, marginBottom: 8 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }} style={{ marginTop: 8, marginBottom: 8, flexGrow: 0 }}>
         {STATUS_FILTERS.map((f) => {
           const active = filter === f.key;
           const count = f.key === 'all' ? byCountry.length : byCountry.filter((p) => p.status === f.key).length;
