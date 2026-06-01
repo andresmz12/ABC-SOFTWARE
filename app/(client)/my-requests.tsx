@@ -669,13 +669,15 @@ export default function MyRequests() {
         expired:     allJobs.filter((j) => j.status === 'expired'),
       });
 
-      // Fetch WOs pending client signature
-      const acceptedIds = allJobs.filter((j) => j.status === 'accepted').map((j) => j.id);
-      if (acceptedIds.length > 0) {
+      // Fetch WOs pending client signature (accepted or in-progress jobs)
+      const pendingJobIds = allJobs
+        .filter((j) => j.status === 'accepted' || j.status === 'in_progress')
+        .map((j) => j.id);
+      if (pendingJobIds.length > 0) {
         const { data: wos } = await supabase
           .from('work_orders')
           .select('id, job_request_id, client_signature')
-          .in('job_request_id', acceptedIds)
+          .in('job_request_id', pendingJobIds)
           .eq('status', 'pending_signatures');
         const map: Record<string, string> = {};
         (wos ?? []).forEach((w: any) => {

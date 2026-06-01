@@ -622,7 +622,6 @@ function JobCard({
   job,
   appStatus,
   isRejected,
-  isAdminAssigned,
   es,
   onPress,
   onStart,
@@ -634,7 +633,6 @@ function JobCard({
   job: JobRequest;
   appStatus?: string;
   isRejected: boolean;
-  isAdminAssigned?: boolean;
   es: boolean;
   onPress?: () => void;
   onStart?: () => void;
@@ -715,13 +713,6 @@ function JobCard({
           ) : null}
         </View>
 
-        {isAdminAssigned && (
-          <View style={{ backgroundColor: `${C.accent2}15`, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 4 }}>
-            <Text style={{ color: C.accent2, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
-              {es ? '⚡ Asignado por Admin' : '⚡ Admin Assigned'}
-            </Text>
-          </View>
-        )}
         {isRejected && (
           <View style={{ backgroundColor: '#FEE2E2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' }}>
             <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_500Medium' }}>
@@ -847,8 +838,8 @@ export default function MyJobsScreen() {
   const [completeJob, setCompleteJob] = useState<JobRequest | null>(null);
   const [ratingJob, setRatingJob] = useState<JobRequest | null>(null);
   const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
-  const [woMap, setWoMap] = useState<Record<string, string>>({}); // jobId → woId
-  const [adminAssignedJobIds, setAdminAssignedJobIds] = useState<Set<string>>(new Set());
+  const [woMap, setWoMap] = useState<Record<string, string>>({}); // jobId → woId (provider unsigned)
+  const [pendingWoMap, setPendingWoMap] = useState<Record<string, string>>({}); // jobId → woId (any party unsigned)
 
   const TAB_LABELS: Record<Tab, string> = {
     applied:   es ? 'Aplicados' : 'Applied',
@@ -868,8 +859,6 @@ export default function MyJobsScreen() {
       const { data: { user: authUser } } = await supabase.auth.getUser();
       if (!authUser) { console.warn('[MyJobs] auth.getUser() returned null'); return; }
       const providerUid = authUser.id;
-      console.log('[MyJobs] providerUid (auth.uid):', providerUid);
-      console.log('[MyJobs] user.id from store    :', user.id);
 
       // Run both queries in parallel: applications + active work_orders
       const [appsRes, activeWosRes] = await Promise.all([
@@ -883,9 +872,6 @@ export default function MyJobsScreen() {
           .eq('provider_id', providerUid)
           .in('status', ['pending_signatures', 'signed', 'active']),
       ]);
-
-      console.log('[MyJobs] job_applications — error:', appsRes.error, '| rows:', appsRes.data);
-      console.log('[MyJobs] work_orders      — error:', activeWosRes.error, '| rows:', activeWosRes.data);
 
       if (appsRes.error) throw appsRes.error;
       if (activeWosRes.error) throw activeWosRes.error;
@@ -905,17 +891,11 @@ export default function MyJobsScreen() {
       const appJobIds   = apps.map((a: any) => a.job_request_id as string);
       const activeWoIds = activeWos.map((w: any) => w.job_request_id as string);
 
-      // Admin-assigned = has active WO but no accepted application row
-      const adminSet = new Set(activeWoIds.filter((id) => statusMap[id] !== 'accepted'));
-      setAdminAssignedJobIds(adminSet);
-
       const allJobIds = [...new Set([...appJobIds, ...activeWoIds])];
-      console.log('[MyJobs] allJobIds to fetch:', allJobIds);
 
       if (allJobIds.length === 0) {
-        console.log('[MyJobs] no job IDs found — clearing all tabs');
         setApplied([]); setActive([]); setCompleted([]);
-        setWoMap({});
+        setWoMap({}); setPendingWoMap({});
         return;
       }
 
@@ -924,8 +904,6 @@ export default function MyJobsScreen() {
         .select('*')
         .in('id', allJobIds)
         .order('created_at', { ascending: false });
-
-      console.log('[MyJobs] job_requests — error:', jobsErr, '| rows:', jobs?.map((j: any) => ({ id: j.id, status: j.status })));
 
       if (jobsErr) throw jobsErr;
 
@@ -937,23 +915,23 @@ export default function MyJobsScreen() {
         .filter((j) => {
           const hasActiveWO   = activeWoIds.includes(j.id);
           const isAcceptedApp = statusMap[j.id] === 'accepted';
-          const passes = hasActiveWO || (isAcceptedApp && (j.status === 'accepted' || j.status === 'in_progress'));
-          console.log(`[MyJobs] job ${j.id} status=${j.status} hasActiveWO=${hasActiveWO} appStatus=${statusMap[j.id]} → active=${passes}`);
-          return passes;
+          return hasActiveWO || (isAcceptedApp && (j.status === 'accepted' || j.status === 'in_progress'));
         })
         .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
 
-      console.log('[MyJobs] final activeList count:', activeList.length, activeList.map((j) => j.id));
       setActive(activeList);
 
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
 
-      // WO pending-signature map: WOs in this result where provider hasn't signed yet
-      const map: Record<string, string> = {};
+      // Provider-unsigned WOs drive the "Sign WO" banner; pending_signatures WOs block completion
+      const sigMap: Record<string, string> = {};
+      const pendingMap: Record<string, string> = {};
       activeWos.forEach((w: any) => {
-        if (!w.provider_signature) map[w.job_request_id] = w.id;
+        if (!w.provider_signature) sigMap[w.job_request_id] = w.id;
+        if (w.status === 'pending_signatures') pendingMap[w.job_request_id] = w.id;
       });
-      setWoMap(map);
+      setWoMap(sigMap);
+      setPendingWoMap(pendingMap);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -1000,16 +978,34 @@ export default function MyJobsScreen() {
       job={item}
       appStatus={appStatuses[item.id]}
       isRejected={rejectedIds.has(item.id)}
-      isAdminAssigned={adminAssignedJobIds.has(item.id)}
       es={es}
       onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
       onStart={activeTab === 'active' ? () => setStartJob(item) : undefined}
-      onComplete={activeTab === 'active' ? () => setCompleteJob(item) : undefined}
+      onComplete={activeTab === 'active' ? () => {
+        const pendingWoId = pendingWoMap[item.id];
+        if (pendingWoId) {
+          Alert.alert(
+            es ? 'Firma requerida' : 'Signature required',
+            es
+              ? 'La Orden de Trabajo debe ser firmada por ambas partes antes de completar el trabajo.'
+              : 'The Work Order must be signed by both parties before completing the job.',
+            [
+              { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+              {
+                text: es ? 'Firmar WO' : 'Sign WO',
+                onPress: () => router.push({ pathname: '/(shared)/work-order', params: { woId: pendingWoId } } as any),
+              },
+            ],
+          );
+          return;
+        }
+        setCompleteJob(item);
+      } : undefined}
       onWithdraw={activeTab === 'applied' && appStatuses[item.id] === 'pending' ? () => handleWithdraw(item) : undefined}
       onDispute={(activeTab === 'active' || activeTab === 'completed') ? () => setDisputeJob(item) : undefined}
       onSignWO={activeTab === 'active' && woMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { woId: woMap[item.id] } } as any) : undefined}
     />
-  ), [appStatuses, rejectedIds, adminAssignedJobIds, es, activeTab, router, handleWithdraw, woMap]);
+  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, woMap, pendingWoMap]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
