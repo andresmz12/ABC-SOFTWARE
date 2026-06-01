@@ -120,7 +120,7 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
           body_es: `Tu proveedor ha iniciado la ${svcEs}${cityEs}.`,
           type: 'job_started',
           data: { job_id: job.id },
-        }).then(() => {});
+        }).then(() => {}).catch(() => {});
       }
 
       setPhoto(null);
@@ -298,7 +298,7 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
           body_es: `La ${svcEs}${cityEs} ha sido completada. Por favor revisa el trabajo.`,
           type: 'job_completed',
           data: { job_id: job.id },
-        }).then(() => {});
+        }).then(() => {}).catch(() => {});
       }
 
       setPhotos([]);
