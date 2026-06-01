@@ -5,8 +5,9 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  Alert, PanResponder, Share,
+  Alert, PanResponder, Share, Platform, Linking,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import Svg, { Path } from 'react-native-svg';
@@ -485,6 +486,95 @@ export default function WorkOrderScreen() {
     } catch { /* cancelled */ }
   };
 
+  const handlePrint = async () => {
+    const jobType = wo.job?.service_type === 'commercial'
+      ? (es ? 'Limpieza Comercial' : 'Commercial Cleaning')
+      : (es ? 'Limpieza Residencial' : 'Residential Cleaning');
+    const location = [wo.job?.city, wo.job?.state].filter(Boolean).join(', ') || '—';
+    const scheduledDate = wo.job?.scheduled_date
+      ? new Date(wo.job.scheduled_date + 'T12:00:00').toLocaleDateString(es ? 'es-CO' : 'en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+      : '—';
+    const budgetStr = wo.job?.budget_usd
+      ? formatUSD(wo.job.budget_usd)
+      : wo.job?.budget_cop
+      ? formatCOP(wo.job.budget_cop)
+      : '—';
+    const clientSig = wo.client_signature
+      ? `✓ Signed — ${wo.client_signed_at ? new Date(wo.client_signed_at).toLocaleString() : ''}`
+      : 'Pending';
+    const providerSig = wo.provider_signature
+      ? `✓ Signed — ${wo.provider_signed_at ? new Date(wo.provider_signed_at).toLocaleString() : ''}`
+      : 'Pending';
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Work Order ${wo.wo_number}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 40px; color: #111; }
+    h1 { color: #0D1B2A; font-size: 24px; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 14px; margin-bottom: 24px; }
+    .section { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+    .section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #888; margin-bottom: 12px; }
+    .row { display: flex; margin-bottom: 8px; }
+    .label { color: #888; font-size: 12px; width: 160px; flex-shrink: 0; }
+    .value { color: #111; font-size: 13px; font-weight: 500; }
+    .sig-ok { color: green; }
+    .sig-pending { color: orange; }
+    @media print { body { margin: 20px; } }
+  </style>
+</head>
+<body>
+  <h1>ProVendor — Work Order</h1>
+  <div class="subtitle">#${wo.wo_number} &middot; Created ${new Date(wo.created_at).toLocaleDateString()}</div>
+  <div class="section">
+    <div class="section-title">Service Details</div>
+    <div class="row"><span class="label">Service type</span><span class="value">${jobType}</span></div>
+    <div class="row"><span class="label">Location</span><span class="value">${location}</span></div>
+    <div class="row"><span class="label">Scheduled date</span><span class="value">${scheduledDate}</span></div>
+    ${wo.job?.scheduled_time ? `<div class="row"><span class="label">Time</span><span class="value">${wo.job.scheduled_time}</span></div>` : ''}
+    <div class="row"><span class="label">Estimated hours</span><span class="value">${wo.job?.estimated_hours ?? '—'}h</span></div>
+    <div class="row"><span class="label">Agreed price</span><span class="value">${budgetStr}</span></div>
+    ${wo.job?.description ? `<div class="row"><span class="label">Description</span><span class="value">${wo.job.description}</span></div>` : ''}
+  </div>
+  <div class="section">
+    <div class="section-title">Client</div>
+    <div class="row"><span class="label">Name</span><span class="value">${wo.client?.full_name ?? '—'}</span></div>
+    ${wo.client?.phone ? `<div class="row"><span class="label">Phone</span><span class="value">${wo.client.phone}</span></div>` : ''}
+  </div>
+  <div class="section">
+    <div class="section-title">Provider</div>
+    <div class="row"><span class="label">Name / Company</span><span class="value">${wo.provider?.name ?? '—'}</span></div>
+    ${wo.provider?.phone ? `<div class="row"><span class="label">Phone</span><span class="value">${wo.provider.phone}</span></div>` : ''}
+    <div class="row"><span class="label">Type</span><span class="value">${wo.provider?.type === 'company' ? 'Company' : 'Independent'}</span></div>
+  </div>
+  <div class="section">
+    <div class="section-title">Signatures</div>
+    <div class="row"><span class="label">Client</span><span class="value ${wo.client_signature ? 'sig-ok' : 'sig-pending'}">${clientSig}</span></div>
+    <div class="row"><span class="label">Provider</span><span class="value ${wo.provider_signature ? 'sig-ok' : 'sig-pending'}">${providerSig}</span></div>
+  </div>
+  <script>window.onload = function() { window.print(); }</script>
+</body>
+</html>`;
+
+    if (Platform.OS === 'web') {
+      const win = (window as any).open('', '_blank');
+      if (win) { win.document.write(html); win.document.close(); }
+    } else {
+      try {
+        const path = `${FileSystem.cacheDirectory}WO_${wo.wo_number}.html`;
+        await FileSystem.writeAsStringAsync(path, html, { encoding: FileSystem.EncodingType.UTF8 });
+        await Linking.openURL(path);
+      } catch {
+        Alert.alert(
+          es ? 'No disponible' : 'Not available',
+          es ? 'No se pudo abrir el PDF en este dispositivo.' : 'Could not open the PDF on this device.',
+        );
+      }
+    }
+  };
+
   const isSigned = wo.status === 'signed' || wo.status === 'active' || wo.status === 'completed';
 
   const formatSignedDate = (iso: string | null) => {
@@ -535,9 +625,16 @@ export default function WorkOrderScreen() {
             {es ? 'Orden de Trabajo' : 'Work Order'}
           </Text>
         </View>
-        <TouchableOpacity onPress={handleShare} style={{ padding: 4 }} activeOpacity={0.7}>
-          <Feather name="share-2" size={20} color={C.textPrimary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {isAdmin && (
+            <TouchableOpacity onPress={handlePrint} style={{ padding: 4 }} activeOpacity={0.7}>
+              <Feather name="download" size={20} color={C.accent2} />
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={handleShare} style={{ padding: 4 }} activeOpacity={0.7}>
+            <Feather name="share-2" size={20} color={C.textPrimary} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView

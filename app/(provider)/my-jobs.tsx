@@ -622,6 +622,7 @@ function JobCard({
   job,
   appStatus,
   isRejected,
+  isAdminAssigned,
   es,
   onPress,
   onStart,
@@ -633,6 +634,7 @@ function JobCard({
   job: JobRequest;
   appStatus?: string;
   isRejected: boolean;
+  isAdminAssigned?: boolean;
   es: boolean;
   onPress?: () => void;
   onStart?: () => void;
@@ -713,6 +715,13 @@ function JobCard({
           ) : null}
         </View>
 
+        {isAdminAssigned && (
+          <View style={{ backgroundColor: `${C.accent2}15`, borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start', marginBottom: 4 }}>
+            <Text style={{ color: C.accent2, fontSize: 11, fontFamily: 'Inter_600SemiBold' }}>
+              {es ? '⚡ Asignado por Admin' : '⚡ Admin Assigned'}
+            </Text>
+          </View>
+        )}
         {isRejected && (
           <View style={{ backgroundColor: '#FEE2E2', borderRadius: 8, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' }}>
             <Text style={{ color: C.danger, fontSize: 11, fontFamily: 'Inter_500Medium' }}>
@@ -839,6 +848,7 @@ export default function MyJobsScreen() {
   const [ratingJob, setRatingJob] = useState<JobRequest | null>(null);
   const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
   const [woMap, setWoMap] = useState<Record<string, string>>({}); // jobId → woId
+  const [adminAssignedJobIds, setAdminAssignedJobIds] = useState<Set<string>>(new Set());
 
   const TAB_LABELS: Record<Tab, string> = {
     applied:   es ? 'Aplicados' : 'Applied',
@@ -850,64 +860,69 @@ export default function MyJobsScreen() {
     if (!user?.id) return;
     setLoading(true);
     try {
+      // Fetch job applications (provider-initiated)
       const { data: apps, error: appsErr } = await supabase
         .from('job_applications')
         .select('job_request_id, status')
         .eq('provider_id', user.id);
       if (appsErr) throw appsErr;
-      if (!apps?.length) {
+
+      const statusMap: Record<string, string> = {};
+      (apps ?? []).forEach((a: any) => { statusMap[a.job_request_id] = a.status; });
+      setAppStatuses(statusMap);
+
+      const rejIds = new Set((apps ?? []).filter((a: any) => a.status === 'rejected').map((a: any) => a.job_request_id as string));
+      setRejectedIds(rejIds);
+
+      const appJobIds = (apps ?? []).map((a: any) => a.job_request_id as string);
+
+      // Fetch all work_orders for this provider — catches admin-assigned jobs not in job_applications
+      const { data: woAllRows, error: woErr } = await supabase
+        .from('work_orders')
+        .select('id, job_request_id, provider_signature, status')
+        .eq('provider_id', user.id)
+        .neq('status', 'cancelled');
+      if (woErr) throw woErr;
+
+      const woJobIds = (woAllRows ?? []).map((w: any) => w.job_request_id as string);
+      const adminSet = new Set(woJobIds.filter((id) => !appJobIds.includes(id)));
+      setAdminAssignedJobIds(adminSet);
+
+      const allJobIds = [...new Set([...appJobIds, ...woJobIds])];
+      if (allJobIds.length === 0) {
         setApplied([]); setActive([]); setCompleted([]);
+        setWoMap({});
         return;
       }
 
-      const statusMap: Record<string, string> = {};
-      apps.forEach((a: any) => { statusMap[a.job_request_id] = a.status; });
-      setAppStatuses(statusMap);
-
-      const rejIds = new Set(apps.filter((a: any) => a.status === 'rejected').map((a: any) => a.job_request_id as string));
-      setRejectedIds(rejIds);
-
-      const jobIds = apps.map((a: any) => a.job_request_id);
       const { data: jobs, error: jobsErr } = await supabase
         .from('job_requests')
         .select('*')
-        .in('id', jobIds)
+        .in('id', allJobIds)
         .order('created_at', { ascending: false });
       if (jobsErr) throw jobsErr;
 
       const allJobs = (jobs ?? []) as JobRequest[];
       setApplied(allJobs.filter((j) => statusMap[j.id] === 'pending' || statusMap[j.id] === 'rejected'));
-      // Active = application accepted AND job not yet completed/cancelled/expired
-      // Sorted by scheduled_date ascending so most urgent comes first
-      // Active = job status is accepted OR in_progress, and provider application not rejected
+
       const activeList = allJobs
         .filter((j) => {
           const appStatus = statusMap[j.id];
           return (
             (j.status === 'accepted' || j.status === 'in_progress') &&
-            appStatus != null && appStatus !== 'rejected'
+            (adminSet.has(j.id) || (appStatus != null && appStatus !== 'rejected'))
           );
         })
         .sort((a, b) => new Date(a.scheduled_date).getTime() - new Date(b.scheduled_date).getTime());
       setActive(activeList);
       setCompleted(allJobs.filter((j) => j.status === 'completed'));
 
-      // Fetch WOs pending provider signature
-      const acceptedJobIds = activeList.map((j) => j.id);
-      if (acceptedJobIds.length > 0) {
-        const { data: wos } = await supabase
-          .from('work_orders')
-          .select('id, job_request_id, provider_signature')
-          .in('job_request_id', acceptedJobIds)
-          .eq('status', 'pending_signatures');
-        const map: Record<string, string> = {};
-        (wos ?? []).forEach((w: any) => {
-          if (!w.provider_signature) map[w.job_request_id] = w.id;
-        });
-        setWoMap(map);
-      } else {
-        setWoMap({});
-      }
+      // Build WO pending-signature map from the already-fetched woAllRows
+      const map: Record<string, string> = {};
+      (woAllRows ?? []).forEach((w: any) => {
+        if (w.status === 'pending_signatures' && !w.provider_signature) map[w.job_request_id] = w.id;
+      });
+      setWoMap(map);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {
@@ -954,6 +969,7 @@ export default function MyJobsScreen() {
       job={item}
       appStatus={appStatuses[item.id]}
       isRejected={rejectedIds.has(item.id)}
+      isAdminAssigned={adminAssignedJobIds.has(item.id)}
       es={es}
       onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
       onStart={activeTab === 'active' ? () => setStartJob(item) : undefined}
@@ -962,7 +978,7 @@ export default function MyJobsScreen() {
       onDispute={(activeTab === 'active' || activeTab === 'completed') ? () => setDisputeJob(item) : undefined}
       onSignWO={activeTab === 'active' && woMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { woId: woMap[item.id] } } as any) : undefined}
     />
-  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, woMap]);
+  ), [appStatuses, rejectedIds, adminAssignedJobIds, es, activeTab, router, handleWithdraw, woMap]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
