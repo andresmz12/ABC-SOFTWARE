@@ -274,7 +274,7 @@ export default function AdminChats() {
       </View>
 
       {/* Role filter chips */}
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingHorizontal: 20, marginBottom: 8 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'flex-start', gap: 8, paddingHorizontal: 20, marginBottom: 8 }}>
         {ROLE_FILTERS.map((f) => {
           const active = roleFilter === f.key;
           const count = f.key === 'all' ? chats.length : chats.filter((c) => c.user_role === f.key).length;
@@ -294,7 +294,7 @@ export default function AdminChats() {
       </View>
 
       {/* Country sub-filter */}
-      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 20, marginBottom: 12 }}>
         {COUNTRY_FILTERS.map((f) => {
           const active = countryFilter === f.key;
           return (

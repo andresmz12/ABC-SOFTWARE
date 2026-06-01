@@ -175,6 +175,7 @@ export default function AdminJobs() {
               key={c.key}
               onPress={() => setCountryFilter(c.key)}
               style={{
+                alignSelf: 'flex-start',
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 9999,
@@ -202,6 +203,7 @@ export default function AdminJobs() {
               key={f.key}
               onPress={() => setStatusFilter(f.key)}
               style={{
+                alignSelf: 'flex-start',
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 9999,

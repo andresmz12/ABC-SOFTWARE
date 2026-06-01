@@ -264,6 +264,7 @@ export default function AdminProviders() {
               key={c.key}
               onPress={() => setCountryFilter(c.key)}
               style={{
+                alignSelf: 'flex-start',
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 9999,
@@ -291,6 +292,7 @@ export default function AdminProviders() {
               key={f.key}
               onPress={() => setFilter(f.key)}
               style={{
+                alignSelf: 'flex-start',
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderRadius: 9999,

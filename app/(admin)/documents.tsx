@@ -288,7 +288,7 @@ export default function AdminDocuments() {
         </Text>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 8, paddingHorizontal: 24, marginTop: 16, marginBottom: 16, flexWrap: 'wrap' }}>
+      <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingHorizontal: 24, marginTop: 16, marginBottom: 16, flexWrap: 'wrap' }}>
         {FILTERS.map((f) => {
           const active = filter === f.key;
           const count = f.key === 'all' ? docs.length : docs.filter((d) => d.status === f.key).length;
