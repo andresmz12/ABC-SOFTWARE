@@ -860,19 +860,28 @@ export default function MyJobsScreen() {
     if (!user?.id) return;
     setLoading(true);
     try {
+      // Use auth.uid() directly — user.id from the Zustand store can hold the
+      // profile table's own PK (companies.id) instead of the auth UUID when the
+      // store is seeded from an older session. Both work_orders.provider_id and
+      // job_applications.provider_id are stored as auth.uid(), so we must match
+      // with the same value.
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      if (!authUser) return;
+      const providerUid = authUser.id;
+
       // Run both queries in parallel: applications + active work_orders
       const [appsRes, activeWosRes] = await Promise.all([
         supabase
           .from('job_applications')
           .select('job_request_id, status')
-          .eq('provider_id', user.id),
+          .eq('provider_id', providerUid),
         // Fetch work_orders where this provider is assigned and the WO is active.
         // provider_id on work_orders = auth.uid() (set by adminAssignJob).
         // This catches admin-direct-assign even when no job_application row exists.
         supabase
           .from('work_orders')
           .select('id, job_request_id, provider_signature')
-          .eq('provider_id', user.id)
+          .eq('provider_id', providerUid)
           .in('status', ['pending_signatures', 'signed', 'active']),
       ]);
       if (appsRes.error) throw appsRes.error;
