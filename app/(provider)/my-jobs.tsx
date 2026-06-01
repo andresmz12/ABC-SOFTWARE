@@ -89,12 +89,14 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
       console.log('[StartJob] job.id:', job.id, '| auth.uid:', authUser?.id, '| userId prop:', userId);
 
       const ext = photo.name.split('.').pop() ?? 'jpg';
-      const path = `${userId}/${job.id}/start/${Date.now()}.${ext}`;
+      const path = `${job.id}/before/${Date.now()}.${ext}`;
       const response = await fetch(photo.uri);
       const blob = await response.blob();
-      const { error: uploadErr } = await supabase.storage
+      const { data: uploadData, error: uploadErr } = await supabase.storage
         .from('job-photos')
         .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
+      console.log('Upload error:', uploadErr);
+      console.log('Upload data:', uploadData);
       if (uploadErr) throw uploadErr;
 
       const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
