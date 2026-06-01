@@ -384,6 +384,7 @@ export default function WorkOrderScreen() {
 
   const loadWO = useCallback(async () => {
     if (!woId) return;
+    console.log('[WorkOrder] Loading woId:', woId, '| auth.uid:', user?.id);
     setLoading(true);
     try {
       const { data: woData, error } = await supabase
@@ -392,6 +393,7 @@ export default function WorkOrderScreen() {
         .eq('id', woId)
         .single();
       if (error) throw error;
+      console.log('[WorkOrder] WO loaded: id:', woData?.id, '| provider_id:', woData?.provider_id, '| client_id:', woData?.client_id);
 
       // Fetch job, client, provider in parallel
       const [jobRes, clientRes, companyRes, indepRes] = await Promise.all([
@@ -443,7 +445,8 @@ export default function WorkOrderScreen() {
         updateData.status = 'signed';
       }
 
-      const { error } = await supabase.from('work_orders').update(updateData).eq('id', wo.id);
+      const { data: sigData, error } = await supabase.from('work_orders').update(updateData).eq('id', wo.id);
+      console.log('Signature saved:', sigData, error);
       if (error) throw error;
 
       // When both signed → set job to in_progress

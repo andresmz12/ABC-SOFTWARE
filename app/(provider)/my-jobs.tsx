@@ -984,6 +984,65 @@ export default function MyJobsScreen() {
     );
   }, [es, user, loadJobs]);
 
+  const handleCompleteJob = useCallback(async (job: JobRequest) => {
+    console.log('COMPLETE JOB called - job_id:', job.id);
+    try {
+      const { data: wo, error: woError } = await supabase
+        .from('work_orders')
+        .select('id, provider_signature, client_signature')
+        .eq('job_request_id', job.id)
+        .single();
+      console.log('WO found:', wo, 'error:', woError);
+
+      if (woError || !wo) {
+        Alert.alert(
+          'Error',
+          es ? 'No se encontró la orden de trabajo.' : 'Work order not found.',
+        );
+        return;
+      }
+
+      const providerSigned = !!wo.provider_signature;
+      const clientSigned   = !!wo.client_signature;
+      console.log('Provider signed:', providerSigned, 'Client signed:', clientSigned);
+
+      if (!providerSigned || !clientSigned) {
+        const missing = [
+          !providerSigned ? (es ? 'tu firma' : 'your signature') : '',
+          !clientSigned   ? (es ? 'firma del cliente' : "client's signature") : '',
+        ].filter(Boolean).join(', ');
+        Alert.alert(
+          es ? 'Firma requerida' : 'Signature required',
+          `${es ? 'Falta: ' : 'Missing: '}${missing}`,
+          [
+            { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
+            {
+              text: es ? 'Ir a firmar' : 'Go to sign',
+              onPress: () => router.push({ pathname: '/(shared)/work-order', params: { woId: wo.id } } as any),
+            },
+          ],
+        );
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('job_requests')
+        .update({ status: 'completed' })
+        .eq('id', job.id);
+      console.log('Complete result:', data, error);
+
+      if (error) {
+        Alert.alert('Error', error.message);
+        return;
+      }
+
+      setRatingJob(job);
+      loadJobs();
+    } catch (e: any) {
+      Alert.alert('Error', e.message);
+    }
+  }, [es, router, loadJobs]);
+
   const current = activeTab === 'applied' ? applied : activeTab === 'active' ? active : completed;
   const counts: Record<Tab, number> = { applied: applied.length, active: active.length, completed: completed.length };
 
@@ -995,31 +1054,12 @@ export default function MyJobsScreen() {
       es={es}
       onPress={() => router.push({ pathname: '/(provider)/job-detail', params: { jobId: item.id } } as any)}
       onStart={activeTab === 'active' ? () => setStartJob(item) : undefined}
-      onComplete={activeTab === 'active' ? () => {
-        const pendingWoId = pendingWoMap[item.id];
-        if (pendingWoId) {
-          Alert.alert(
-            es ? 'Firma requerida' : 'Signature required',
-            es
-              ? 'La Orden de Trabajo debe ser firmada por ambas partes antes de completar el trabajo.'
-              : 'The Work Order must be signed by both parties before completing the job.',
-            [
-              { text: es ? 'Cancelar' : 'Cancel', style: 'cancel' },
-              {
-                text: es ? 'Firmar WO' : 'Sign WO',
-                onPress: () => router.push({ pathname: '/(shared)/work-order', params: { woId: pendingWoId } } as any),
-              },
-            ],
-          );
-          return;
-        }
-        setCompleteJob(item);
-      } : undefined}
+      onComplete={activeTab === 'active' ? () => handleCompleteJob(item) : undefined}
       onWithdraw={activeTab === 'applied' && appStatuses[item.id] === 'pending' ? () => handleWithdraw(item) : undefined}
       onDispute={(activeTab === 'active' || activeTab === 'completed') ? () => setDisputeJob(item) : undefined}
       onSignWO={activeTab === 'active' && woMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { woId: woMap[item.id] } } as any) : undefined}
     />
-  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, woMap, pendingWoMap]);
+  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, woMap, handleCompleteJob]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
