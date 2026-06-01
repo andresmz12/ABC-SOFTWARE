@@ -99,6 +99,15 @@ Cualquier disputa se resolverá a través del proceso de resolución de disputas
 Al firmar, confirmas que has leído, entendido y aceptado estos términos.`;
 
 // ─── Signature Canvas ─────────────────────────────────────────────────────────
+//
+// Web:    mouse events on the View (onMouseDown/Move/Up/Leave).
+//         In-progress stroke lives in `currentPath` state so React re-renders
+//         without remounting the SVG (remount drops pointer capture → line vanishes).
+//
+// Mobile: PanResponder + ref-based live stroke + `tick` to force re-renders
+//         (same pattern as before, avoids stale closures in PanResponder callbacks).
+
+const isWeb = Platform.OS === 'web';
 
 function SignatureCanvas({
   onSign, saving, es,
@@ -108,12 +117,19 @@ function SignatureCanvas({
   es: boolean;
 }) {
   const [paths, setPaths] = useState<string[]>([]);
+
+  // Web-only state: current in-progress stroke + drawing flag
+  const [currentPath, setCurrentPath] = useState('');
+  const isDrawingRef = useRef(false);
+
+  // Mobile-only: live stroke via ref + tick to trigger re-render
   const liveRef = useRef('');
   const [tick, setTick] = useState(0);
 
+  // ── Mobile PanResponder ────────────────────────────────────────────────────
   const panResponder = useMemo(() => PanResponder.create({
     onStartShouldSetPanResponder: () => true,
-    onMoveShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder:  () => true,
     onPanResponderGrant: (evt) => {
       const { locationX, locationY } = evt.nativeEvent;
       liveRef.current = `M${locationX.toFixed(1)},${locationY.toFixed(1)}`;
@@ -133,7 +149,49 @@ function SignatureCanvas({
     },
   }), []);
 
-  const hasSignature = paths.length > 0 || !!liveRef.current;
+  // ── Web mouse handlers ─────────────────────────────────────────────────────
+  // Commit whatever is in currentPath into the paths array, then reset.
+  const commitWebStroke = useCallback(() => {
+    isDrawingRef.current = false;
+    setCurrentPath((prev) => {
+      if (prev) setPaths((ps) => [...ps, prev]);
+      return '';
+    });
+  }, []);
+
+  const webHandlers = useMemo(() => ({
+    onMouseDown: (e: any) => {
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left).toFixed(1);
+      const y = (e.clientY - rect.top).toFixed(1);
+      isDrawingRef.current = true;
+      setCurrentPath(`M${x},${y}`);
+    },
+    onMouseMove: (e: any) => {
+      if (!isDrawingRef.current) return;
+      e.preventDefault();
+      const rect = e.currentTarget.getBoundingClientRect();
+      const x = (e.clientX - rect.left).toFixed(1);
+      const y = (e.clientY - rect.top).toFixed(1);
+      setCurrentPath((prev) => `${prev} L${x},${y}`);
+    },
+    onMouseUp:    commitWebStroke,
+    onMouseLeave: commitWebStroke,
+  }), [commitWebStroke]);
+
+  const hasSignature = paths.length > 0 || (isWeb ? !!currentPath : !!liveRef.current);
+
+  const handleClear = useCallback(() => {
+    setPaths([]);
+    if (isWeb) {
+      setCurrentPath('');
+      isDrawingRef.current = false;
+    } else {
+      liveRef.current = '';
+      setTick((t) => t + 1);
+    }
+  }, []);
 
   const handleSign = () => {
     if (!hasSignature) {
@@ -154,21 +212,34 @@ function SignatureCanvas({
 
       {/* Canvas */}
       <View
-        {...panResponder.panHandlers}
+        {...(isWeb ? webHandlers : panResponder.panHandlers)}
         style={{
           height: 180, borderRadius: 14,
           borderWidth: 1.5, borderColor: hasSignature ? C.accent : C.line,
           backgroundColor: '#FAFBFC',
           overflow: 'hidden',
+          ...(isWeb ? { cursor: 'crosshair', userSelect: 'none' } as any : {}),
         }}
       >
-        <Svg key={tick} width="100%" height="100%">
+        {/*
+          Web:    no `key` prop — remounting the SVG drops pointer capture,
+                  causing the in-progress stroke to vanish.
+          Mobile: `key={tick}` forces SVG re-render on each PanResponder event
+                  so the live ref-based stroke is visible while drawing.
+        */}
+        <Svg key={isWeb ? undefined : tick} width="100%" height="100%">
           {paths.map((p, i) => (
             <Path key={i} d={p} stroke={C.textPrimary} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
           ))}
-          {liveRef.current ? (
-            <Path d={liveRef.current} stroke={C.textPrimary} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
-          ) : null}
+          {isWeb ? (
+            currentPath
+              ? <Path d={currentPath} stroke={C.textPrimary} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              : null
+          ) : (
+            liveRef.current
+              ? <Path d={liveRef.current} stroke={C.textPrimary} strokeWidth={2.5} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+              : null
+          )}
         </Svg>
         {!hasSignature && (
           <View style={{ position: 'absolute', bottom: 0, left: 0, right: 0, top: 0, alignItems: 'center', justifyContent: 'center', pointerEvents: 'none' }}>
@@ -183,7 +254,7 @@ function SignatureCanvas({
       {/* Controls */}
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
         <TouchableOpacity
-          onPress={() => { setPaths([]); liveRef.current = ''; setTick((t) => t + 1); }}
+          onPress={handleClear}
           style={{
             flex: 1, height: 44, borderRadius: 10, borderWidth: 1, borderColor: C.line,
             alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 6,
