@@ -412,7 +412,7 @@ export default function AdminJobDetail() {
               return (
                 <TouchableOpacity
                   key={wo.id}
-                  onPress={() => router.push({ pathname: '/(shared)/work-order', params: { workOrderId: wo.id } } as any)}
+                  onPress={() => router.push({ pathname: '/(shared)/work-order', params: { woId: wo.id } } as any)}
                   style={{ backgroundColor: C.surface, borderRadius: 12, borderWidth: 1, borderColor: cancelled ? C.line : `${C.accent2}40`, padding: 14, marginBottom: 8, flexDirection: 'row', alignItems: 'center' }}
                   activeOpacity={0.85}
                 >

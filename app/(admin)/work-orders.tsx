@@ -7,7 +7,7 @@ import {
   View, Text, FlatList, ActivityIndicator, TouchableOpacity,
   ScrollView, Modal,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import ScreenWrapper from '@/components/layout/ScreenWrapper';
 import EmptyState from '@/components/ui/EmptyState';
 import { Feather } from '@expo/vector-icons';
@@ -131,7 +131,7 @@ function WOCard({ wo, es, onPress }: { wo: WORow; es: boolean; onPress: () => vo
   );
 }
 
-function WODetailModal({ wo, es, onClose }: { wo: WORow | null; es: boolean; onClose: () => void }) {
+function WODetailModal({ wo, es, onClose, onViewFull }: { wo: WORow | null; es: boolean; onClose: () => void; onViewFull: (id: string) => void }) {
   if (!wo) return null;
   const color = STATUS_COLOR[wo.status] ?? C.textMuted;
   const label = STATUS_LABEL[wo.status]?.[es ? 1 : 0] ?? wo.status;
@@ -159,9 +159,15 @@ function WODetailModal({ wo, es, onClose }: { wo: WORow | null; es: boolean; onC
                 <Text style={{ color, fontSize: 11, fontFamily: 'Inter_700Bold' }}>{label.toUpperCase()}</Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
-              <Feather name="x" size={18} color={C.textSecondary} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <TouchableOpacity onPress={() => { onClose(); onViewFull(wo.id); }} style={{ height: 36, paddingHorizontal: 14, backgroundColor: C.accent2, borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5 }}>
+                <Feather name="eye" size={13} color="#FFF" />
+                <Text style={{ color: '#FFF', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>{es ? 'Ver WO' : 'View WO'}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, backgroundColor: C.surface2, borderRadius: 18, alignItems: 'center', justifyContent: 'center' }}>
+                <Feather name="x" size={18} color={C.textSecondary} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <ScrollView contentContainerStyle={{ paddingHorizontal: 24, paddingBottom: 16 }} showsVerticalScrollIndicator={false}>
@@ -226,6 +232,7 @@ function WODetailModal({ wo, es, onClose }: { wo: WORow | null; es: boolean; onC
 export default function AdminWorkOrders() {
   const { lang } = useLang();
   const es = lang === 'es';
+  const router = useRouter();
   const [wos, setWos] = useState<WORow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<WOFilter>('all');
@@ -305,7 +312,7 @@ export default function AdminWorkOrders() {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={{ paddingHorizontal: 24, gap: 8, paddingVertical: 4 }}
-        style={{ marginTop: 12, marginBottom: 12 }}
+        style={{ marginTop: 12, marginBottom: 12, flexGrow: 0 }}
       >
         {FILTERS.map((f) => {
           const count = f.key === 'all' ? wos.length : wos.filter((w) => w.status === f.key).length;
@@ -355,7 +362,12 @@ export default function AdminWorkOrders() {
         />
       )}
 
-      <WODetailModal wo={selectedWO} es={es} onClose={() => setSelectedWO(null)} />
+      <WODetailModal
+        wo={selectedWO}
+        es={es}
+        onClose={() => setSelectedWO(null)}
+        onViewFull={(id) => router.push({ pathname: '/(shared)/work-order', params: { woId: id } } as any)}
+      />
     </ScreenWrapper>
   );
 }

@@ -5,7 +5,7 @@
 import React, { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  Alert, PanResponder,
+  Alert, PanResponder, Share,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -456,13 +456,34 @@ export default function WorkOrderScreen() {
     );
   }
 
-  const isClient = user?.id === wo.client_id;
+  const isAdmin    = user?.role === 'admin';
+  const isClient   = !isAdmin && user?.id === wo.client_id;
+  const isProvider = !isAdmin && user?.id === wo.provider_id;
   const isMySigned    = isClient ? !!wo.client_signature : !!wo.provider_signature;
   const isOtherSigned = isClient ? !!wo.provider_signature : !!wo.client_signature;
   const mySignedAt    = isClient ? wo.client_signed_at : wo.provider_signed_at;
   const otherSignedAt = isClient ? wo.provider_signed_at : wo.client_signed_at;
   const myName    = isClient ? (wo.client?.full_name ?? (es ? 'Tú' : 'You')) : (wo.provider?.name ?? (es ? 'Tú' : 'You'));
   const otherName = isClient ? (wo.provider?.name ?? (es ? 'Proveedor' : 'Provider')) : (wo.client?.full_name ?? (es ? 'Cliente' : 'Client'));
+
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        title: `Work Order ${wo.wo_number}`,
+        message: [
+          `Work Order: ${wo.wo_number}`,
+          `Status: ${wo.status}`,
+          `Client: ${wo.client?.full_name ?? '—'}`,
+          `Provider: ${wo.provider?.name ?? '—'}`,
+          `Service: ${wo.job?.service_type === 'commercial' ? (es ? 'Comercial' : 'Commercial') : (es ? 'Residencial' : 'Residential')}`,
+          `Location: ${[wo.job?.city, wo.job?.state].filter(Boolean).join(', ')}`,
+          `Date: ${wo.job?.scheduled_date ?? '—'}`,
+          `Client signed: ${wo.client_signed_at ? new Date(wo.client_signed_at).toLocaleString() : 'Pending'}`,
+          `Provider signed: ${wo.provider_signed_at ? new Date(wo.provider_signed_at).toLocaleString() : 'Pending'}`,
+        ].join('\n'),
+      });
+    } catch { /* cancelled */ }
+  };
 
   const isSigned = wo.status === 'signed' || wo.status === 'active' || wo.status === 'completed';
 
@@ -514,14 +535,9 @@ export default function WorkOrderScreen() {
             {es ? 'Orden de Trabajo' : 'Work Order'}
           </Text>
         </View>
-        <View style={{
-          paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20,
-          backgroundColor: `${statusColor[wo.status] ?? C.textMuted}20`,
-        }}>
-          <Text style={{ color: statusColor[wo.status] ?? C.textMuted, fontSize: 10, fontFamily: 'Inter_700Bold' }}>
-            {(statusLabel[wo.status]?.[es ? 1 : 0] ?? wo.status).toUpperCase()}
-          </Text>
-        </View>
+        <TouchableOpacity onPress={handleShare} style={{ padding: 4 }} activeOpacity={0.7}>
+          <Feather name="share-2" size={20} color={C.textPrimary} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -622,28 +638,54 @@ export default function WorkOrderScreen() {
             {es ? 'Firmas' : 'Signatures'}
           </Text>
 
-          {/* My signature */}
-          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
-            {isClient ? (es ? 'Tu firma (Cliente)' : 'Your signature (Client)') : (es ? 'Tu firma (Proveedor)' : 'Your signature (Provider)')}
-          </Text>
-          {isMySigned ? (
-            <SignedBanner name={myName} dateStr={formatSignedDate(mySignedAt ?? null)} es={es} />
-          ) : isSigned ? (
-            <SignedBanner name={myName} dateStr="—" es={es} />
-          ) : (
-            <SignatureCanvas onSign={handleSign} saving={saving} es={es} />
-          )}
+          {isAdmin ? (
+            /* Admin: read-only view of both signatures */
+            <>
+              <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
+                {es ? 'Firma del Cliente' : "Client's Signature"}
+              </Text>
+              {wo.client_signature ? (
+                <SignedBanner name={wo.client?.full_name ?? 'Client'} dateStr={formatSignedDate(wo.client_signed_at)} es={es} />
+              ) : (
+                <WaitingBanner name={wo.client?.full_name ?? (es ? 'Cliente' : 'Client')} es={es} />
+              )}
 
-          <View style={{ height: 1, backgroundColor: C.line, marginVertical: 16 }} />
+              <View style={{ height: 1, backgroundColor: C.line, marginVertical: 16 }} />
 
-          {/* Other party signature */}
-          <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
-            {isClient ? (es ? 'Firma del Proveedor' : "Provider's Signature") : (es ? 'Firma del Cliente' : "Client's Signature")}
-          </Text>
-          {isOtherSigned ? (
-            <SignedBanner name={otherName} dateStr={formatSignedDate(otherSignedAt ?? null)} es={es} />
+              <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
+                {es ? 'Firma del Proveedor' : "Provider's Signature"}
+              </Text>
+              {wo.provider_signature ? (
+                <SignedBanner name={wo.provider?.name ?? 'Provider'} dateStr={formatSignedDate(wo.provider_signed_at)} es={es} />
+              ) : (
+                <WaitingBanner name={wo.provider?.name ?? (es ? 'Proveedor' : 'Provider')} es={es} />
+              )}
+            </>
           ) : (
-            <WaitingBanner name={otherName} es={es} />
+            /* Client / Provider: interactive signing */
+            <>
+              <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
+                {isClient ? (es ? 'Tu firma (Cliente)' : 'Your signature (Client)') : (es ? 'Tu firma (Proveedor)' : 'Your signature (Provider)')}
+              </Text>
+              {isMySigned ? (
+                <SignedBanner name={myName} dateStr={formatSignedDate(mySignedAt ?? null)} es={es} />
+              ) : isSigned ? (
+                <SignedBanner name={myName} dateStr="—" es={es} />
+              ) : (
+                <SignatureCanvas onSign={handleSign} saving={saving} es={es} />
+              )}
+
+              <View style={{ height: 1, backgroundColor: C.line, marginVertical: 16 }} />
+
+              <Text style={{ color: C.textPrimary, fontSize: 13, fontFamily: 'Inter_600SemiBold', marginBottom: 8 }}>
+                {isClient ? (es ? 'Firma del Proveedor' : "Provider's Signature") : (es ? 'Firma del Cliente' : "Client's Signature")}
+              </Text>
+              {isOtherSigned ? (
+                <SignedBanner name={otherName} dateStr={formatSignedDate(otherSignedAt ?? null)} es={es} />
+              ) : (
+                <WaitingBanner name={otherName} es={es} />
+              )}
+            </>
           )}
         </View>
       </ScrollView>
