@@ -305,6 +305,28 @@ export async function acceptBid(applicationId: string, jobRequestId: string): Pr
   }
 
   await Promise.allSettled(pushPromises);
+
+  // Create Work Order
+  if (client_id) {
+    try {
+      const year = new Date().getFullYear();
+      const { count } = await supabase
+        .from('work_orders')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', `${year}-01-01T00:00:00`);
+      const seq = (count ?? 0) + 1;
+      const woNumber = `PV-${year}-${String(seq).padStart(4, '0')}`;
+      await supabase.from('work_orders').insert({
+        wo_number: woNumber,
+        job_request_id: jobRequestId,
+        client_id,
+        provider_id,
+        status: 'pending_signatures',
+      });
+    } catch (e: any) {
+      console.error('[acceptBid] work order creation failed:', e?.message ?? e);
+    }
+  }
 }
 
 export async function fetchClientJobs(clientId: string): Promise<{

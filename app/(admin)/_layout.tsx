@@ -71,7 +71,6 @@ export default function AdminLayout() {
       <Tabs.Screen name="jobs"         options={{ title: 'Jobs',      tabBarIcon: ({ focused }) => <TabIcon name="briefcase"      focused={focused} activeColor={C.accent2} /> }} />
       {/* 4. Work Orders */}
       <Tabs.Screen name="work-orders"  options={{ title: 'WOs',       tabBarIcon: ({ focused }) => <TabIcon name="file-text"      focused={focused} activeColor={C.accent2} /> }} />
-      {/* 5. Messages */}
       <Tabs.Screen
         name="chats"
         options={{

@@ -535,8 +535,33 @@ const RequestCard = React.memo(function RequestCard({
             </View>
           </>
         ) : req.status === 'accepted' ? (
-          /* Provider selected — show "Provider Assigned" badge + View Bids link */
+          /* Provider selected — WO signature banner + View Bids link */
           <>
+            {onSignWO && (
+              <TouchableOpacity
+                onPress={onSignWO}
+                activeOpacity={0.85}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                  paddingHorizontal: 16, paddingVertical: 10,
+                  backgroundColor: '#FFF7ED',
+                  borderTopWidth: 1, borderTopColor: '#FED7AA',
+                }}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Feather name="alert-triangle" size={14} color="#F97316" />
+                  <Text style={{ color: '#C2410C', fontSize: 13, fontFamily: 'Inter_700Bold' }}>
+                    {es ? '⚠️ Firma requerida' : '⚠️ Signature required'}
+                  </Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                  <Text style={{ color: '#F97316', fontSize: 12, fontFamily: 'Inter_600SemiBold' }}>
+                    {es ? 'Firmar WO' : 'Sign WO'}
+                  </Text>
+                  <Feather name="chevron-right" size={13} color="#F97316" />
+                </View>
+              </TouchableOpacity>
+            )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                 <Feather name="user-check" size={13} color={C.success} style={{ marginRight: 4 }} />
@@ -622,9 +647,8 @@ export default function MyRequests() {
   const [editJob, setEditJob] = useState<JobRequest | null>(null);
   const [ratingJob, setRatingJob] = useState<{ jobId: string; providerId: string } | null>(null);
   const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
+  const [woMap, setWoMap] = useState<Record<string, string>>({}); // jobId → woId
   const dismissedRatingRef = useRef<Set<string>>(new Set());
-  // jobId → workOrderId for jobs needing client signature
-  const [pendingWOMap, setPendingWOMap] = useState<Record<string, string>>({});
 
   const loadJobs = useCallback(async () => {
     if (!user?.id) return;
@@ -645,22 +669,21 @@ export default function MyRequests() {
         expired:     allJobs.filter((j) => j.status === 'expired'),
       });
 
-      // Fetch work orders needing client signature
-      const acceptedJobIds = allJobs.filter((j) => j.status === 'accepted').map((j) => j.id);
-      if (acceptedJobIds.length > 0) {
-        const { data: woRows } = await supabase
+      // Fetch WOs pending client signature
+      const acceptedIds = allJobs.filter((j) => j.status === 'accepted').map((j) => j.id);
+      if (acceptedIds.length > 0) {
+        const { data: wos } = await supabase
           .from('work_orders')
-          .select('id, job_request_id, status, client_signature')
-          .in('job_request_id', acceptedJobIds)
-          .eq('status', 'pending_signatures')
-          .is('client_signature', null);
+          .select('id, job_request_id, client_signature')
+          .in('job_request_id', acceptedIds)
+          .eq('status', 'pending_signatures');
         const map: Record<string, string> = {};
-        for (const wo of (woRows ?? [])) {
-          map[wo.job_request_id] = wo.id;
-        }
-        setPendingWOMap(map);
+        (wos ?? []).forEach((w: any) => {
+          if (!w.client_signature) map[w.job_request_id] = w.id;
+        });
+        setWoMap(map);
       } else {
-        setPendingWOMap({});
+        setWoMap({});
       }
 
       // Auto-trigger mandatory rating for first unrated completed job
@@ -747,9 +770,9 @@ export default function MyRequests() {
         }
       } : undefined}
       onDispute={(item.status === 'in_progress' || item.status === 'completed') ? () => setDisputeJob(item) : undefined}
-      onSignWO={pendingWOMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { workOrderId: pendingWOMap[item.id] } } as any) : undefined}
+      onSignWO={woMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { woId: woMap[item.id] } } as any) : undefined}
     />
-  ), [isColombia, es, router, handleCancel, pendingWOMap]);
+  ), [isColombia, es, router, handleCancel, woMap]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
