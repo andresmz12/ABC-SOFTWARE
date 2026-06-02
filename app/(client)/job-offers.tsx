@@ -36,7 +36,7 @@ export default function JobOffers() {
     (async () => {
       try {
         const [jobRes, bidsData] = await Promise.all([
-          supabase.from('job_requests').select('*').eq('id', jobId).single(),
+          supabase.from('job_requests').select('*').eq('id', jobId).maybeSingle(),
           fetchJobBids(jobId),
         ]);
         setJob(jobRes.data ?? null);

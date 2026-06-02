@@ -102,6 +102,7 @@ export interface JobRequest {
   county?: string;
   state: string;
   zip: string;
+  address?: string | null;
   country: Country;
   scheduled_date: string;
   scheduled_time: string;

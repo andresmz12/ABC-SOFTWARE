@@ -149,24 +149,29 @@ export default function AnalyticsScreen() {
         .eq('status', 'accepted');
 
       const myJobIds = (myApps ?? []).map((a: any) => a.job_request_id);
+      const isColombia = user.country === 'colombia';
+
+      if (myJobIds.length === 0) {
+        setData({ completedThisMonth: 0, completedLastMonth: 0, estimatedRevenue: 0, currency: isColombia ? 'cop' : 'usd', averageRating: 0, reviewCount: 0, weeklyBuckets: [] });
+        return;
+      }
 
       // Completed jobs
       const { data: completedJobs } = await supabase
         .from('job_requests')
-        .select('id, created_at, country')
-        .in('id', myJobIds.length > 0 ? myJobIds : ['none'])
+        .select('id, completed_at, country')
+        .in('id', myJobIds)
         .eq('status', 'completed');
 
       const allCompleted = (completedJobs ?? []) as any[];
-      const thisMonth = allCompleted.filter((j) => j.created_at >= startOfMonth).length;
-      const lastMonth = allCompleted.filter((j) => j.created_at >= startOfLastMonth && j.created_at <= endOfLastMonth).length;
+      const thisMonth = allCompleted.filter((j) => j.completed_at && j.completed_at >= startOfMonth).length;
+      const lastMonth = allCompleted.filter((j) => j.completed_at && j.completed_at >= startOfLastMonth && j.completed_at <= endOfLastMonth).length;
 
       // Revenue
       const appMap: Record<string, { usd?: number; cop?: number }> = {};
       (myApps ?? []).forEach((a: any) => {
         appMap[a.job_request_id] = { usd: a.bid_amount_usd, cop: a.bid_amount_cop };
       });
-      const isColombia = user.country === 'colombia';
       let revenue = 0;
       allCompleted.forEach((j) => {
         const app = appMap[j.id];
@@ -194,7 +199,8 @@ export default function AnalyticsScreen() {
         weekEnd.setHours(23, 59, 59, 999);
 
         const count = allCompleted.filter((j) => {
-          const d = new Date(j.created_at);
+          if (!j.completed_at) return false;
+          const d = new Date(j.completed_at);
           return d >= weekStart && d <= weekEnd;
         }).length;
 

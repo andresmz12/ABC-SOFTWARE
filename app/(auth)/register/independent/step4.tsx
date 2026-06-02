@@ -53,7 +53,6 @@ export default function IndependentStep4() {
       const { error: indError } = await supabase.from('independents').insert({
         user_id: userId,
         full_name: formData.fullName,
-        email: formData.email,
         phone: formData.phone,
         address: street,
         city,
@@ -77,6 +76,7 @@ export default function IndependentStep4() {
           provider_id: userId,
           provider_type: 'independent' as const,
           state: areaCode,
+          city: city,
         }));
         const { error: areasError } = await supabase.from('service_areas').insert(areaRows);
         if (areasError) throw areasError;

@@ -53,7 +53,6 @@ export default function CompanyStep4() {
       const { error: companyError } = await supabase.from('companies').insert({
         user_id: userId,
         company_name: formData.companyName,
-        email: formData.email,
         ein: formData.taxId,
         phone: formData.phone,
         address: street,
@@ -76,6 +75,7 @@ export default function CompanyStep4() {
           provider_id: userId,
           provider_type: 'company' as const,
           state: areaCode,
+          city: city,
         }));
         const { error: areasError } = await supabase.from('service_areas').insert(areaRows);
         if (areasError) throw areasError;
