@@ -3,7 +3,7 @@
  * Shows the provider's job history with tabs: Applied, Active, Completed
  * Includes: mark as completed (with photo requirement), trigger rating modal for client
  */
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, FlatList, Alert, Modal,
   ScrollView, ActivityIndicator, Image, TextInput, Platform,
@@ -89,7 +89,8 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
       const { data: { user: authUser } } = await supabase.auth.getUser();
       console.log('[StartJob] auth.uid:', authUser?.id);
 
-      const ext = photo.name.split('.').pop() ?? 'jpg';
+      const extMatch = photo.name.match(/\.([a-zA-Z0-9]+)$/);
+      const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
       const path = `${job.id}/before/${Date.now()}.${ext}`;
       const response = await fetch(photo.uri);
       const blob = await response.blob();
@@ -239,6 +240,8 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
   const [photos, setPhotos] = useState<{ uri: string; name: string }[]>([]);
   const [saving, setSaving] = useState(false);
 
+  useEffect(() => { if (!visible) setPhotos([]); }, [visible]);
+
   const pickPhoto = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
@@ -268,9 +271,10 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
       const afterUrls: string[] = [];
       let completionPhotoUrl: string | null = null;
 
-      for (const photo of photos) {
-        const ext = photo.name.split('.').pop() ?? 'jpg';
-        const path = `${job.id}/after/${Date.now()}.${ext}`;
+      for (const [idx, photo] of photos.entries()) {
+        const extMatch = photo.name.match(/\.([a-zA-Z0-9]+)$/);
+        const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
+        const path = `${job.id}/after/${Date.now()}_${idx}.${ext}`;
         const response = await fetch(photo.uri);
         const blob = await response.blob();
         console.log('PHOTO UPLOAD called - job_id:', job.id);
@@ -853,6 +857,7 @@ export default function MyJobsScreen() {
   const [disputeJob, setDisputeJob] = useState<JobRequest | null>(null);
   const [woMap, setWoMap] = useState<Record<string, string>>({}); // jobId → woId (provider unsigned)
   const [pendingWoMap, setPendingWoMap] = useState<Record<string, string>>({}); // jobId → woId (any party unsigned)
+  const completeJobInFlight = useRef(false);
 
   const TAB_LABELS: Record<Tab, string> = {
     applied:   es ? 'Aplicados' : 'Applied',
@@ -968,10 +973,11 @@ export default function MyJobsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
+              const { data: { user: authUser } } = await supabase.auth.getUser();
               const { error } = await supabase
                 .from('job_applications')
                 .delete()
-                .eq('provider_id', user!.id)
+                .eq('provider_id', authUser!.id)
                 .eq('job_request_id', job.id);
               if (error) throw error;
               await loadJobs();
@@ -985,16 +991,27 @@ export default function MyJobsScreen() {
   }, [es, user, loadJobs]);
 
   const handleCompleteJob = useCallback(async (job: JobRequest) => {
+    if (completeJobInFlight.current) return;
+    completeJobInFlight.current = true;
     console.log('COMPLETE JOB called - job_id:', job.id);
     try {
+      // Fetch the most recent non-cancelled WO to avoid PGRST116 "multiple rows"
+      // when a cancelled WO coexists with the active one after a reassignment.
       const { data: wo, error: woError } = await supabase
         .from('work_orders')
         .select('id, provider_signature, client_signature')
         .eq('job_request_id', job.id)
-        .single();
+        .neq('status', 'cancelled')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
       console.log('WO found:', wo, 'error:', woError);
 
-      if (woError || !wo) {
+      if (woError) {
+        Alert.alert('Error', woError.message);
+        return;
+      }
+      if (!wo) {
         Alert.alert(
           'Error',
           es ? 'No se encontró la orden de trabajo.' : 'Work order not found.',
@@ -1025,14 +1042,28 @@ export default function MyJobsScreen() {
         return;
       }
 
+      // Optimistic lock: only update if still in_progress; .select() lets us
+      // detect 0-rows-affected (silent RLS block) which Supabase JS v2 reports
+      // as {data:[], error:null} — indistinguishable from success without this.
       const { data, error } = await supabase
         .from('job_requests')
-        .update({ status: 'completed' })
-        .eq('id', job.id);
+        .update({ status: 'completed', completed_at: new Date().toISOString() })
+        .eq('id', job.id)
+        .eq('status', 'in_progress')
+        .select('id, status');
       console.log('Complete result:', data, error);
 
       if (error) {
         Alert.alert('Error', error.message);
+        return;
+      }
+      if (!data || data.length === 0) {
+        Alert.alert(
+          'Error',
+          es
+            ? 'No se pudo completar el trabajo. El estado puede haber cambiado.'
+            : 'Could not complete the job. The status may have changed.',
+        );
         return;
       }
 
@@ -1040,6 +1071,8 @@ export default function MyJobsScreen() {
       loadJobs();
     } catch (e: any) {
       Alert.alert('Error', e.message);
+    } finally {
+      completeJobInFlight.current = false;
     }
   }, [es, router, loadJobs]);
 

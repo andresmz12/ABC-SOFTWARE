@@ -420,7 +420,7 @@ export default function WorkOrderScreen() {
     } finally {
       setLoading(false);
     }
-  }, [woId]);
+  }, [woId, user?.id]);
 
   useEffect(() => { loadWO(); }, [loadWO]);
 
@@ -437,20 +437,23 @@ export default function WorkOrderScreen() {
         ? { client_signature: signature, client_signed_at: now }
         : { provider_signature: signature, provider_signed_at: now };
 
-      const bothWillBeSigned = isClient
-        ? !!wo.provider_signature
-        : !!wo.client_signature;
-
-      if (bothWillBeSigned) {
-        updateData.status = 'signed';
-      }
-
       const { data: sigData, error } = await supabase.from('work_orders').update(updateData).eq('id', wo.id);
       console.log('Signature saved:', sigData, error);
       if (error) throw error;
 
-      // When both signed → set job to in_progress
-      if (bothWillBeSigned) {
+      // Re-read from DB to check if both parties have now signed.
+      // Using local `wo` state is unsafe: if both parties open the WO before
+      // either signs, both will see the other's signature as null and neither
+      // will set status='signed'. The fresh read is the source of truth.
+      const { data: freshWo } = await supabase
+        .from('work_orders')
+        .select('provider_signature, client_signature')
+        .eq('id', wo.id)
+        .single();
+      const bothSigned = !!freshWo?.provider_signature && !!freshWo?.client_signature;
+
+      if (bothSigned) {
+        await supabase.from('work_orders').update({ status: 'signed' }).eq('id', wo.id);
         await supabase.from('job_requests').update({ status: 'in_progress' }).eq('id', wo.job_request_id);
       }
 
@@ -460,7 +463,7 @@ export default function WorkOrderScreen() {
         ? (wo.client?.full_name ?? (es ? 'El cliente' : 'The client'))
         : (wo.provider?.name ?? (es ? 'El proveedor' : 'The provider'));
 
-      if (bothWillBeSigned) {
+      if (bothSigned) {
         // Notify both that WO is complete
         await supabase.from('notifications').insert([
           {
@@ -496,7 +499,7 @@ export default function WorkOrderScreen() {
 
       Alert.alert(
         es ? '¡Firmado!' : 'Signed!',
-        bothWillBeSigned
+        bothSigned
           ? (es ? '¡Ambas partes han firmado! El trabajo está activo.' : 'Both parties signed! The job is now active.')
           : (es ? 'Firma registrada. El otro participante recibirá una notificación.' : 'Signature recorded. The other party will be notified.'),
         [{ text: 'OK', onPress: () => router.back() }],
