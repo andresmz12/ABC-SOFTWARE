@@ -8,6 +8,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "build": "expo export --platform web --output-dir dist",
+    "start:web": "serve dist -s -l ${PORT:-3000}",
     "lint": "eslint .",
     "type-check": "tsc --noEmit"
   },
@@ -66,6 +67,7 @@
     "babel-plugin-module-resolver": "^5.0.2",
     "eslint": "^8.57.0",
     "eslint-config-expo": "~10.0.0",
+    "serve": "^14.2.3",
     "typescript": "~5.8.3"
   }
 }
