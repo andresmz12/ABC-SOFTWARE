@@ -190,6 +190,18 @@ export default function RootLayout() {
     </View>
   );
 
+  // This UI was built mobile-first with no responsive breakpoints. On an actual
+  // desktop browser (the web build now runs on Railway, not just phone-width
+  // windows) every screen would otherwise stretch edge-to-edge. Cap it at phone
+  // width and center it, like a phone frame floating on the page.
+  const webView = (
+    <View style={{ flex: 1, backgroundColor: '#E2E8F0', alignItems: 'center' }}>
+      <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: '#F5F7FA' }}>
+        {innerView}
+      </View>
+    </View>
+  );
+
   return (
     <ErrorBoundary>
     <LanguageProvider>
@@ -206,7 +218,7 @@ export default function RootLayout() {
             <TouchableWithoutFeedback onPress={() => resetTimerRef.current()} accessible={false}>
               {innerView}
             </TouchableWithoutFeedback>
-          ) : innerView}
+          ) : webView}
         </SafeAreaProvider>
       </GestureHandlerRootView>
     </LanguageProvider>
