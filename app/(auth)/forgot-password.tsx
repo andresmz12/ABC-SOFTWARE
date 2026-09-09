@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useForm, Controller } from 'react-hook-form';
@@ -30,8 +30,17 @@ export default function ForgotPassword() {
   const onSubmit = async (data: FormData) => {
     setLoading(true);
     setError(null);
+    // On web, Supabase parses the recovery session straight out of this URL's hash
+    // (detectSessionInUrl in lib/supabase.ts), so it must be a real https origin.
+    // On native there's no browser to land in, so the deep link scheme is used instead
+    // and app/(auth)/reset-password.tsx extracts the tokens itself.
+    const redirectTo =
+      Platform.OS === 'web' && typeof window !== 'undefined'
+        ? `${window.location.origin}/reset-password`
+        : 'provendor://reset-password';
+
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(data.email, {
-      redirectTo: 'provendor://reset-password',
+      redirectTo,
     });
     setLoading(false);
     if (resetError) {
