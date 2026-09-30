@@ -14,7 +14,6 @@ ios/
 *.p12
 *.key
 *.mobileprovision
-*.orig.*
 google-services.json
 GoogleService-Info.plist
 
@@ -25,3 +24,5 @@ expo-env.d.ts
 # @end expo-cli
 .vercel
 .env*
+
+supabase/.temp/

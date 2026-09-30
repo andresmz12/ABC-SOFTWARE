@@ -1,5 +1,6 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isServiceCaller, unauthorized } from '../_shared/auth.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -8,7 +9,8 @@ const supabase = createClient(
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
 
-serve(async (_req) => {
+serve(async (req) => {
+  if (!isServiceCaller(req)) return unauthorized();
   try {
     // Find expired open jobs
     const { data: expiredJobs } = await supabase

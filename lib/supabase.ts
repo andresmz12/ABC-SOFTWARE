@@ -14,6 +14,10 @@ const supabaseAnonKey =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? 'placeholder-anon-key';
 
 if (supabaseUrl.includes('placeholder')) {
+  // Fail loudly in production builds instead of silently talking to a fake project.
+  if (!__DEV__) {
+    throw new Error('[supabase] EXPO_PUBLIC_SUPABASE_URL / EXPO_PUBLIC_SUPABASE_ANON_KEY missing at build time.');
+  }
   console.warn(
     '[supabase] EXPO_PUBLIC_SUPABASE_URL/EXPO_PUBLIC_SUPABASE_ANON_KEY were not set at build time — using placeholders. Set them in the build environment before running `npm run build`.'
   );

@@ -98,6 +98,7 @@ export interface JobRequest {
   client_id: string;
   title?: string;
   service_type: 'commercial' | 'residential';
+  address?: string;
   city: string;
   county?: string;
   state: string;

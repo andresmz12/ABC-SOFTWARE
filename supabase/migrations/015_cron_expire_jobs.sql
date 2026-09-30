@@ -3,11 +3,12 @@ CREATE EXTENSION IF NOT EXISTS pg_cron;
 CREATE EXTENSION IF NOT EXISTS pg_net;
 
 -- Schedule the expire-jobs edge function to run every hour.
--- Replace <PROJECT_REF> and <ANON_KEY> with actual Supabase project values
+-- Replace <PROJECT_REF> and <SERVICE_ROLE_KEY> with actual Supabase project values
 -- in the Supabase Dashboard > SQL Editor before applying.
 --
 -- To apply manually: run the SELECT cron.schedule(...) line below in the
--- Supabase SQL editor after substituting your project ref and anon key.
+-- Supabase SQL editor after substituting your project ref and service-role key
+-- (the function now rejects any other bearer token; see migration 036 notes).
 
 SELECT cron.schedule(
   'expire-jobs-hourly',
@@ -15,7 +16,7 @@ SELECT cron.schedule(
   $$
     SELECT net.http_post(
       url    := 'https://<PROJECT_REF>.supabase.co/functions/v1/expire-jobs',
-      headers := '{"Content-Type": "application/json", "Authorization": "Bearer <ANON_KEY>"}'::jsonb,
+      headers := '{"Content-Type": "application/json", "Authorization": "Bearer <SERVICE_ROLE_KEY>"}'::jsonb,
       body   := '{}'::jsonb
     );
   $$

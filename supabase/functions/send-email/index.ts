@@ -4,6 +4,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { isServiceOrUser, unauthorized } from '../_shared/auth.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -779,13 +780,7 @@ serve(async (req) => {
 
   // Require a Bearer token — blocks unauthenticated external callers.
   // Valid callers: Supabase DB triggers (service role key) or app clients (user JWT).
-  const authHeader = req.headers.get('authorization') ?? '';
-  if (!authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { 'Content-Type': 'application/json' },
-    });
-  }
+  if (!(await isServiceOrUser(req))) return unauthorized();
 
   try {
     const { type, data } = await req.json();

@@ -67,7 +67,10 @@ export default function AdminAuditScreen() {
         .order('created_at', { ascending: false })
         .limit(150);
       if (error) throw error;
-      setEntries((data ?? []) as AuditEntry[]);
+      setEntries(((data ?? []) as any[]).map((r) => ({
+        ...r,
+        admins: Array.isArray(r.admins) ? (r.admins[0] ?? null) : r.admins,
+      })) as AuditEntry[]);
     } catch (e: any) {
       console.warn('[AuditLog] load error:', e.message);
     } finally {
