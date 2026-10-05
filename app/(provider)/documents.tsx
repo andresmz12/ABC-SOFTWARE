@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { ResponsiveGrid } from '@/hooks/useResponsive';
 import { View, Text, TouchableOpacity, Alert, ActivityIndicator, ScrollView } from 'react-native';
 import { useLang } from '@/context/LanguageContext';
 import { Feather } from '@expo/vector-icons';
@@ -155,7 +156,7 @@ export default function ProviderDocuments() {
             </TouchableOpacity>
           </View>
         ) : (
-          docItems.map((item) => {
+          <ResponsiveGrid columns={2}>{docItems.map((item) => {
             const statusKey = (item.doc?.status ?? 'pending') as DocStatus;
             const sc = STATUS_COLORS[statusKey] ?? STATUS_COLORS.pending;
             const isUploading = uploadingKey === item.key;
@@ -259,7 +260,7 @@ export default function ProviderDocuments() {
                 ) : null}
               </View>
             );
-          })
+          })}</ResponsiveGrid>
         )}
       </ScrollView>
     </View>

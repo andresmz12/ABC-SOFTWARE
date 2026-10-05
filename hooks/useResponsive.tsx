@@ -70,3 +70,30 @@ export function useTabsResponsive(bottomBarStyle: object): BottomTabNavigationOp
 export const tabsScreenLayout = ({ children }: { children: React.ReactElement }) => (
   <ContentFrame>{children}</ContentFrame>
 );
+
+/**
+ * Lays its children out in a wrapping grid on desktop (`columns` per row);
+ * on phones it renders them stacked, exactly as before.
+ */
+export function ResponsiveGrid({
+  children,
+  columns = 2,
+  gap = 16,
+}: {
+  children: React.ReactNode;
+  columns?: number;
+  gap?: number;
+}) {
+  const isDesktop = useIsDesktop();
+  if (!isDesktop) return <>{children}</>;
+  const items = React.Children.toArray(children);
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginHorizontal: -gap / 2 }}>
+      {items.map((child, i) => (
+        <View key={i} style={{ width: `${100 / columns}%`, paddingHorizontal: gap / 2 }}>
+          {child}
+        </View>
+      ))}
+    </View>
+  );
+}

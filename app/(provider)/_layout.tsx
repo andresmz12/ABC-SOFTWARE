@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { homeRouteForRole } from '@/lib/userUtils';
 import { useTabsResponsive, tabsScreenLayout } from '@/hooks/useResponsive';
 import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
@@ -18,7 +19,7 @@ export default function ProviderLayout() {
   // ── ALL hooks must be called unconditionally before any early return ──────
   const rootNavState = useRootNavigationState();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, loading } = useAuthStore();
   const [unread, setUnread] = useState(0);
   const [notifUnread, setNotifUnread] = useState(0);
 
@@ -75,14 +76,16 @@ export default function ProviderLayout() {
 
   // Security guard: redirect non-providers out of provider area
   useEffect(() => {
-    if (!rootNavState?.key) return;
+    if (!rootNavState?.key || loading) return;
     if (user !== undefined && user?.role !== 'company' && user?.role !== 'independent') {
-      router.replace('/(auth)/welcome' as any);
+      router.replace(homeRouteForRole(user?.role) as any);
     }
-  }, [rootNavState?.key, user?.role, user?.id]);
+  }, [rootNavState?.key, user?.role, user?.id, loading]);
 
   // ── Guard: AFTER all hooks — wait for Root Layout to mount ────────────────
   if (!rootNavState?.key) return <Slot />;
+  // Deep link / F5 reload: wait for the session to be restored instead of flashing or redirecting.
+  if (loading) return null;
   if (!user || (user.role !== 'company' && user.role !== 'independent')) return <Slot />;
 
   return (

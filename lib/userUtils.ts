@@ -246,3 +246,18 @@ export async function updateProviderStatus(
   const err = profileRes.error ?? docsRes.error;
   return { error: err?.message ?? null };
 }
+
+/**
+ * Where a signed-in user belongs. Several route groups share URLs (/documents, /jobs,
+ * /profile, ...), so a reload can land in another role's group; guards use this to send
+ * the user to their own home instead of logging them out to the welcome screen.
+ */
+export function homeRouteForRole(role?: string | null): string {
+  switch (role) {
+    case 'client':      return '/(client)/home';
+    case 'company':
+    case 'independent': return '/(provider)/home';
+    case 'admin':       return '/(admin)/dashboard';
+    default:            return '/(auth)/welcome';
+  }
+}

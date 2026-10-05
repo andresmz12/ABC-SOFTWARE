@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { homeRouteForRole } from '@/lib/userUtils';
 import { useTabsResponsive, tabsScreenLayout } from '@/hooks/useResponsive';
 import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
@@ -18,7 +19,7 @@ export default function AdminLayout() {
     });
   const rootNavState = useRootNavigationState();
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, loading } = useAuthStore();
   const { lang } = useLang();
   const es = lang === 'es';
   const isSuperAdmin = user?.is_super_admin === true;
@@ -36,11 +37,11 @@ export default function AdminLayout() {
 
   // Security guard: redirect any non-admin user out of the admin area
   useEffect(() => {
-    if (!rootNavState?.key) return;
+    if (!rootNavState?.key || loading) return;
     if (user !== undefined && user?.role !== 'admin') {
-      router.replace('/(auth)/welcome' as any);
+      router.replace(homeRouteForRole(user?.role) as any);
     }
-  }, [rootNavState?.key, user?.role, user?.id]);
+  }, [rootNavState?.key, user?.role, user?.id, loading]);
 
   useEffect(() => {
     fetchTotalUnread();
@@ -53,6 +54,8 @@ export default function AdminLayout() {
   }, [fetchTotalUnread]);
 
   if (!rootNavState?.key) return <Slot />;
+  // Deep link / F5 reload: wait for the session to be restored instead of flashing or redirecting.
+  if (loading) return null;
   if (!user || user.role !== 'admin') return <Slot />;
 
   return (

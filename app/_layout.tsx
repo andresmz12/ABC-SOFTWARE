@@ -68,6 +68,12 @@ export default function RootLayout() {
   const resetTimerRef   = useRef<() => void>(() => {});
 
   // ── Boot: fonts + settings ────────────────────────────────────────────────
+  // Restore the session on every entry point (not only via app/index.tsx), so a
+  // reload on a deep link such as /documents keeps the user signed in.
+  useEffect(() => {
+    useAuthStore.getState().initialize().catch(() => {});
+  }, []);
+
   useEffect(() => {
     initializeStripe().catch((e) => console.error('[stripe] initializeStripe failed:', e));
     Promise.all([
