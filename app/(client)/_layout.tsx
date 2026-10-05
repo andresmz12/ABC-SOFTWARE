@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTabsResponsive, tabsScreenLayout } from '@/hooks/useResponsive';
 import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
@@ -6,6 +7,14 @@ import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 
 export default function ClientLayout() {
+  const responsive = useTabsResponsive({
+      backgroundColor: '#FFFFFF',
+      borderTopColor: C.line,
+      borderTopWidth: 1,
+      height: 80,
+      paddingBottom: 16,
+      paddingTop: 10,
+    });
   const rootNavState = useRootNavigationState();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -76,19 +85,12 @@ export default function ClientLayout() {
 
   return (
     <Tabs
+      screenLayout={tabsScreenLayout}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: C.accent,
         tabBarInactiveTintColor: C.textMuted,
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: C.line,
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 16,
-          paddingTop: 10,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
+        ...responsive,
       }}
     >
       <Tabs.Screen name="home"             options={{ title: 'Home',     tabBarIcon: ({ focused }) => <TabIcon name="home"         focused={focused} /> }} />

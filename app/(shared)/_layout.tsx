@@ -1,7 +1,10 @@
 import { Stack } from 'expo-router';
+import { ContentFrame } from '@/hooks/useResponsive';
 
 export default function SharedLayout() {
   return (
-    <Stack screenOptions={{ headerShown: false }} />
+    <ContentFrame maxWidth={900}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </ContentFrame>
   );
 }

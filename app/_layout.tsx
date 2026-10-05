@@ -1,4 +1,5 @@
 import '../global.css';
+import { useIsDesktop } from '@/hooks/useResponsive';
 import { useEffect, useRef, useCallback } from 'react';
 import ErrorBoundary from '@/components/ui/ErrorBoundary';
 import {
@@ -54,6 +55,7 @@ function platformAlert(
 }
 
 export default function RootLayout() {
+  const isDesktop = useIsDesktop();
   const router = useRouter();
   const { user } = useAuthStore();
 
@@ -190,11 +192,12 @@ export default function RootLayout() {
     </View>
   );
 
-  // This UI was built mobile-first with no responsive breakpoints. On an actual
-  // desktop browser (the web build now runs on Railway, not just phone-width
-  // windows) every screen would otherwise stretch edge-to-edge. Cap it at phone
-  // width and center it, like a phone frame floating on the page.
-  const webView = (
+  // Phones and narrow windows keep the phone layout (centered, capped at phone width
+  // on the web). On wide web windows the shell goes full width: each role's layout then
+  // adds a sidebar and centers its content (see hooks/useResponsive.tsx).
+  const webView = isDesktop ? (
+    <View style={{ flex: 1, backgroundColor: '#F5F7FA' }}>{innerView}</View>
+  ) : (
     <View style={{ flex: 1, backgroundColor: '#E2E8F0', alignItems: 'center' }}>
       <View style={{ flex: 1, width: '100%', maxWidth: 480, backgroundColor: '#F5F7FA' }}>
         {innerView}

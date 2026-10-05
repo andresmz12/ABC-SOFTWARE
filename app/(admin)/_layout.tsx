@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useTabsResponsive, tabsScreenLayout } from '@/hooks/useResponsive';
 import { Tabs, Slot, useRootNavigationState, useRouter } from 'expo-router';
 import { C } from '@/constants/theme';
 import TabIcon from '@/components/ui/TabIcon';
@@ -7,6 +8,14 @@ import { useAuthStore } from '@/store/authStore';
 import { useLang } from '@/context/LanguageContext';
 
 export default function AdminLayout() {
+  const responsive = useTabsResponsive({
+      backgroundColor: '#FFFFFF',
+      borderTopColor: C.line,
+      borderTopWidth: 1,
+      height: 80,
+      paddingBottom: 16,
+      paddingTop: 10,
+    });
   const rootNavState = useRootNavigationState();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -48,19 +57,12 @@ export default function AdminLayout() {
 
   return (
     <Tabs
+      screenLayout={tabsScreenLayout}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: C.accent2,
         tabBarInactiveTintColor: C.textMuted,
-        tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: C.line,
-          borderTopWidth: 1,
-          height: 80,
-          paddingBottom: 16,
-          paddingTop: 10,
-        },
-        tabBarLabelStyle: { fontSize: 10, fontFamily: 'Inter_500Medium', marginTop: 2 },
+        ...responsive,
       }}
     >
       {/* 1. Dashboard */}
