@@ -37,7 +37,8 @@ export default function Login() {
     setLoading(true);
     setError(null);
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
+      // Trim/lowercase: mobile keyboards and autofill often add a trailing space or capital.
+      email: data.email.trim().toLowerCase(),
       password: data.password,
     });
     if (authError) {
