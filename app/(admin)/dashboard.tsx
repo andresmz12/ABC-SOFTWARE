@@ -33,6 +33,7 @@ interface DashStats {
   revenue: number;
   openDisputes: number;
   pendingWOs: number;
+  pendingInvoices: number;
 }
 
 interface DashJob {
@@ -387,7 +388,7 @@ export default function AdminDashboard() {
   const [activeTab, setActiveTab]     = useState<CountryTab>('global');
   const [loading, setLoading]         = useState(true);
   const [refreshing, setRefreshing]   = useState(false);
-  const [stats, setStats]             = useState<DashStats>({ activeJobs: 0, pendingProviders: 0, clients: 0, revenue: 0, openDisputes: 0, pendingWOs: 0 });
+  const [stats, setStats]             = useState<DashStats>({ activeJobs: 0, pendingProviders: 0, clients: 0, revenue: 0, openDisputes: 0, pendingWOs: 0, pendingInvoices: 0 });
   const [jobs, setJobs]               = useState<DashJob[]>([]);
   const [providers, setProviders]     = useState<DashProvider[]>([]);
   const [clients, setClients]         = useState<DashClient[]>([]);
@@ -431,8 +432,13 @@ export default function AdminDashboard() {
         .eq('status', 'pending_signatures');
       if (countryEq) pendingWOsQ = (pendingWOsQ as any).eq('country', countryEq);
 
-      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes, disputesRes, pendingWOsRes] = await Promise.all([
-        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ, disputesQ, pendingWOsQ,
+      const pendingInvoicesQ = supabase
+        .from('invoices')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending_approval');
+
+      const [pendingCompRes, pendingIndepRes, clientsCountRes, activeJobsRes, revenueRes, disputesRes, pendingWOsRes, pendingInvoicesRes] = await Promise.all([
+        pendingCompQ, pendingIndepQ, clientsQ, activeJQ, revenueQ, disputesQ, pendingWOsQ, pendingInvoicesQ,
       ]);
 
       const revenue = (revenueRes.data ?? []).reduce((s: number, r: any) => s + (r.bid_amount_usd ?? r.bid_amount_cop ?? 0), 0);
@@ -444,6 +450,7 @@ export default function AdminDashboard() {
         revenue,
         openDisputes:     disputesRes.count ?? 0,
         pendingWOs:       pendingWOsRes.count ?? 0,
+        pendingInvoices:  pendingInvoicesRes.count ?? 0,
       });
 
       // ── Jobs ──────────────────────────────────────────────────────────────
@@ -702,6 +709,13 @@ export default function AdminDashboard() {
               value={stats.pendingWOs}
               color="#D97706"
               onPress={() => router.push('/(admin)/work-orders' as any)}
+            />
+            <StatCard
+              icon="file-text"
+              label={es ? 'Facturas por aprobar' : 'Invoices to Approve'}
+              value={stats.pendingInvoices}
+              color={C.accent2}
+              onPress={() => router.push('/(admin)/invoices' as any)}
             />
           </View>
 

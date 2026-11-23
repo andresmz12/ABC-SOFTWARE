@@ -108,6 +108,7 @@ export default function AdminLayout() {
       <Tabs.Screen name="chat-detail"     options={{ href: null }} />
       <Tabs.Screen name="new-chat"        options={{ href: null }} />
       <Tabs.Screen name="disputes"        options={{ href: null }} />
+      <Tabs.Screen name="invoices"        options={{ href: null }} />
     </Tabs>
   );
 }

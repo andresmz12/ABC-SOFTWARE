@@ -122,6 +122,7 @@ export default function ClientLayout() {
       <Tabs.Screen name="job-offers"       options={{ href: null }} />
       <Tabs.Screen name="provider-detail"  options={{ href: null }} />
       <Tabs.Screen name="payments"         options={{ href: null }} />
+      <Tabs.Screen name="invoices"         options={{ href: null }} />
     </Tabs>
   );
 }

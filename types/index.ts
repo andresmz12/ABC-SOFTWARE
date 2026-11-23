@@ -256,3 +256,46 @@ export interface WorkOrder {
   pdf_url?: string | null;
   created_at: string;
 }
+
+// ─── Invoices ─────────────────────────────────────────────────────────────────
+
+export type InvoiceStatus = 'draft' | 'pending_approval' | 'rejected' | 'sent' | 'paid' | 'void';
+
+export interface InvoiceItem {
+  id: string;
+  invoice_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  position: number;
+}
+
+export interface Invoice {
+  id: string;
+  inv_number: string;
+  job_request_id: string;
+  provider_id: string;
+  client_id: string;
+  status: InvoiceStatus;
+  currency: Currency;
+  subtotal: number;
+  tax_rate: number;
+  tax_amount: number;
+  total: number;
+  notes?: string | null;
+  admin_notes?: string | null;
+  provider_name?: string | null;
+  provider_email?: string | null;
+  client_name?: string | null;
+  client_email?: string | null;
+  service_description?: string | null;
+  issue_date: string;
+  due_date?: string | null;
+  submitted_at?: string | null;
+  approved_at?: string | null;
+  sent_at?: string | null;
+  paid_at?: string | null;
+  created_at: string;
+  items?: InvoiceItem[];
+}

@@ -124,6 +124,8 @@ export default function ProviderLayout() {
       />
       <Tabs.Screen name="job-detail"    options={{ href: null }} />
       <Tabs.Screen name="payments"      options={{ href: null }} />
+      <Tabs.Screen name="invoice"       options={{ href: null }} />
+      <Tabs.Screen name="invoices"      options={{ href: null }} />
     </Tabs>
   );
 }

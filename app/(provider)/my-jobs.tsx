@@ -15,6 +15,7 @@ import { useAuthStore } from '@/store/authStore';
 import { supabase } from '@/lib/supabase';
 import { useLang } from '@/context/LanguageContext';
 import { C } from '@/constants/theme';
+import { confirmAction } from '@/lib/dialog';
 import type { JobRequest } from '@/types';
 
 type Tab = 'applied' | 'active' | 'completed';
@@ -646,6 +647,7 @@ function JobCard({
   onWithdraw,
   onDispute,
   onSignWO,
+  onInvoice,
 }: {
   job: JobRequest;
   appStatus?: string;
@@ -657,6 +659,7 @@ function JobCard({
   onWithdraw?: () => void;
   onDispute?: () => void;
   onSignWO?: () => void;
+  onInvoice?: () => void;
 }) {
   const isCommercial = job.service_type === 'commercial';
   const accentColor = isCommercial ? C.accent2 : C.accent;
@@ -746,7 +749,7 @@ function JobCard({
       </View>
 
       {/* Action buttons — Sign WO / Start Job / Complete Job / Withdraw / Dispute */}
-      {(onSignWO || (job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) || (appStatus === 'pending' && onWithdraw) || ((job.status === 'in_progress' || job.status === 'completed') && onDispute)) ? (
+      {(onSignWO || (job.status === 'accepted' && onStart) || (job.status === 'in_progress' && onComplete) || (appStatus === 'pending' && onWithdraw) || ((job.status === 'in_progress' || job.status === 'completed') && onDispute) || (job.status === 'completed' && onInvoice)) ? (
         <View style={{ borderTopWidth: 1, borderTopColor: C.line }}>
           {/* WO Signature Banner */}
           {onSignWO && (
@@ -806,6 +809,18 @@ function JobCard({
               <Feather name="x-circle" size={15} color={C.danger} />
               <Text style={{ color: C.danger, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
                 {es ? 'Retirar Aplicación' : 'Withdraw Application'}
+              </Text>
+            </TouchableOpacity>
+          )}
+          {job.status === 'completed' && onInvoice && (
+            <TouchableOpacity
+              onPress={onInvoice}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 }}
+              activeOpacity={0.8}
+            >
+              <Feather name="file-text" size={15} color={C.accent} />
+              <Text style={{ color: C.accent, fontSize: 14, fontFamily: 'Inter_600SemiBold' }}>
+                {es ? 'Factura' : 'Invoice'}
               </Text>
             </TouchableOpacity>
           )}
@@ -1076,6 +1091,10 @@ export default function MyJobsScreen() {
     }
   }, [es, router, loadJobs]);
 
+  const openInvoice = useCallback((job: JobRequest) => {
+    router.push({ pathname: '/(provider)/invoice', params: { jobId: job.id } } as any);
+  }, [router]);
+
   const current = activeTab === 'applied' ? applied : activeTab === 'active' ? active : completed;
   const counts: Record<Tab, number> = { applied: applied.length, active: active.length, completed: completed.length };
 
@@ -1090,9 +1109,10 @@ export default function MyJobsScreen() {
       onComplete={activeTab === 'active' ? () => handleCompleteJob(item) : undefined}
       onWithdraw={activeTab === 'applied' && appStatuses[item.id] === 'pending' ? () => handleWithdraw(item) : undefined}
       onDispute={(activeTab === 'active' || activeTab === 'completed') ? () => setDisputeJob(item) : undefined}
+      onInvoice={activeTab === 'completed' ? () => openInvoice(item) : undefined}
       onSignWO={activeTab === 'active' && woMap[item.id] ? () => router.push({ pathname: '/(shared)/work-order', params: { woId: woMap[item.id] } } as any) : undefined}
     />
-  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, woMap, handleCompleteJob]);
+  ), [appStatuses, rejectedIds, es, activeTab, router, handleWithdraw, woMap, handleCompleteJob, openInvoice]);
 
   return (
     <View style={{ flex: 1, backgroundColor: C.background }}>
@@ -1212,7 +1232,20 @@ export default function MyJobsScreen() {
         job={ratingJob}
         visible={!!ratingJob}
         es={es}
-        onClose={() => setRatingJob(null)}
+        onClose={() => {
+          const done = ratingJob;
+          setRatingJob(null);
+          if (done) {
+            confirmAction(
+              es ? 'Trabajo completado' : 'Job completed',
+              es ? '¿Quieres generar la factura ahora? Podrás revisarla antes de enviarla.'
+                 : 'Generate the invoice now? You can review it before submitting.',
+              es ? 'Generar factura' : 'Generate invoice',
+              es ? 'Después' : 'Later',
+              () => openInvoice(done),
+            );
+          }
+        }}
         providerId={user?.id ?? ''}
       />
       <DisputeModal

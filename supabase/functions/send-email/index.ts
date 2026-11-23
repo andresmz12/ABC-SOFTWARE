@@ -4,7 +4,7 @@
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-import { isServiceOrUser, unauthorized } from '../_shared/auth.ts';
+import { isServiceOrUser, isServiceCaller, bearerToken, unauthorized } from '../_shared/auth.ts';
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
@@ -768,6 +768,82 @@ async function handleWOBothSigned(data: any): Promise<void> {
 
 // ─── Main handler ─────────────────────────────────────────────────────────────
 
+// ─── Handler: invoice approved by admin → email client ────────────────────────
+// Only service-role or an admin may trigger this. The invoice must be in
+// 'sent'/'paid' state, and the recipient is read from the DB (never from the
+// request body), so this cannot be abused to mail arbitrary addresses.
+
+function esc(v: unknown): string {
+  return String(v ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+function money(n: number, cur: string): string {
+  return cur === 'cop'
+    ? `$${Number(n).toLocaleString('es-CO', { maximumFractionDigits: 0 })} COP`
+    : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+}
+
+async function callerIsAdmin(req: Request): Promise<boolean> {
+  if (isServiceCaller(req)) return true;
+  const { data } = await supabase.auth.getUser(bearerToken(req));
+  const uid = data?.user?.id;
+  if (!uid) return false;
+  const { data: admin } = await supabase.from('admins').select('id').eq('id', uid).maybeSingle();
+  return !!admin;
+}
+
+async function handleInvoiceSent(data: any): Promise<void> {
+  const { data: inv, error } = await supabase
+    .from('invoices')
+    .select('*, items:invoice_items(*)')
+    .eq('id', data?.invoice_id)
+    .single();
+  if (error || !inv) throw new Error('Invoice not found');
+  if (!['sent', 'paid'].includes(inv.status)) throw new Error('Invoice has not been approved');
+  if (!inv.client_email) throw new Error('Invoice has no client email');
+
+  const { data: clientProfile } = await supabase
+    .from('clients').select('preferred_language').eq('user_id', inv.client_id).maybeSingle();
+  const es = (clientProfile?.preferred_language ?? 'en') === 'es';
+  const items = (inv.items ?? []).sort((a: any, b: any) => a.position - b.position);
+
+  const subject = es
+    ? `Factura ${inv.inv_number} de ${inv.provider_name ?? 'ProVendor'}`
+    : `Invoice ${inv.inv_number} from ${inv.provider_name ?? 'ProVendor'}`;
+
+  const rows = items.map((it: any) => `
+    <tr>
+      <td style="padding:10px 0;border-bottom:1px solid #F5F7FA;font-size:13px;color:#1A2332">${esc(it.description)}<br/>
+        <span style="color:#94A3B8;font-size:12px">${esc(it.quantity)} × ${money(it.unit_price, inv.currency)}</span></td>
+      <td style="padding:10px 0;border-bottom:1px solid #F5F7FA;font-size:13px;font-weight:600;text-align:right;color:#1A2332">${money(it.amount, inv.currency)}</td>
+    </tr>`).join('');
+
+  const html = wrap(subject, `
+    <div class="badge">🧾 ${es ? 'Factura' : 'Invoice'} ${esc(inv.inv_number)}</div>
+    <h1>${es ? 'Tienes una nueva factura' : 'You have a new invoice'}</h1>
+    <p>${es
+      ? `<span class="hi">${esc(inv.provider_name)}</span> ha completado tu servicio. Este es el detalle de la factura.`
+      : `<span class="hi">${esc(inv.provider_name)}</span> has completed your service. Here is your invoice.`}</p>
+    <div class="info-box"><p>
+      <b>${es ? 'Emitida' : 'Issued'}:</b> ${esc(inv.issue_date)}
+      ${inv.due_date ? ` · <b>${es ? 'Vence' : 'Due'}:</b> ${esc(inv.due_date)}` : ''}<br/>
+      ${esc(inv.service_description)}
+    </p></div>
+    <table width="100%" cellspacing="0" cellpadding="0" style="margin:8px 0">${rows}</table>
+    <table width="100%" cellspacing="0" cellpadding="0" style="margin-top:8px">
+      <tr><td style="font-size:13px;color:#5A6475;padding:3px 0">Subtotal</td><td style="text-align:right;font-size:13px;padding:3px 0">${money(inv.subtotal, inv.currency)}</td></tr>
+      <tr><td style="font-size:13px;color:#5A6475;padding:3px 0">${es ? 'Impuesto' : 'Tax'} (${esc(inv.tax_rate)}%)</td><td style="text-align:right;font-size:13px;padding:3px 0">${money(inv.tax_amount, inv.currency)}</td></tr>
+      <tr><td style="font-size:17px;font-weight:700;padding-top:8px">Total</td><td style="text-align:right;font-size:17px;font-weight:700;padding-top:8px">${money(inv.total, inv.currency)}</td></tr>
+    </table>
+    ${inv.notes ? `<hr/><p>${esc(inv.notes)}</p>` : ''}
+    <hr/>
+    <p>${es ? 'Puedes ver esta factura en la app, en Perfil → Mis Facturas.' : 'You can also see this invoice in the app under Profile → My Invoices.'}</p>
+  `);
+
+  await sendEmail(inv.client_email, subject, html);
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, {
@@ -786,6 +862,10 @@ serve(async (req) => {
     const { type, data } = await req.json();
 
     switch (type) {
+      case 'invoice_sent':
+        if (!(await callerIsAdmin(req))) return unauthorized();
+        await handleInvoiceSent(data);
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
       case 'new_job':          return new Response(JSON.stringify(await handleNewJob(data)),             { status: 200 });
       case 'new_offer':        await handleNewOffer(data);        return new Response(JSON.stringify({ ok: true }), { status: 200 });
       case 'offer_accepted':   await handleOfferAccepted(data);   return new Response(JSON.stringify({ ok: true }), { status: 200 });
