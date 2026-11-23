@@ -1,4 +1,6 @@
 import { View, Text, TouchableOpacity, Switch, Alert, ActivityIndicator, ScrollView, Modal, FlatList, TextInput, Platform } from 'react-native';
+import LegalLinks from '@/components/ui/LegalLinks';
+import DeleteAccountButton from '@/components/ui/DeleteAccountButton';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -521,6 +523,9 @@ export default function ProviderProfile() {
           </Text>
           <Feather name="chevron-right" size={16} color={C.textMuted} style={{ position: 'absolute', right: 16 }} />
         </TouchableOpacity>
+
+        <LegalLinks />
+        <DeleteAccountButton />
 
         {/* Sign out */}
         <TouchableOpacity

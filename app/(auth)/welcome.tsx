@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useLang } from '@/context/LanguageContext';
+import LegalLinks from '@/components/ui/LegalLinks';
 import { Feather } from '@expo/vector-icons';
 import { C } from '@/constants/theme';
 import LanguageToggle from '@/components/ui/LanguageToggle';
@@ -170,6 +171,7 @@ export default function Welcome() {
           </Text>
         </TouchableOpacity>
 
+        <LegalLinks />
       </ScrollView>
     </View>
   );

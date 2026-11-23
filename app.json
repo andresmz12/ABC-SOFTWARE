@@ -11,15 +11,17 @@
       "resizeMode": "contain",
       "backgroundColor": "#1B3A6B"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.provendor.app",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ProVendor uses your location to match you with nearby jobs.",
-        "NSCameraUsageDescription": "ProVendor needs camera access to upload photos.",
-        "NSPhotoLibraryUsageDescription": "ProVendor needs access to your photos for document uploads.",
-        "NSMicrophoneUsageDescription": "ProVendor may need microphone for video."
+        "NSCameraUsageDescription": "ProVendor needs camera access to take photos of jobs and documents.",
+        "NSPhotoLibraryUsageDescription": "ProVendor needs access to your photos to attach job photos and upload documents.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -31,9 +33,12 @@
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
+        "CAMERA"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {
@@ -61,13 +66,14 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "ProVendor uses your location to match you with nearby jobs."
+          "locationWhenInUsePermission": "ProVendor uses your location to match you with nearby jobs."
         }
       ]
     ],
     "scheme": "provendor",
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "description": "Marketplace connecting clients with trusted cleaning service providers."
   }
 }

@@ -75,7 +75,6 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
 
   const handleStart = async () => {
     if (!job) return;
-    console.log('START JOB called - job_id:', job.id);
     if (!photo) {
       Alert.alert(
         es ? 'Foto requerida' : 'Photo required',
@@ -88,19 +87,15 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
     setSaving(true);
     try {
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      console.log('[StartJob] auth.uid:', authUser?.id);
 
       const extMatch = photo.name.match(/\.([a-zA-Z0-9]+)$/);
       const ext = extMatch ? extMatch[1].toLowerCase() : 'jpg';
       const path = `${job.id}/before/${Date.now()}.${ext}`;
       const response = await fetch(photo.uri);
       const blob = await response.blob();
-      console.log('PHOTO UPLOAD called - job_id:', job.id);
       const { data: uploadData, error: uploadErr } = await supabase.storage
         .from('job-photos')
         .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
-      console.log('Upload error:', uploadErr);
-      console.log('Upload data:', uploadData);
       if (uploadErr) throw uploadErr;
 
       const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
@@ -114,7 +109,6 @@ function StartModal({ job, visible, es, userId, onClose, onStarted }: StartModal
         })
         .eq('id', job.id)
         .select('id, status');
-      console.log('[StartJob] UPDATE result — data:', updateData, '| error:', error);
       if (error) throw error;
 
       // Notify client that work has started (fire-and-forget)
@@ -257,7 +251,6 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
 
   const handleComplete = async () => {
     if (!job) return;
-    console.log('COMPLETE JOB called - job_id:', job.id);
     if (photos.length === 0) {
       Alert.alert(
         es ? 'Foto requerida' : 'Photo required',
@@ -278,12 +271,9 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
         const path = `${job.id}/after/${Date.now()}_${idx}.${ext}`;
         const response = await fetch(photo.uri);
         const blob = await response.blob();
-        console.log('PHOTO UPLOAD called - job_id:', job.id);
         const { data: afterUploadData, error: uploadErr } = await supabase.storage
           .from('job-photos')
           .upload(path, blob, { contentType: `image/${ext}`, upsert: true });
-        console.log('Upload error:', uploadErr);
-        console.log('Upload data:', afterUploadData);
         if (!uploadErr) {
           const { data: urlData } = supabase.storage.from('job-photos').getPublicUrl(path);
           afterUrls.push(urlData.publicUrl);
@@ -291,7 +281,7 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
         }
       }
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('job_requests')
         .update({
           status: 'completed',
@@ -299,8 +289,15 @@ function CompleteModal({ job, visible, es, userId, onClose, onCompleted }: Compl
           completion_photo_url: completionPhotoUrl,
           completed_at: new Date().toISOString(),
         })
-        .eq('id', job.id);
+        .eq('id', job.id)
+        .eq('status', 'in_progress')
+        .select('id');
       if (error) throw error;
+      if (!data?.length) {
+        throw new Error(es
+          ? 'No se pudo completar el trabajo. El estado puede haber cambiado.'
+          : 'Could not complete the job. The status may have changed.');
+      }
 
       // Notify client that work is complete (fire-and-forget)
       if (job.client_id) {
@@ -1008,7 +1005,6 @@ export default function MyJobsScreen() {
   const handleCompleteJob = useCallback(async (job: JobRequest) => {
     if (completeJobInFlight.current) return;
     completeJobInFlight.current = true;
-    console.log('COMPLETE JOB called - job_id:', job.id);
     try {
       // Fetch the most recent non-cancelled WO to avoid PGRST116 "multiple rows"
       // when a cancelled WO coexists with the active one after a reassignment.
@@ -1020,7 +1016,6 @@ export default function MyJobsScreen() {
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle();
-      console.log('WO found:', wo, 'error:', woError);
 
       if (woError) {
         Alert.alert('Error', woError.message);
@@ -1036,7 +1031,6 @@ export default function MyJobsScreen() {
 
       const providerSigned = !!wo.provider_signature;
       const clientSigned   = !!wo.client_signature;
-      console.log('Provider signed:', providerSigned, 'Client signed:', clientSigned);
 
       if (!providerSigned || !clientSigned) {
         const missing = [
@@ -1057,33 +1051,8 @@ export default function MyJobsScreen() {
         return;
       }
 
-      // Optimistic lock: only update if still in_progress; .select() lets us
-      // detect 0-rows-affected (silent RLS block) which Supabase JS v2 reports
-      // as {data:[], error:null} — indistinguishable from success without this.
-      const { data, error } = await supabase
-        .from('job_requests')
-        .update({ status: 'completed', completed_at: new Date().toISOString() })
-        .eq('id', job.id)
-        .eq('status', 'in_progress')
-        .select('id, status');
-      console.log('Complete result:', data, error);
-
-      if (error) {
-        Alert.alert('Error', error.message);
-        return;
-      }
-      if (!data || data.length === 0) {
-        Alert.alert(
-          'Error',
-          es
-            ? 'No se pudo completar el trabajo. El estado puede haber cambiado.'
-            : 'Could not complete the job. The status may have changed.',
-        );
-        return;
-      }
-
-      setRatingJob(job);
-      loadJobs();
+      // Signatures OK → collect the required "after" photos and complete in CompleteModal.
+      setCompleteJob(job);
     } catch (e: any) {
       Alert.alert('Error', e.message);
     } finally {

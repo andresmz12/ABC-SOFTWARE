@@ -90,7 +90,7 @@ async function uploadJobPhoto(userId: string, uri: string, index: number): Promi
   }
 }
 
-export default function PostJob() {
+function PostJobForm() {
   const { t, lang } = useLang();
   const router = useRouter();
   const { user } = useAuthStore();
@@ -118,23 +118,6 @@ export default function PostJob() {
   const [squareMeters, setSquareMeters] = useState<string>('');
   // Emergency mode
   const [isEmergency, setIsEmergency] = useState(false);
-
-  // Block if client is not yet approved
-  if (user?.status !== 'approved') {
-    return (
-      <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
-        <Feather name="clock" size={44} color={C.warning} />
-        <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', marginTop: 20, textAlign: 'center' }}>
-          {es ? 'Verificación Pendiente' : 'Verification Pending'}
-        </Text>
-        <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 10, textAlign: 'center', lineHeight: 22 }}>
-          {es
-            ? 'Tu cuenta está pendiente de verificación. Revisaremos tu documento y te notificaremos cuando sea aprobada.'
-            : 'Your account is pending verification. We will review your document and notify you when it is approved.'}
-        </Text>
-      </View>
-    );
-  }
 
   const { control, handleSubmit, watch, setValue, reset, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -766,4 +749,29 @@ export default function PostJob() {
       </KeyboardAvoidingView>
     </View>
   );
+}
+
+// Approval gate lives in a wrapper so PostJobForm always calls the same hooks
+// (the previous in-body early return changed the hook count when the status flipped).
+export default function PostJob() {
+  const { user } = useAuthStore();
+  const { lang } = useLang();
+  const es = lang === 'es';
+
+  if (user?.status !== 'approved') {
+    return (
+      <View style={{ flex: 1, backgroundColor: C.background, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32 }}>
+        <Feather name="clock" size={44} color={C.warning} />
+        <Text style={{ color: C.textPrimary, fontSize: 20, fontFamily: 'Inter_700Bold', marginTop: 20, textAlign: 'center' }}>
+          {es ? 'Verificación Pendiente' : 'Verification Pending'}
+        </Text>
+        <Text style={{ color: C.textSecondary, fontSize: 14, fontFamily: 'Inter_400Regular', marginTop: 10, textAlign: 'center', lineHeight: 22 }}>
+          {es
+            ? 'Tu cuenta está pendiente de verificación. Revisaremos tu documento y te notificaremos cuando sea aprobada.'
+            : 'Your account is pending verification. We will review your document and notify you when it is approved.'}
+        </Text>
+      </View>
+    );
+  }
+  return <PostJobForm />;
 }

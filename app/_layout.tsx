@@ -23,6 +23,10 @@ import { useSettingsStore } from '@/store/settingsStore';
 import { LanguageProvider } from '@/context/LanguageContext';
 import { useAuthStore } from '@/store/authStore';
 
+import { installWebAlert } from '@/lib/dialog';
+
+installWebAlert();
+
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 const INACTIVITY_MS = 15 * 60 * 1000;

@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react';
+import LegalLinks from '@/components/ui/LegalLinks';
+import DeleteAccountButton from '@/components/ui/DeleteAccountButton';
 import { View, Text, TouchableOpacity, ScrollView, ActivityIndicator, Modal, Alert, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -261,6 +263,9 @@ export default function ClientProfile() {
           </Text>
           <Feather name="chevron-right" size={16} color={C.textMuted} style={{ position: 'absolute', right: 16 }} />
         </TouchableOpacity>
+
+        <LegalLinks />
+        <DeleteAccountButton />
 
         {/* Sign out */}
         <TouchableOpacity

@@ -261,3 +261,20 @@ export function homeRouteForRole(role?: string | null): string {
     default:            return '/(auth)/welcome';
   }
 }
+
+/**
+ * Permanently delete the signed-in user's account (edge function `delete-account`).
+ * Resolves with the result mode, or throws an Error with `code === 'active_jobs'`
+ * when the user still has jobs in progress.
+ */
+export async function deleteMyAccount(): Promise<'deleted' | 'anonymised'> {
+  const { data, error } = await supabase.functions.invoke('delete-account', { body: {} });
+  if (error) {
+    let body: any = null;
+    try { body = await (error as any).context?.json?.(); } catch { /* ignore */ }
+    const e: any = new Error(body?.message ?? error.message);
+    e.code = body?.error;
+    throw e;
+  }
+  return (data as any).mode;
+}
