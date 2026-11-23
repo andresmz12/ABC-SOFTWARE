@@ -26,3 +26,5 @@ expo-env.d.ts
 .env*
 
 supabase/.temp/
+play-service-account.json
+*.keystore
